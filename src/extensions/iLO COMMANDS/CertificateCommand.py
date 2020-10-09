@@ -310,7 +310,7 @@ class CertificateCommand(RdmcCommandBase):
         gen_csr_parser = subcommand_parser.add_parser(
             'csr',
             help=gen_csr_help,
-            description=gen_csr_help+'\nexmaple: certificate csr [ORG_NAME] [ORG_UNIT]'\
+            description=gen_csr_help+'\nexample: certificate csr [ORG_NAME] [ORG_UNIT]'\
                         ' [COMMON_NAME] [COUNTRY] [STATE] [CITY]\n\nNOTE: please make ' \
                         'certain the order of arguments is correct.',
             formatter_class=RawDescriptionHelpFormatter
