@@ -4,6 +4,7 @@
 #
 
 # norootforbuild
+%global __python /usr/local/bin/python3.9
 
 Name:           ilorest
 License:        Copyright 2016-2021 Hewlett Packard Enterprise Development LP
@@ -19,7 +20,6 @@ Packager:       Hewlett Packard Enterprise
 Summary:        RESTful Interface Tool
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
-#BuildRequires:  which
 
 %description
 Command line interface for managing HPE ProLiant Servers
@@ -30,10 +30,11 @@ Authors:
 
 %prep
 %setup -n ilorest-%{version}
+sudo -H %{__python} setup.py install
+sudo -H %{__python} -m pip install pyinstaller
 
 %build
-mv rdmc-pyinstaller-lin.spc rdmc-pyinstaller-lin.spec
-/usr/local/python3.7/bin/pyinstaller rdmc-pyinstaller-lin.spec
+/usr/local/bin/pyinstaller rdmc-pyinstaller-lin.spec
 cp dist/ilorest ilorest
 
 %install
@@ -42,20 +43,7 @@ install -D -m 0755 ilorest $RPM_BUILD_ROOT%{_sbindir}/ilorest
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/ilorest
 install -D -m 0644 rdmc-linux.conf $RPM_BUILD_ROOT%{_sysconfdir}/ilorest/redfish.conf
 
-#mkdir -p $RPM_BUILD_ROOT%{_mandir}/man8
-#install -D -m 0644 docs/sphinx/_build/man/ilorest.8.gz $RPM_BUILD_ROOT%{_mandir}/man8
-
-#mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/bash_completion.d/*
-#install -D -m 0644 etc/bash_completion.d/ilorest.bash $RPM_BUILD_ROOT%{_sysconfdir}/bash_completion.d/
-
-mkdir -p $RPM_BUILD_ROOT%{_libdir}/
-install -D -m 0666 ./externals/*.so $RPM_BUILD_ROOT%{_libdir}/
-
-%post
-#rm -f %{_sbindir}/hprest
-
-%postun
-#rm -f %{_sbindir}/hprest
+find ~/.python
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -63,12 +51,8 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-, root, root)
 %{_sbindir}/%{name}
-%attr(644, root, root) %{_libdir}/ilorest_chif.so
 %config %{_sysconfdir}/%{name}/*
-#%doc README
-#%doc %_mandir/man8/ilorest.8.gz
 %dir %{_sysconfdir}/%{name}
-#%{_sysconfdir}/bash_completion.d/*
 %defattr(444, root, root)
 
 %changelog

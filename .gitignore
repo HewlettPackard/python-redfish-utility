@@ -1,11 +1,9 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
+*.pyc
+/dist/
+/build/
+/.eggs/
+*.egg-info
+*.egg
+*.tox
+**/*coverage*
 
-src/ilorest.log
-/build
-/dist
-
-.settings
-.idea/
-.cache/

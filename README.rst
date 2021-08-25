@@ -16,14 +16,15 @@ python-ilorest-utility
 Description
 ----------
 
- The Redfish Utility is a command line interface that allows you to manage servers that take advantage of Redfish APIs. For this release of the utility, you can manage any server running a Redfish API. You can install the utility on your computer for remote use. In addition to using the utility manually to execute individual commands, you can create scripts to automate tasks.
+The Redfish Utility is a command line interface that allows you to manage servers that take advantage of Redfish APIs. For this release of the utility, you can manage any server running a Redfish API. You can install the utility on your computer for remote use. In addition to using the utility manually to execute individual commands, you can create scripts to automate tasks.
 
- You can download the windows and linux tool directly from HPE's website  `here <https://www.hpe.com/us/en/product-catalog/detail/pip.7630408.html#/>`_
+You can download the windows and linux tool directly from HPE's website  `here <https://www.hpe.com/us/en/product-catalog/detail/pip.7630408.html#/>`_
  or download the windows, linux, debian, and mac versions from the github `releases section <https://hewlettpackard.github.io/python-redfish-utility/releases>`_.
 
 Requirements
 ------------
- No special requirements.
+
+- Python 3.9.6
 
 Usage
 ----------
@@ -33,15 +34,21 @@ Installing Dependencies
 
 .. code-block:: console
 
-	pip install -r requirements.txt
-	
+    pip install -q build
+    python -m build
+    pip install dist/python_redfish_utility-$(cat .version).tar.gz
+    # or
+    pip install dist/python_redfish_utility-*.whl
+
+
 Running the utility from command line
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: console
 
-	python.exe rdmc.py
-	
+    python3 rdmc.py
+
+
 Building an executable from file source
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -49,7 +56,12 @@ Building an executable from file source
 
 .. code-block:: console
 
-	python.exe pyinstaller rdmc-pyinstaller-windows.spec
+    export GIT_REPO_NAME=$(pwd)
+    export BUILD_METADATA=1~local~$(shell git rev-parse --short HEAD)
+    make prep
+    make rpm
+    pyinstaller rdmc-pyinstaller-linux.spec
+
 
 Documentation
 ~~~~~~~~~~~~~

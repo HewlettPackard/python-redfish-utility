@@ -1,0 +1,52 @@
+@Library('csm-shared-library') _
+
+def isStable = env.TAG_NAME != null || env.BRANCH_NAME == 'main' ? true : false
+pipeline {
+  agent {
+    label "metal-gcp-builder"
+  }
+
+  options {
+    buildDiscarder(logRotator(numToKeepStr: "10"))
+    timestamps()
+    disableConcurrentBuilds()
+  }
+
+  environment {
+    BUILD_METADATA = getRpmRevision(isStable: isStable)
+    GIT_REPO_NAME = getRepoName()
+  }
+
+  stages {
+    stage('Prepare: Python Environment') {
+      steps {
+        // TODO: Use python from a package manager.
+        sh "rm -rf ~/.python && mkdir ~/.python"
+        sh "cd ~/.python && wget http://ftp.de.debian.org/debian/pool/main/p/python3.9/python3.9_3.9.6.orig.tar.xz"
+        sh "cd ~/.python && tar -xvf python3.9_3.9.6.orig.tar.xz && rm python3.9_3.9.6.orig.tar.xz"
+        sh "cd ~/.python/Python-3.9.6 && ./configure --enable-optimizations --enable-shared LDFLAGS='-Wl,-rpath /usr/local/lib'"
+        sh "cd ~/.python/Python-3.9.6 && sudo -H make altinstall"
+      }
+    }
+    stage('Prepare: RPM') {
+      steps {
+        sh "make prepare"
+      }
+    }
+
+    stage('Build: RPM') {
+      steps {
+        sh "make rpm"
+      }
+    }
+
+    stage('Publish') {
+      steps {
+        script {
+          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "dist/rpmbuild/RPMS/*.rpm", arch: "noarch", isStable: isStable)
+          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "dist/rpmbuild/SRPMS/*.rpm", arch: "src", isStable: isStable)
+        }
+      }
+    }
+  }
+}
