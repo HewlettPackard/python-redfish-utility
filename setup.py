@@ -56,7 +56,6 @@ setup(
         ],
         'unit': [
             'pytest',
-            'pyfakefs',
             'pytest-mock',
         ],
         'docs': [

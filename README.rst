@@ -1,11 +1,11 @@
 python-ilorest-utility
 ======================
-.. image:: https://travis-ci.org/HewlettPackard/python-redfish-utility.svg?branch=master
-    :target: https://travis-ci.org/HewlettPackard/python-redfish-utility
-.. image:: https://img.shields.io/github/release/HewlettPackard/python-redfish-utility.svg?maxAge=2592000
-	:target: https://github.com/HewlettPackard/python-redfish-utility/releases
+.. image:: https://travis-ci.org/Cray-HPE/python-redfish-utility.svg?branch=master
+    :target: https://travis-ci.org/Cray-HPE/python-redfish-utility
+.. image:: https://img.shields.io/github/release/Cray-HPE/python-redfish-utility.svg?maxAge=2592000
+	:target: https://github.com/Cray-HPE/python-redfish-utility/releases
 .. image:: https://img.shields.io/badge/license-Apache%202-blue.svg
-	:target: https://raw.githubusercontent.com/HewlettPackard/python-redfish-utility/master/LICENSE
+	:target: https://raw.githubusercontent.com/Cray-HPE/python-redfish-utility/master/LICENSE
 .. image:: https://img.shields.io/badge/python-3.9-blue.svg?maxAge=2592000
 
 .. contents:: :depth: 1
