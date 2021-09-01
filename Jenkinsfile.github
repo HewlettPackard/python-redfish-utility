@@ -3,7 +3,11 @@
 def isStable = env.TAG_NAME != null || env.BRANCH_NAME == 'main' ? true : false
 pipeline {
   agent {
-    label "metal-gcp-builder"
+    docker {
+        label "metal-gcp-builder"
+        image "arti.dev.cray.com/baseos-docker-master-local/debian:9"
+        args "-u root -v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker --group-add 999"
+    }
   }
 
   options {
@@ -19,15 +23,23 @@ pipeline {
 
   stages {
     stage('Prepare: Python Environment') {
+
       steps {
-        // TODO: Use python from a package manager.
+        sh "apt-get update"
+        sh "apt-get install -qq -y -o=Dpkg::Use-Pty=0 build-essential curl libncurses5-dev libffi-dev libssl1.1 libgdbm-dev libnss3-dev libreadline-dev libssl-dev rpm xz-utils zlib1g-dev"
         sh "rm -rf ~/.python && mkdir ~/.python"
-        sh "cd ~/.python && wget http://ftp.de.debian.org/debian/pool/main/p/python3.9/python3.9_3.9.6.orig.tar.xz"
-        sh "cd ~/.python && tar -xvf python3.9_3.9.6.orig.tar.xz && rm python3.9_3.9.6.orig.tar.xz"
+        sh "cd ~/.python && curl -O http://ftp.de.debian.org/debian/pool/main/p/python3.9/python3.9_3.9.6.orig.tar.xz"
+        sh "cd ~/.python && ls -l && tar -xvf ./python3.9_3.9.6.orig.tar.xz && rm python3.9_3.9.6.orig.tar.xz"
         sh "cd ~/.python/Python-3.9.6 && ./configure --enable-optimizations --enable-shared LDFLAGS='-Wl,-rpath /usr/local/lib'"
-        sh "cd ~/.python/Python-3.9.6 && sudo -H make altinstall"
+        sh "cd ~/.python/Python-3.9.6 && make altinstall"
+// TODO: Use python from a package manager; this breaks the lib after installing the RPM.
+// FIXME: [13826] Error loading Python lib '/tmp/_MEIXgmZ6x/libpython3.9.so.1.0': dlopen: /lib64/libm.so.6: version `GLIBC_2.29' not found (required by /tmp/_MEIXgmZ6x/libpython3.9.so.1.0)
+//        sh "echo 'deb http://ftp.de.debian.org/debian sid main' >>/etc/apt/sources.list"
+//        sh "apt-get update"
+//        sh "apt-get install -qq -o=Dpkg::Use-Pty=0 -y python3.9 python3.9-dev python3-pip python3-setuptools python3-six python3-venv"
       }
     }
+
     stage('Prepare: RPM') {
       steps {
         sh "make prepare"
@@ -47,6 +59,13 @@ pipeline {
           publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "dist/rpmbuild/SRPMS/*.rpm", arch: "src", isStable: isStable)
         }
       }
+    }
+  }
+
+  post {
+    always {
+      // Jenkins is 10000:10000
+      sh "chown -R 10000:10000 ${env.WORKSPACE}"
     }
   }
 }

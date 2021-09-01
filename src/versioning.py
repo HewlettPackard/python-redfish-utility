@@ -17,8 +17,24 @@
 # -*- coding: utf-8 -*-
 """ Version strings for the utility """
 
-__version__ = '3.2.2'
+from os import path
+from os import listdir
+
+def __version() -> str:
+    '''returns version'''
+    # FIXME: pyinstaller does not include this file despite MANIFEST.in
+    version_file = path.join(path.dirname(__file__), '.version')
+    try:
+        with open(version_file) as file:
+            return str(file.read().rstrip())
+    except FileNotFoundError:
+        return '3.2.2+'
+
+
+# TODO: Replace version, longname, and extracontent with calls to packages module.
+
+__version__ = __version()
 __shortname__ = 'iLOrest'
 __longname__ = 'RESTful Interface Tool'
-__extracontent__ = 'Copyright (c) 2014-2021 Hewlett Packard Enterprise'\
-                    ' Development LP\n'
+__extracontent__ = 'Copyright (c) 2014-2021 Hewlett Packard Enterprise' \
+                   ' Development LP\n'

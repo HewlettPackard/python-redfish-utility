@@ -11,13 +11,15 @@ def readme() -> str:
     with open('README.rst') as file:
         return str(file.read())
 
+
 def version() -> str:
     '''returns version'''
     with open('.version') as file:
         return str(file.read().rstrip())
 
+
 setup(
-    name='python-redfish-utility',
+    name='ilorest',
     version=version(),
     description='Python utility for interacting with the iLOREST API.',
     long_description=readme(),
@@ -35,6 +37,7 @@ setup(
         'jsonpatch >= 1.3',
         'jsonpath-rw >= 1.3.0',
         'jsonpointer >= 1.1',
+        'python-ilorest-library >= 3.2.2',
         'ply >= 2.4',
         'prompt_toolkit >= 2.0.8',
         'pyaes >= 1.6.1',

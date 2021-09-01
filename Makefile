@@ -16,7 +16,12 @@ prepare:
 	cat ${NAME}.spec
 	rm -rf $(BUILD_DIR)
 	mkdir -p $(BUILD_DIR)/SPECS $(BUILD_DIR)/SOURCES
-	cp $(SPEC_FILE) $(BUILD_DIR)/SPECS/
+	cp -pv $(SPEC_FILE) $(BUILD_DIR)/SPECS/
+
+chif:
+	mkdir -pv ./externals
+	curl -O https://downloads.hpe.com/pub/softlib2/software1/pubsw-linux/p1093353304/v168967/ilorest_chif.so
+	mv ilorest_chif.so externals
 
 rpm_package_source:
 	tar --transform 'flags=r;s,^,/${NAME}-${VERSION}/,' --exclude .git --exclude dist -cvjf $(SOURCE_PATH) .
