@@ -49,6 +49,7 @@ pipeline {
     stage('Build: RPM') {
       steps {
         sh "make rpm"
+        sh "ls -lR dist/rpmbuild"
       }
     }
 
