@@ -21,7 +21,7 @@ You can download the windows and linux tool directly from HPE's website  `here <
 Requirements
 ------------
 
-- Python 3.9.6
+- Python 3.9.7
 
 Usage
 ----------
