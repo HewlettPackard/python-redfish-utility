@@ -54,7 +54,7 @@ pipeline {
 
     stage('Publish') {
       steps {
-        sh "apt-get install -y openssh-client uuid-runtime"
+        sh "apt-get install -y openssh-client rsync uuid-runtime"
         script {
           publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "dist/rpmbuild/RPMS/*.rpm", arch: "x86_64", isStable: isStable)
           publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "dist/rpmbuild/SRPMS/*.rpm", arch: "src", isStable: isStable)
