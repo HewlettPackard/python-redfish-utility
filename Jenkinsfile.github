@@ -28,10 +28,10 @@ pipeline {
         sh "apt-get update"
         sh "apt-get install -qq -y -o=Dpkg::Use-Pty=0 build-essential curl libncurses5-dev libffi-dev libssl1.1 libgdbm-dev libnss3-dev libreadline-dev libssl-dev rpm xz-utils zlib1g-dev"
         sh "rm -rf ~/.python && mkdir ~/.python"
-        sh "cd ~/.python && curl -O http://ftp.de.debian.org/debian/pool/main/p/python3.9/python3.9_3.9.6.orig.tar.xz"
-        sh "cd ~/.python && ls -l && tar -xvf ./python3.9_3.9.6.orig.tar.xz && rm python3.9_3.9.6.orig.tar.xz"
-        sh "cd ~/.python/Python-3.9.6 && ./configure --enable-optimizations --enable-shared LDFLAGS='-Wl,-rpath /usr/local/lib'"
-        sh "cd ~/.python/Python-3.9.6 && make altinstall"
+        sh "cd ~/.python && curl -O http://ftp.de.debian.org/debian/pool/main/p/python3.9/python3.9_3.9.7.orig.tar.xz"
+        sh "cd ~/.python && ls -l && tar -xvf ./python3.9_3.9.7.orig.tar.xz && rm python3.9_3.9.7.orig.tar.xz"
+        sh "cd ~/.python/Python-3.9.7 && ./configure --enable-optimizations --enable-shared LDFLAGS='-Wl,-rpath /usr/local/lib'"
+        sh "cd ~/.python/Python-3.9.7 && make altinstall"
 // TODO: Use python from a package manager; this breaks the lib after installing the RPM.
 // FIXME: [13826] Error loading Python lib '/tmp/_MEIXgmZ6x/libpython3.9.so.1.0': dlopen: /lib64/libm.so.6: version `GLIBC_2.29' not found (required by /tmp/_MEIXgmZ6x/libpython3.9.so.1.0)
 //        sh "echo 'deb http://ftp.de.debian.org/debian sid main' >>/etc/apt/sources.list"
