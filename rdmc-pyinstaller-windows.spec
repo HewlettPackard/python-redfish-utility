@@ -1,4 +1,3 @@
-# -*- mode: python -*-
 import os
 import sys
 import compileall

@@ -1,10 +1,9 @@
-TOPDIR:=$(shell pwd)/topdir
-BUILD_DIR := $(shell pwd)/.blddir
+BUILD_DIR := $(PWD)/dist/rpmbuild
 SRCROOT := $(shell pwd)
 CHROOT_LOCAL_DIR:= $(shell pwd)
 
 NAME:=ilorest
-VERSION:=2.4.0
+VERSION := $(shell awk '/Version/{print $$NF; exit}' ${SRCROOT}/docs/slate/source/includes/_changelog.md)
 RELEASE:=1
 SPHINXBUILD:=$(BUILD_DIR)/pylib/Sphinx-1.0.7/sphinx-build.py
 BLOFLY := /net
@@ -19,62 +18,39 @@ ifdef MTX_PRODUCT_VERSION
   VERSION:=$(MTX_PRODUCT_VERSION)
 endif
 
-
 ifdef MTX_BUILD_NUMBER
   RELEASE:=$(MTX_BUILD_NUMBER)
 endif
 
-
 all: rpm
 
-export PYTHONPATH=$(BUILD_DIR)/pylib/docutils-0.16:$(BUILD_DIR)/pylib/roman-3.3/src:$(BUILD_DIR)/pylib/Jinja2-2.11.2:$(BUILD_DIR)/pylib/Sphinx-1.0.7
-# export http_proxy=proxy.houston.hp.com:8080
-tbz:
-	rm -rf $(BUILD_DIR)/pylib
-	mkdir -p $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/roman/roman-3.3.tar.gz -C $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/sphinx/Sphinx-1.0.7.tar.gz -C $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/docutils/docutils-0.16.tar.gz -C $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/jinja/Jinja2-2.11.2.tar.gz -C $(BUILD_DIR)/pylib
-
-	rm -rf "$(NAME)-$(VERSION)"
-	rm -f  "$(NAME)-$(VERSION).tar.bz2"
-	mkdir -p "$(NAME)-$(VERSION)"
-	tar --exclude=$(NAME)-$(VERSION) \
-            --exclude=.svn --exclude=*.pyc --exclude=rdmc-pyinstaller*.spec --exclude=./Makefile -cf - * |\
-            ( tar -C $(NAME)-$(VERSION) -xf -)
-	sed -e "s/\%VERSION\%/$(VERSION)/g"  -e "s/\%RELEASE\%/$(RELEASE)/g"\
-            rdmc.spec.in > "$(NAME)-$(VERSION)/rdmc.spec"
-	sed -i -e "s/\%VERSION\%/$(VERSION)/g" -e "s/\%RELEASE\%/$(RELEASE)/g" \
-            docs/sphinx/conf.py
-
-	#make -C "$(NAME)-$(VERSION)/docs/sphinx" man  SPHINXBUILD=$(SPHINXBUILD)
-	#gzip -c "$(NAME)-$(VERSION)/docs/sphinx/_build/man/ilorest.8" > "$(NAME)-$(VERSION)/docs/sphinx/_build/man/ilorest.8.gz"
-
-	rm -rf "$(NAME)-$(VERSION)/Sphinx-1.0.7"
-	rm -rf "$(NAME)-$(VERSION)/docutils-0.16"
-	rm -rf "$(NAME)-$(VERSION)/Jinja2-2.11.2"
-	rm -rf "$(NAME)-$(VERSION)/scexe_src/scexe.spec"
-	cp -r $(MTX_STAGING_PATH)/externals "$(NAME)-$(VERSION)"
-	tar cfj "$(NAME)-$(VERSION).tar.bz2" "$(NAME)-$(VERSION)"
-	rm -rf "$(NAME)-$(VERSION)"
+chif:
+	mkdir -pv ./externals
+	curl -O https://downloads.hpe.com/pub/softlib2/software1/pubsw-linux/p1093353304/v168967/ilorest_chif.so
+	mv ilorest_chif.so externals
 
 rpmprep:
-	rm -rf $(TOPDIR)
-	mkdir -p $(TOPDIR)
-	cd $(TOPDIR) && mkdir -p BUILD RPMS SOURCES SPECS SRPMS
+	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)/BUILD $(BUILD_DIR)/RPMS $(BUILD_DIR)/SOURCES $(BUILD_DIR)/SPECS $(BUILD_DIR)/SRPMS
 
+doc-ver:
+	sed -e "s/^version =.*/version = '$(VERSION)'/" -e "s/^release =.*/release = '$(VERSION)-$(RELEASE)'/" \
+ 		< docs/sphinx/conf.py > docs/sphinx/conf.py.new
+	mv docs/sphinx/conf.py.new docs/sphinx/conf.py
+ 
 rdmc.spec: rdmc.spec.in
 	sed -e "s/\%VERSION\%/$(VERSION)/g" -e "s/\%RELEASE\%/$(RELEASE)/g" \
-	   $< > $(TOPDIR)/SPECS/$@
+	   $< > $@
+	cp -pv $@ $(BUILD_DIR)/SPECS/$@
 
-rpm: rpmprep tbz rdmc.spec
-	cp "$(NAME)-$(VERSION).tar.bz2" $(TOPDIR)/SOURCES/
-	rpmbuild -ba --define '_topdir $(TOPDIR)' $(TOPDIR)/SPECS/rdmc.spec
+rpm: doc-ver rpmprep rdmc.spec
+	tar --transform 'flags=r;s,^,/${NAME}-${VERSION}/,' --exclude .git --exclude .gitignore --exclude dist -cvjf ${BUILD_DIR}/SOURCES/${NAME}-${VERSION}.tar.bz2 .
+	rpmbuild -ts ${BUILD_DIR}/SOURCES/${NAME}-${VERSION}.tar.bz2 --define "_topdir $(BUILD_DIR)"
+	rpmbuild -ba rdmc.spec --define "_topdir $(BUILD_DIR)"
 
 clean:
 	rm -f "$(NAME)-$(VERSION).tar.bz2"
-	rm -rf topdir .blddir
+	rm -rf $(BUILD_DIR)
 
 
 DEBCHROOTD := $(BUILD_DIR)/chroots/squeeze

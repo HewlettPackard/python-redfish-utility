@@ -22,98 +22,91 @@ This is the main module for Redfish Utility which handles all of the CLI and UI 
 # ---------Imports---------
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from builtins import bytes, str, open, super, range, input, int, object
-import os
-import sys
-import six
-import ssl
-import copy
-import glob
-import errno
-import shlex
-import ctypes
-import logging
-import traceback
-import importlib
+
 import collections
-
-from six.moves import input
-from prompt_toolkit import PromptSession
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.shortcuts import CompleteStyle
-from prompt_toolkit.output import Output
-from prompt_toolkit.formatted_text import HTML
+import copy
+import ctypes
+import errno
+import glob
+import importlib
+import logging
+import os
+import shlex
+import ssl
+import sys
+import traceback
+import warnings
+from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
+from builtins import int
+from builtins import open
+from builtins import str
+from builtins import super
 
-import redfish.ris
 import redfish.hpilo
 import redfish.rest.v1
+import redfish.ris
+import six
+from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.shortcuts import CompleteStyle
+from six.moves import input
 
 import cliutils
-import versioning
 import extensions
-
+import versioning
 from config.rdmc_config import RdmcConfig
-
-from redfish.ris.rmc_helper import NothingSelectedError, UndefinedClientError
-
-from rdmc_helper import (
-    ReturnCodes,
-    RdmcError,
-    ConfigurationFileError,
-    CommandNotEnabledError,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    UI,
-    LOGGER,
-    LERR,
-    InvalidFileFormattingError,
-    NoChangesFoundOrMadeError,
-    InvalidFileInputError,
-    NoContentsFoundForOperationError,
-    InfoMissingEntriesError,
-    MultipleServerConfigError,
-    InvalidOrNothingChangedSettingsError,
-    NoDifferencesFoundError,
-    InvalidMSCfileInputError,
-    FirmwareUpdateError,
-    BootOrderMissingEntriesError,
-    NicMissingOrConfigurationError,
-    StandardBlobErrorHandler,
-    NoCurrentSessionEstablished,
-    InvalidCListFileError,
-    FailureDuringCommitError,
-    IncompatibleiLOVersionError,
-    PartitionMoutingError,
-    TimeOutError,
-    DownloadError,
-    UploadError,
-    BirthcertParseError,
-    ResourceExists,
-    IncompatableServerTypeError,
-    IloLicenseError,
-    InvalidKeyError,
-    UnableToDecodeError,
-    UnabletoFindDriveError,
-    Encryption,
-    PathUnavailableError,
-    TaskQueueError,
-    UsernamePasswordRequiredError,
-    TabAndHistoryCompletionClass,
-    iLORisCorruptionError,
-    CloudConnectTimeoutError,
-    CloudConnectFailedError,
-    ProxyConfigFailedError,
-    AlreadyCloudConnectedError,
-)
-
-from argparse import ArgumentParser
-from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser, HARDCODEDLIST
-
-from contextlib import contextmanager
-
-import warnings
+from rdmc_base_classes import HARDCODEDLIST
+from rdmc_base_classes import RdmcCommandBase
+from rdmc_base_classes import RdmcOptionParser
+from rdmc_helper import AlreadyCloudConnectedError
+from rdmc_helper import BirthcertParseError
+from rdmc_helper import BootOrderMissingEntriesError
+from rdmc_helper import CloudConnectFailedError
+from rdmc_helper import CloudConnectTimeoutError
+from rdmc_helper import CommandNotEnabledError
+from rdmc_helper import ConfigurationFileError
+from rdmc_helper import DownloadError
+from rdmc_helper import Encryption
+from rdmc_helper import FailureDuringCommitError
+from rdmc_helper import FirmwareUpdateError
+from rdmc_helper import IloLicenseError
+from rdmc_helper import iLORisCorruptionError
+from rdmc_helper import IncompatableServerTypeError
+from rdmc_helper import IncompatibleiLOVersionError
+from rdmc_helper import InfoMissingEntriesError
+from rdmc_helper import InvalidCListFileError
+from rdmc_helper import InvalidCommandLineError
+from rdmc_helper import InvalidCommandLineErrorOPTS
+from rdmc_helper import InvalidFileFormattingError
+from rdmc_helper import InvalidFileInputError
+from rdmc_helper import InvalidKeyError
+from rdmc_helper import InvalidMSCfileInputError
+from rdmc_helper import InvalidOrNothingChangedSettingsError
+from rdmc_helper import LERR
+from rdmc_helper import LOGGER
+from rdmc_helper import MultipleServerConfigError
+from rdmc_helper import NicMissingOrConfigurationError
+from rdmc_helper import NoChangesFoundOrMadeError
+from rdmc_helper import NoContentsFoundForOperationError
+from rdmc_helper import NoCurrentSessionEstablished
+from rdmc_helper import NoDifferencesFoundError
+from rdmc_helper import PartitionMoutingError
+from rdmc_helper import PathUnavailableError
+from rdmc_helper import ProxyConfigFailedError
+from rdmc_helper import RdmcError
+from rdmc_helper import ResourceExists
+from rdmc_helper import ReturnCodes
+from rdmc_helper import StandardBlobErrorHandler
+from rdmc_helper import TabAndHistoryCompletionClass
+from rdmc_helper import TaskQueueError
+from rdmc_helper import TimeOutError
+from rdmc_helper import UI
+from rdmc_helper import UnableToDecodeError
+from rdmc_helper import UnabletoFindDriveError
+from rdmc_helper import UploadError
+from rdmc_helper import UsernamePasswordRequiredError
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 

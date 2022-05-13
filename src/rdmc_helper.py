@@ -20,22 +20,23 @@
 
 # ---------Imports---------
 from __future__ import unicode_literals
+
+import json
+import logging
 import os
 import sys
 import time
-import json
-import logging
-
 from collections import OrderedDict
-from ctypes import create_string_buffer, c_char_p, byref
+from ctypes import byref
+from ctypes import c_char_p
+from ctypes import create_string_buffer
 
-import six
 import pyaes
-
-from prompt_toolkit.completion import Completer, Completion
-
-import redfish.ris
 import redfish.hpilo.risblobstore2 as risblobstore2
+import redfish.ris
+import six
+from prompt_toolkit.completion import Completer
+from prompt_toolkit.completion import Completion
 
 import versioning
 

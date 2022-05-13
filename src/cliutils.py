@@ -19,11 +19,11 @@
 
 # ---------Imports---------
 
+import getpass
 import os
 import re
-import sys
-import getpass
 import subprocess
+import sys
 
 from rdmc_helper import UI
 

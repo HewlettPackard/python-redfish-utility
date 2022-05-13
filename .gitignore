@@ -1,11 +1,12 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.egg
+*.egg-info
 
 src/ilorest.log
 /build
 /dist
 
 .settings
-.idea/
 .cache/

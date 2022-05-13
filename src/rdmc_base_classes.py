@@ -19,24 +19,25 @@
 
 # ---------Imports---------
 from __future__ import unicode_literals
-from builtins import bytes, str, open, super, range, input, int, object
-import os
-import six
-import sys
 
-from argparse import (
-    ArgumentParser,
-    _ArgumentGroup,
-    Action,
-    SUPPRESS,
-    RawDescriptionHelpFormatter,
-)
+import os
+import sys
+from argparse import _ArgumentGroup
+from argparse import Action
+from argparse import ArgumentParser
+from argparse import RawDescriptionHelpFormatter
+from argparse import SUPPRESS
+from builtins import bytes
+from builtins import int
+from builtins import object
+from builtins import str
+from builtins import super
 
 from redfish.ris import NothingSelectedError
 
 import cliutils
-import versioning
 import rdmc_helper
+import versioning
 from rdmc_helper import InvalidCommandLineErrorOPTS
 
 # from extensions.COMMANDS import LoginCommand, SelectCommand
