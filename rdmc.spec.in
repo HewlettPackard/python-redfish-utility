@@ -43,6 +43,7 @@ Authors:
 %{__python} -m pip install pyinstaller
 
 %build
+mv rdmc-pyinstaller-lin.spec.py rdmc-pyinstaller-lin.spec
 %{__pyinstaller} rdmc-pyinstaller-lin.spec
 
 %install
