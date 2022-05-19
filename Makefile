@@ -1,6 +1,7 @@
 BUILD_DIR := $(PWD)/dist/rpmbuild
 SRCROOT := $(shell pwd)
 CHROOT_LOCAL_DIR:= $(shell pwd)
+BUILD_METADATA ?= 1~development~$(shell git rev-parse --short HEAD)
 
 NAME:=ilorest
 VERSION := $(shell awk '/Version/{print $$NF; exit}' ${SRCROOT}/docs/slate/source/includes/_changelog.md)
@@ -45,8 +46,8 @@ rdmc.spec: rdmc.spec.in
 
 rpm: doc-ver rpmprep rdmc.spec
 	tar --transform 'flags=r;s,^,/${NAME}-${VERSION}/,' --exclude .git --exclude .gitignore --exclude dist -cvjf ${BUILD_DIR}/SOURCES/${NAME}-${VERSION}.tar.bz2 .
-	rpmbuild -ts ${BUILD_DIR}/SOURCES/${NAME}-${VERSION}.tar.bz2 --define "_topdir $(BUILD_DIR)"
-	rpmbuild -ba rdmc.spec --define "_topdir $(BUILD_DIR)"
+	BUILD_METADATA=$(BUILD_METADATA) rpmbuild -ts ${BUILD_DIR}/SOURCES/${NAME}-${VERSION}.tar.bz2 --define "_topdir $(BUILD_DIR)"
+	BUILD_METADATA=$(BUILD_METADATA) rpmbuild -ba rdmc.spec --define "_topdir $(BUILD_DIR)"
 
 clean:
 	rm -f "$(NAME)-$(VERSION).tar.bz2"
@@ -54,29 +55,6 @@ clean:
 
 
 DEBCHROOTD := $(BUILD_DIR)/chroots/squeeze
-
-rpm-freeze: freeze-src tbz rpms
-
-rpms:
-	$(call freeze-chroot,x86_64)
-	#$(CHROOT) $(DEBCHROOTD) yum install -y which
-	#$(CHROOT) $(DEBCHROOTD) zypper --non-interactive install util-linux
-
-	$(CHROOT) $(DEBCHROOTD) bash -c 'useradd -m monkey'
-	cp "$(NAME)-$(VERSION).tar.bz2" $(DEBCHROOTD)/home/monkey
-	$(CHROOT) $(DEBCHROOTD) bash -c 'su - monkey -c "mkdir -p ~/build && cd ~/build && mkdir -p BUILD RPMS SOURCES SPECS SRPMS"'
-	echo "export LDFLAGS=-L/usr/local/ssl/lib/" > $(DEBCHROOTD)/home/monkey/c.sh
-	echo "export SL_INSTALL_PATH=/usr/local/ssl" >> $(DEBCHROOTD)/home/monkey/c.sh
-	echo "export OPENSSL_FIPS=1" >> $(DEBCHROOTD)/home/monkey/c.sh
-	echo "export LD_LIBRARY_PATH=/usr/local/ssl/lib/" >> $(DEBCHROOTD)/home/monkey/c.sh
-	echo "export CPPFLAGS=-I/usr/local/ssl/include/ -I/usr/local/ssl/include/openssl/" >> $(DEBCHROOTD)/home/monkey/c.sh
-	echo "rpmbuild -ta --define '_topdir /home/monkey/build/' /home/monkey/$(NAME)-$(VERSION).tar.bz2 " >> $(DEBCHROOTD)/home/monkey/c.sh
-	$(CHROOT) $(DEBCHROOTD) bash -c 'chmod a+x /home/monkey/c.sh'
-	$(CHROOT) $(DEBCHROOTD) bash -c 'su - monkey -c "/home/monkey/c.sh"'
-	cp -r $(DEBCHROOTD)/home/monkey/build/RPMS/ .
-
-	-find ./RPMS -type f -name '*-debuginfo-*.rpm' -exec rm -f {} \;
-	-find ./RPMS -type d -empty -exec rmdir {} \;
 
 ifdef MTX_COLLECTION_PATH
 	cp -r ./RPMS $(MTX_COLLECTION_PATH)/
@@ -246,3 +224,4 @@ deb:
 	mv new.deb $(NAME)-$(VERSION)-$(RELEASE)_amd64.deb
 	mkdir -p DEB && cp *.deb DEB
 	cp -r DEB $(MTX_COLLECTION_PATH)/
+
