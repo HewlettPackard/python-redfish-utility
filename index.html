@@ -312,6 +312,9 @@
             <a href="#change-log" class="toc-h1 toc-link" data-title="Change Log">Change Log</a>
               <ul class="toc-list-h2">
                   <li>
+                    <a href="#version-3-5-1-0" class="toc-h2 toc-link" data-title="Version 3.5.1.0">Version 3.5.1.0</a>
+                  </li>
+                  <li>
                     <a href="#version-3-5-0" class="toc-h2 toc-link" data-title="Version 3.5.0">Version 3.5.0</a>
                   </li>
                   <li>
@@ -491,7 +494,7 @@
                             <a href="#clearrestapistate-command" class="toc-h3 toc-link" data-title="Clearrestapistate Command">Clearrestapistate Command</a>
                           </li>
                           <li>
-                            <a href="#computeopsmanager-command" class="toc-h3 toc-link" data-title="Computeopsmanager Command">Computeopsmanager Command</a>
+                            <a href="#computeopsmanagement-command" class="toc-h3 toc-link" data-title="Computeopsmanagement Command">Computeopsmanagement Command</a>
                           </li>
                           <li>
                             <a href="#directory-command" class="toc-h3 toc-link" data-title="Directory Command">Directory Command</a>
@@ -1033,7 +1036,24 @@ you can create scripts to automate tasks.</p>
 <li><strong>HPE iLO Repository</strong></li>
 <li><strong>Smart Array support</strong></li>
 </ul>
-<h1 id='change-log'>Change Log</h1><h2 id='version-3-5-0'>Version 3.5.0</h2>
+<h1 id='change-log'>Change Log</h1><h2 id='version-3-5-1-0'>Version 3.5.1.0</h2>
+<p><strong>Fixes:</strong></p>
+
+<ul>
+<li>Changed computeopsmanager command to computeopsmanagement</li>
+<li>Fixed an issue in ipprofiles command to push HVT profile to Intelligent Provisioning page.  Added new option -t/--sleeptime to specify the wait time to enter Intelligent Provisioning page. Default is set to 320s(4 min).</li>
+<li>Fixed an InvalidFileInputError exception when deleting ipprofiles.</li>
+<li>Fixed an issue where login command did not prompt for password when just username is given.</li>
+<li>Fixed an issue where ethernet command did not display data completely.</li>
+<li>Fixed an issue where serverinfo --system command did not display nic ports with iLO FW 2.70.</li>
+</ul>
+
+<p><strong>Enhancements:</strong></p>
+
+<ul>
+<li>Added new option -t/--sleeptime to specify the wait time to enter Intelligent Provisioning page with default value to (4 min).</li>
+</ul>
+<h2 id='version-3-5-0'>Version 3.5.0</h2>
 <p><strong>Fixes:</strong>   </p>
 
 <ul>
@@ -1048,7 +1068,7 @@ you can create scripts to automate tasks.</p>
 <p><strong>Feature Enhancements:</strong>   </p>
 
 <ul>
-<li>Added support to manage Compute Ops Manager which abstracts and orchestrates infrastructure and compute workflows.<br></li>
+<li>Added support to manage ComputeOpsManagement which abstracts and orchestrates infrastructure and compute workflows.</li>
 <li>Added support to enable/disable enhanced download capability to ethernet command.<br></li>
 </ul>
 <h2 id='version-3-3-0'>Version 3.3.0</h2>
@@ -5008,45 +5028,45 @@ Pending iLO configuration settings are stored in volatile memory. If clearrestap
 <p class="fake_header">Output</p>
 
 <p>None</p>
-<h3 id='computeopsmanager-command'>Computeopsmanager Command</h3>
+<h3 id='computeopsmanagement-command'>Computeopsmanagement Command</h3>
 <blockquote>
-<p>To enable your servers to be discovered, monitored and managed through Compute Ops Manager.</p>
+<p>To enable your servers to be discovered, monitored and managed through Compute Ops Management.</p>
 </blockquote>
 
 <pre>
-iLOrest > <span style="color: #01a982; ">computeopsmanager connect --activationkey keyvalue</span>
-Connecting computeopsmanager...
-computeopsmanager connection is successful
+iLOrest > <span style="color: #01a982; ">computeopsmanagement connect --activationkey keyvalue</span>
+Connecting computeopsmanagement...
+computeopsmanagement connection is successful
 </pre>
 
 <blockquote>
-<p>To disconnect from Compute Ops Manager</p>
+<p>To disconnect from Compute Ops Management</p>
 </blockquote>
 
 <pre>
-iLOrest > <span style="color: #01a982; ">computeopsmanager disconnect</span>
+iLOrest > <span style="color: #01a982; ">computeopsmanagement disconnect</span>
 The operation completed successfully.
 </pre>
 
 <blockquote>
-<p>To check the status of Compute Ops Manager</p>
+<p>To check the status of Compute Ops Management</p>
 </blockquote>
 
 <pre>
-iLOrest > <span style="color: #01a982; ">computeopsmanager status</span>
+iLOrest > <span style="color: #01a982; ">computeopsmanagement status</span>
 ------------------------------------------------
-Compute Ops Manager Status
+Compute Ops Management Status
 ------------------------------------------------
-Compute Ops Manager Status : NotEnabled
+Compute Ops Management Status : NotEnabled
 </pre>
 
 <p class="fake_header">Syntax</p>
 
-<p>computeopsmanager [connect/disconnect/status] [OPTIONS]</p>
+<p>computeopsmanagement [connect/disconnect/status] [OPTIONS]</p>
 
 <p class="fake_header">Description</p>
 
-<p>This command will enable your servers to be discovered, monitored and managed through Compute Ops Manager .</p>
+<p>This command will enable your servers to be discovered, monitored and managed through Compute Ops Management.</p>
 
 <p class="fake_header">Parameters</p>
 
@@ -6784,11 +6804,11 @@ The operation completed successfully.
 </pre>
 
 <blockquote>
-<p>To remove a profile, use the unique key contained in the profile with the <code>(-d, --delete)</code> option.</p>
+<p>To remove a profile, use the unique key contained in the profile with the <code>(--delete)</code> option.</p>
 </blockquote>
 
 <pre>
-iLOrest > ipprofiles <span style="color: #01a982; ">-d 1540504034216</span>
+iLOrest > ipprofiles <span style="color: #01a982; ">--delete 1540504034216</span>
 The operation completed successfully.
 iLOrest > ipprofiles
 {
@@ -6826,10 +6846,22 @@ iLOrest > ipprofiles
 <p>Write results to the specified file.</p>
 
 <ul>
-<li><strong>-d DEL_KEY, --delete=DEL_KEY</strong></li>
+<li><strong>--delete=DEL_KEY</strong></li>
 </ul>
 
 <p>Look for the key or keys in the ipprofile manager and delete.</p>
+
+<ul>
+<li><strong>--diags</strong></li>
+</ul>
+
+<p>Get result of last HVT (diagnostics) run as part of an ipprofile job.</p>
+
+<ul>
+<li><strong>-r, --running</strong></li>
+</ul>
+
+<p>Show status of the currently running or last job executed.</p>
 
 <ul>
 <li><strong>-s START_IP, --start=START_IP</strong></li>
