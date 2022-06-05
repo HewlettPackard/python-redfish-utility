@@ -14,7 +14,7 @@ AutoReqProv:    on
 Version:        %VERSION%
 Release:        %RELEASE%
 
-Source0:        ilorest-%{version}.tar.bz2
+Source:         ilorest-%{version}.tar.bz2
 Url:            https://www.hpe.com/info/restfulapi
 Vendor:         Hewlett Packard Enterprise
 Packager:       Hewlett Packard Enterprise
