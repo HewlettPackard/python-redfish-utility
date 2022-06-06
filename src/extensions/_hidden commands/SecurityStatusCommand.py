@@ -19,6 +19,7 @@
 import os
 import ctypes
 import platform
+import struct
 
 from argparse import ArgumentParser, SUPPRESS
 from ctypes import c_char_p, c_ubyte, create_string_buffer, POINTER
@@ -89,7 +90,14 @@ class SecurityStatusCommand(RdmcCommandBase):
         else:
             secstate = BlobStore2().get_security_state()
             if isinstance(secstate, bytes):
-                secstate = secstate.decode('utf-8')
+                if secstate == b'\x00':
+                    state = struct.unpack('B', secstate)
+                    state = str(state).strip(',( )')
+                    self.rdmc.ui.printer('Security State is {}...\n'.format(state))
+                else:
+                    secstate = secstate.decode('utf-8')
+                    self.rdmc.ui.printer('Security State is {}...\n'.format(secstate))
+
             self.rdmc.ui.printer('Security State is {}...\n'.format(secstate))
 
         return ReturnCodes.SUCCESS

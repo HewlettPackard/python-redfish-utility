@@ -141,7 +141,7 @@ class EthernetCommand:
 
         self.ethernetvalidation(options)
 
-        if 'default' in options.command.lower():
+        if "default" in options.command.lower():
             #flags are used to showing data with respect to enhance download
             flag = True
             return_flag = True
@@ -254,7 +254,6 @@ class EthernetCommand:
                             if 'managers/1/networkprotocol' in path.lower():
                                 if options.enable_enhanced_downloads or options.disable_enhanced_downloads:
                                     get_data = False
-                                    
                 if get_data:
                     self.output_data(data, options, get_data)
                 else:
@@ -494,7 +493,7 @@ class EthernetCommand:
             del data["Oem"][self.rdmc.app.typepath.defs.oemhp]["IPv4"]["DNSServers"]
             del data["Oem"][self.rdmc.app.typepath.defs.oemhp]["IPv6"]["DNSServers"]
 
-        if options.proxy != "None":
+        if options.proxy and options.proxy != "None":
             body = dict()
             body["Oem"] = {}
             body["Oem"]["Hpe"] = {}
@@ -542,7 +541,7 @@ class EthernetCommand:
                     "Enabling Proxy configuration...\n", verbose_override=True
                 )
                 self.rdmc.app.patch_handler(path[0], body, service=False, silent=False)
-        else:
+        elif options.proxy and options.proxy == "None":
             body = dict()
             body["Oem"] = {}
             body["Oem"]["Hpe"] = {}

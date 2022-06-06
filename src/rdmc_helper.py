@@ -44,7 +44,7 @@ import versioning
 
 if os.name == "nt":
     from six.moves import winreg
-    from win32con import HKEY_LOCAL_MACHINE
+    from win32.lib.win32con import HKEY_LOCAL_MACHINE
 
 # ---------End of imports---------
 
@@ -52,24 +52,27 @@ if os.name == "nt":
 # ---------Debug logger---------
 
 LOGGER = logging.getLogger()
-
 # default logging level setting
 LOGGER.setLevel(logging.ERROR)
-# log all errors to stderr instead of stdout
-LERR = logging.StreamHandler(sys.stderr)
 # loggin format
-LERRFMT = logging.Formatter("%(levelname)s\t: %(message)s")
+LFMT = logging.Formatter("%(levelname)s\t: %(message)s")
+# when success, all logs should be in stdout. When error, it should goto stderr
+# Initialize StreamHandler for Stdout and Stderr logs
+LOUT = logging.StreamHandler(sys.stdout)
+LERR = logging.StreamHandler(sys.stderr)
 # set formatter
-LERR.setFormatter(LERRFMT)
-LERR.name = "lerr"
+LERR.setFormatter(LFMT)
 # default stderr level setting
-LERR.setLevel(logging.WARN)
-# logger handle
+LERR.setLevel(logging.ERROR)
+# add logger handle
 LOGGER.addHandler(LERR)
-
+LOUT.setFormatter(LFMT)
+# default stdout level setting
+LOUT.setLevel(logging.INFO)
+# add logger handle
+LOGGER.addHandler(LOUT)
 
 # ---------End of debug logger---------
-
 
 class ReturnCodes(object):
     """Return code class to be used by all functions"""
@@ -173,7 +176,7 @@ class ReturnCodes(object):
     FAILED_TO_UPLOAD_COMPONENT = 103
     TASKQUEUE_ERROR = 104
 
-    # **** Compute Ops Manager Errors****
+    # **** ComputeOpsManagement Errors****
     CLOUD_CONNECT_TIMEOUT = 111
     CLOUD_CONNECT_FAILED = 112
     CLOUD_ALREADY_CONNECTED = 113
@@ -199,25 +202,25 @@ class ConfigurationFileError(RdmcError):
 
 
 class ProxyConfigFailedError(RdmcError):
-    """Raised when compute ops manager connection fails"""
+    """Raised when ComputeOpsManagement connection fails"""
 
     pass
 
 
 class CloudConnectTimeoutError(RdmcError):
-    """Raised when compute ops manager connection times out"""
+    """Raised when ComputeOpsManagement connection times out"""
 
     pass
 
 
 class CloudConnectFailedError(RdmcError):
-    """Raised when compute ops manager connection fails"""
+    """Raised when ComputeOpsManagement connection fails"""
 
     pass
 
 
 class AlreadyCloudConnectedError(RdmcError):
-    """Raised when compute ops manager is already connected"""
+    """Raised when ComputeOpsManagement is already connected"""
 
     pass
 
@@ -606,12 +609,10 @@ class UI(object):
         :param msg: warning message
         :type msg: string.
         """
-        LOGGER.error(msg)
         if inner_except is not None:
-            LOGGER.error(inner_except)
-            self.printer("Error: %s, %s\n" % (msg, inner_except))
+            LOGGER.error(msg, exc_info=True)
         else:
-            self.printer("Error: %s\n" % msg)
+            LOGGER.error(msg)
 
     def warn(self, msg, inner_except=None):
         """Used for general warning handling
@@ -620,18 +621,14 @@ class UI(object):
         :param msg: warning message
         :type msg: string.
         """
-        LOGGER.warning(msg)
         if inner_except is not None:
-            LOGGER.warning(inner_except)
-            self.printer("Warning: %s, %s\n" % (msg, inner_except))
+            LOGGER.warning(msg, exc_info=True)
         else:
-            self.printer("Warning: %s\n" % msg)
+            LOGGER.warning(msg)
 
     def retries_exhausted_attemps(self):
         """Called when url retries have been exhausted"""
-        self.printer(
-            "\nError: Could not reach URL. Retries have been exhausted.\n", excp=True
-        )
+        LOGGER.error("Could not reach URL. Retries have been exhausted.")
 
     def retries_exhausted_vnic_not_enabled(self):
         """Called when there is no VNIC is Enabled"""

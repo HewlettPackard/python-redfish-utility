@@ -1,0 +1,34 @@
+<p>&mdash;&ndash;Synopsis of Commits Above&mdash;&ndash;</p>
+
+<p><strong>Please fill out the following when submitting the PR</strong></p>
+
+<h2 id="status">Status</h2>
+
+<ul>
+<li>[ ] READY </li>
+<li>[ ] IN-DEVELOPMENT </li>
+<li>[ ] ON-HOLD</li>
+</ul>
+
+<h2 id="description">Description</h2>
+
+<p>A few sentences describing the overall goals of the pull request&rsquo;s commits.
+- Include the issue number here if it fixes one. Example <code class="prettyprint">#1</code>
+- Include the QUIX number here if it fixes one.</p>
+
+<h2 id="dependent-prs">Dependent PRs</h2>
+
+<p>List any PRs that must be merged together. Please note if order must be preserved. (For example if there are library changes needed)
+- If additional tool PRs are to be referenced simply note the PR#
+- If library PRs are to be referenced note &ldquo;library&rdquo; followed by the PR# </p>
+
+<h2 id="before-status-can-be-set-to-ready-i-have-completed-at-least-one-of-the-following">Before Status can be set to READY I have completed at least ONE of the following:</h2>
+
+<ul>
+<li>[ ] Check if documentation updates</li>
+<li>[ ] Check if example code updates</li>
+<li>[ ] Pylint static analysistests are passing above 9.0/10.0</li>
+<li>[N/A] Unit tests added for any new functions/features (Not required yet)</li>
+<li>[ ] Automatic testing passed</li>
+<li>[ ] Targeted/Custom Testing performed. Indicate the results in the description above or as additional comments.</li>
+</ul>

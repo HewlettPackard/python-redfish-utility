@@ -39,11 +39,11 @@ class ServerInfoCommand:
             "name": "serverinfo",
             "usage": None,
             "description": "Shows all information.\n\tExample: serverinfo\n\t\t"
-            "serverinfo --all\n\n\t"
-            "Show enabled fan, processor, and thermal information.\n\texample: "
-            "serverinfo --fans --processors --thermals --proxy\n\n\tShow all memory "
-            "and fan information, including absent locations in json format.\n\t"
-            "example: serverinfo --proxy --firmware --software --memory --fans --showabsent -j\n",
+                           "serverinfo --all\n\n\t"
+                           "Show enabled fan, processor, and thermal information.\n\texample: "
+                           "serverinfo --fans --processors --thermals --proxy\n\n\tShow all memory "
+                           "and fan information, including absent locations in json format.\n\t"
+                           "example: serverinfo --proxy --firmware --software --memory --fans --showabsent -j\n",
             "summary": "Shows aggregate health status and details of the currently logged in server.",
             "aliases": ["health", "serverstatus", "systeminfo"],
             "auxcommands": [],
@@ -87,16 +87,9 @@ class ServerInfoCommand:
         if "proxy" in info and info["proxy"]:
             if "WebProxyConfiguration" in info["proxy"]["Oem"]["Hpe"]:
                 info["proxy"] = info["proxy"]["Oem"]["Hpe"]["WebProxyConfiguration"]
+
         if options.json:
-            headers = list(info.keys())
-            if "power" in headers and info["power"]:
-                json_content = self.build_json_out(info,options.showabsent)
-                UI().print_out_json(json_content)
-            if "firmware" in headers and info["firmware"]:
-                json_content = self.build_json_out(info,options.showabsent)
-                UI().print_out_json(json_content)
-            else:
-                UI().print_out_json(info)
+            self.build_json_out(info,options.showabsent)
         else:
             self.prettyprintinfo(info, options.showabsent)
 
@@ -111,10 +104,16 @@ class ServerInfoCommand:
         :type options: list.
         """
         info = {}
+        path = self.rdmc.app.typepath.defs.systempath
         if options.system:
             info["system"] = OrderedDict()
-            csysresults = self.rdmc.app.select(selector="ComputerSystem.")
-
+            csysresults = self.rdmc.app.select(selector="ComputerSystemCollection")
+            csysresults = csysresults[0].dict
+            members = csysresults["Members"]
+            for id in members:
+                for mem_id in id.values():
+                    if path == mem_id:
+                        csysresults = self.rdmc.app.get_handler(mem_id, service=True, silent=True).dict
             try:
                 csysresults = csysresults[0].dict
             except:
@@ -155,7 +154,10 @@ class ServerInfoCommand:
                     info["system"]["ethernet"] = OrderedDict()
                     for eth in ethresults:
                         niccount += 1
-                        info["system"]["ethernet"][eth["Name"]] = eth["MACAddress"]
+                        if eth["Name"] == "":
+                            info["system"]["ethernet"][niccount] = eth["MACAddress"]
+                        elif eth["Name"] != "":
+                            info["system"]["ethernet"][eth["Name"]] = eth["MACAddress"]
                     info["system"]["NICCount"] = niccount
         if options.thermals or options.fans:
             data = None
@@ -225,13 +227,21 @@ class ServerInfoCommand:
         if options.software:
             data = None
             if not self.rdmc.app.typepath.defs.isgen10:
-                getloc = self.rdmc.app.getidbytype("Collection")
+                getloc = self.rdmc.app.getidbytype("SoftwareInventory")
             else:
                 getloc = self.rdmc.app.getidbytype("SoftwareInventoryCollection.")
+            result = dict()
+            i = 0
             for gloc in getloc:
                 if "SoftwareInventory" in gloc:
                     data = self.rdmc.app.getcollectionmembers(gloc)
-            info["software"] = data
+                    if self.rdmc.app.typepath.defs.isgen9:
+                        data = data.dict
+                        result[i] = data
+                        i = i + 1
+                        info["software"] = result
+                    else:
+                        info["software"] = data
         if not options.showabsent:
             jsonpath_expr = jsonpath_rw.parse("$..State")
             matches = jsonpath_expr.find(info)
@@ -252,78 +262,55 @@ class ServerInfoCommand:
                                 else:
                                     removedict = removedict[key]
                         del removedict[int(arr[1])]
-
         return info
 
-
     def build_json_out(self,info,absent):
-        output = ""
         headers = list(info.keys())
         if "power" in headers and info["power"]:
             data = info["power"]
             if data is not None:
                 for control in data["PowerControl"]:
-                    powercapacity = ("Total Power Capacity: %s W" % control["PowerCapacityWatts"])
-                    powerconsumed = ("Total Power Consumed: %s W" % control["PowerConsumedWatts"])
-                    poweraverage = ("Average Power: %s W" % control["PowerMetrics"]["AverageConsumedWatts"])
-                    maxpower = ("Max Consumed Power: %s W" % control["PowerMetrics"]["MaxConsumedWatts"])
-                    minpower = ("Minimum Consumed Power: %s W" % control["PowerMetrics"]["MinConsumedWatts"])
-                    output = ("Power Metrics on %s min. Intervals:"% control["PowerMetrics"]["IntervalInMin"])
-                    power_metrics ={output:{
-                        poweraverage,
-                        maxpower,
-                        minpower
-                    }}
-                    power_info = {
-                        powercapacity,
-                        powerconsumed,
-                    }
-                    content = {"Power Information":power_info}
-                    content.update(power_metrics)
+                    power_cap = {"Total Power Capacity":"%s W" %control["PowerCapacityWatts"]}
+                    power_cap.update({"Total Power Consumed": "%s W" % control["PowerConsumedWatts"] })
+                    power_mertic = ({"Average Power": "%s W" % control["PowerMetrics"]["AverageConsumedWatts"]})
+                    power_mertic.update({"Max Consumed Power": "%s W" % control["PowerMetrics"]["MaxConsumedWatts"]})
+                    power_mertic.update({"Minimum Consumed Power": "%s W" % control["PowerMetrics"]["MinConsumedWatts"]})
+                    powercontent = "Power Metrics on %s min. Intervals"% control["PowerMetrics"]["IntervalInMin"]
+                    test = {powercontent:power_mertic}
+                    content = {"power": power_cap}
+                    content["power"].update(test)
                 try:
                     for supply in data["PowerSupplies"]:
-                        powersupply = ("Power Supply %s" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["BayNumber"])
-                        powercap = ("Power Capacity: %s W" % supply["PowerCapacityWatts"])
-                        poweroutput = ("Last Power Output: %s W" % supply["LastPowerOutputWatts"])
-                        inputvoltage = ("Input Voltage: %s V" % supply["LineInputVoltage"])
-                        inputtype = ("Input Voltage Type: %s" % supply["LineInputVoltageType"])
-                        Hotplug = ("Hotplug Capable: %s" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"])
-                        iPDU = ("iPDU Capable: %s" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"])
+                        power_supply = ("Power Supply %s" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["BayNumber"])
+                        powersupply = {"Power Capacity": "%s W" % supply["PowerCapacityWatts"]}
+                        powersupply.update({"Last Power Output": "%s W" % supply["LastPowerOutputWatts"]})
+                        powersupply.update({"Input Voltage": "%s V" % supply["LineInputVoltage"]})
+                        powersupply.update({"Input Voltage Type": supply["LineInputVoltageType"]})
+                        powersupply.update({"Hotplug Capable":supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"]})
+                        powersupply.update({"iPDU Capable":supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"]})
                         try:
-                            health = "Health: %s" % supply["Status"]["Health"]
+                            powersupply.update({"Health":supply["Status"]["Health"]})
                         except KeyError:
                             pass
-                        power_supply = {
-                            powercap,
-                            poweroutput,
-                            inputvoltage,
-                            inputtype,
-                            Hotplug,
-                            iPDU,
-                            health
-                        }
-                        content.update({powersupply:power_supply})
-                        if absent:
-                            try:
-                                content.update({"State":supply["Status"]["State"]})
-                            except KeyError:
-                                pass
-                    for redundancy in data["Redundancy"]:
-                        redund= "%s" % redundancy["Name"]
-                        mode = "Redundancy Mode: %s" % redundancy["Mode"]
+                        #if absent:
                         try:
-                            red_health = ("Redundancy Health: %s" % redundancy["Status"]["Health"])
-                            red_state = ("Redundancy State: %s" % redundancy["Status"]["State"])
-                            add_reundancy = {
-                                mode,
-                                red_health,
-                                red_state
-                            }
-                            content.update({redund:add_reundancy})
+                            powersupply.update({"State":supply["Status"]["State"]})
+                        except KeyError:
+                            pass
+                        powerdetails ={power_supply:powersupply}
+                        content["power"].update(powerdetails)
+                    for redundancy in data["Redundancy"]:
+                        redund_name= redundancy["Name"]
+                        redundancy_dict = {"Redundancy Mode":redundancy["Mode"]}
+                        try:
+                            redundancy_dict.update({"Redundancy Health": redundancy["Status"]["Health"]})
+                            redundancy_dict.update({"Redundancy State":  redundancy["Status"]["State"]})
+                            content.update({redund_name:redundancy_dict})
                         except KeyError:
                             pass
                 except KeyError:
                     pass
+            UI().print_out_json(content)
 
         if "firmware" in headers and info["firmware"]:
             output = []
@@ -331,12 +318,230 @@ class ServerInfoCommand:
             if data is not None:
                 for fw in data:
                     if not self.rdmc.app.typepath.defs.isgen10:
-                        firmware_content = ({fw["Name"]:{fw["VersionString"]}})
+                        firmware_content = "%s : %s" % (fw["Name"], fw["VersionString"])
+                        output.append(firmware_content)
                     else:
                         firmware_content = "%s : %s" % (fw["Name"], fw["Version"])
                         output.append(firmware_content)
-            content = ({"Firmware Information":output})
-        return content
+            content = ({"firmware":output})
+            UI().print_out_json(content)
+
+        if "software" in headers and info["software"]:
+            output = ""
+            software_info = {}
+            data = info["software"]
+            if data is not None:
+                if isinstance(data, dict):
+                    for sw in data:
+                        software_info.update({sw["Name"]: sw["Version"]})
+                else:
+                    software_info = "No information available for the server"
+                    self.rdmc.ui.printer(software_info, verbose_override=True)
+            content = {"software":software_info}
+
+        if "memory" in headers and info["memory"]:
+            data = info["memory"]
+            if data is not None:
+                collectiondata = data["Oem"][self.rdmc.app.typepath.defs.oemhp]
+                output = "Memory/DIMM Board Information"
+
+                memory_status = (
+                        "Advanced Memory Protection Status: %s\n"
+                        % collectiondata["AmpModeStatus"]
+                )
+                memorylist = {}
+                for board in collectiondata["MemoryList"]:
+                    board_detail = ""
+                    board_detail = "Board CPU: %s" % board["BoardCpuNumber"]
+                    memory_info = ({
+                        "Total Memory Size": "%s MiB" % board["BoardTotalMemorySize"]
+                    })
+                    memory_info.update({
+                        "Board Memory Frequency": "%s MHz"
+                                                  % board["BoardOperationalFrequency"]
+                    })
+                    memory_info.update({
+                        "Board Memory Voltage": "%s MiB"
+                                                % board["BoardOperationalVoltage"]
+                    })
+                    memorylist.update({board_detail:memory_info})
+                memorystatus = {memory_status:memorylist}
+                memoryinfo = {output:memorystatus}
+
+                memory_config = "Memory/DIMM Configuration"
+                for dimm in data[self.rdmc.app.typepath.defs.collectionstring]:
+                    memoryconfig ={"Location": dimm["DeviceLocator"]}
+                    try:
+                        memoryconfig.update({"Memory Type": "%s %s" % (
+                            dimm["MemoryType"],
+                            dimm["MemoryDeviceType"],
+                        )})
+                    except KeyError:
+                        memoryconfig.update({"Memory Type": dimm["MemoryType"]})
+                    memoryconfig.update({"Capacity": "%s MiB" % dimm["CapacityMiB"]})
+                    try:
+                        memoryconfig.update({"Speed": "%s MHz" % dimm["OperatingSpeedMhz"]})
+                        memoryconfig.update({
+                            "Status" :
+                                dimm["Oem"][self.rdmc.app.typepath.defs.oemhp]["DIMMStatus"]
+                        })
+                        memoryconfig.update({"Health" : dimm["Status"]["Health"]})
+                    except KeyError:
+                        pass
+
+                    if absent:
+                        try:
+                            memoryconfig.update({"State":dimm["Status"]["State"]})
+                        except KeyError:
+                            pass
+                    memoryinfo.update({memory_config:memoryconfig})
+                    content = {"memory":memoryinfo}
+            UI().print_out_json(content)
+
+        if "fans" in headers and info["fans"]:
+            fan_output={}
+            fan_details = {}
+            if info["fans"] is not None:
+                for fan in info["fans"]:
+                    fan_name = ""
+                    if not self.rdmc.app.typepath.defs.isgen9:
+                        fan_name = "%s" % fan["Name"]
+                    else:
+                        fan_name = "%s" % fan["FanName"]
+                    fan_output.update({
+                        "Location":
+                            fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Location"]
+                    })
+                    if "Reading" in fan:
+                        fan_output.update({"Reading": "%s%%" % fan["Reading"]})
+                        fan_output.update({
+                            "Redundant":
+                                fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Redundant"]
+                        })
+                        fan_output.update({
+                            "Hot Pluggable":
+                                fan["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                    "HotPluggable"
+                                ]
+                        })
+                    try:
+                        if "Health" in fan["Status"]:
+                            fan_output.update({"Health":fan["Status"]["Health"]})
+                    except KeyError:
+                        pass
+
+                    #if absent:
+                    try:
+                        fan_output.update({"State": fan["Status"]["State"]})
+                    except KeyError:
+                        pass
+                    fan_details.update({fan_name:fan_output})
+                    content = {"fans":fan_details}
+            UI().print_out_json(content)
+
+        if "thermals" in headers and info["thermals"]:
+            if info["thermals"] is not None:
+                sensor = ""
+                thermal_detail={}
+                for temp in info["thermals"]:
+                    if "SensorNumber" in temp:
+                        sensor = "Sensor #%s:" % temp["SensorNumber"]
+                    if "PhysicalContext" in temp:
+                        thermal_info ={"Location" : temp["PhysicalContext"]}
+                    thermal_info.update({"Current Temp": "%s C" % temp["ReadingCelsius"]})
+                    if "UpperThresholdCritical" in temp:
+                        thermal_info.update({
+                            "Critical Threshold": "%s C"
+                                                  % temp["UpperThresholdCritical"]
+                        })
+                    else:
+                        thermal_info.update({"Critical Threshold": "-"})
+                    if "UpperThresholdFatal" in temp:
+                        thermal_info.update({
+                            "Fatal Threshold": "%s C" % temp["UpperThresholdFatal"]
+                        })
+                    else:
+                        thermal_info.update({"Fatal Threshold": "-"})
+                    try:
+                        if "Health" in temp["Status"]:
+                            thermal_info.update({"Health":temp["Status"]["Health"]})
+                    except KeyError:
+                        pass
+                    if absent:
+                        try:
+                            thermal_info.update({"State":temp["Status"]["State"]})
+                        except KeyError:
+                            pass
+                    thermal_detail.update({sensor:thermal_info})
+                    content = {"thermals": thermal_detail}
+            UI().print_out_json(content)
+
+        if "processor" in headers and info["processor"]:
+            data = info["processor"]
+            processor_info={}
+            if data is not None:
+                for processor in data:
+                    process = "Processor %s" % processor["Id"]
+                    processor_date = {"Model": processor["Model"]}
+                    processor_date.update({"Step": processor["ProcessorId"]["Step"]})
+                    processor_date.update({"Socket": processor["Socket"]})
+                    processor_date.update({"Max Speed":"%s MHz" %processor["MaxSpeedMHz"]})
+                    try:
+                        processor_date.update({"Speed": "%s MHz" % processor["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]})
+                    except KeyError:
+                        pass
+                    processor_date.update({"Cores": processor["TotalCores"]})
+                    processor_date.update({"Threads":processor["TotalThreads"]})
+                    try:
+                        for cache in processor["Oem"][
+                            self.rdmc.app.typepath.defs.oemhp
+                        ]["Cache"]:
+                            processor_date.update({cache["Name"]: "%s KB" %cache["InstalledSizeKB"]})
+                    except KeyError:
+                        pass
+                    try:
+                        processor_date.update({"Health":processor["Status"]["Health"]})
+                    except KeyError:
+                        pass
+                    if absent:
+                        try:
+                            processor_date.update({"State":processor["Status"]["State"]})
+                        except KeyError:
+                            pass
+                    processor_info.update({process:processor_date})
+            content = {"processor":processor_info}
+            UI().print_out_json(content)
+
+        if "proxy" in headers and info["proxy"]:
+            output = []
+            data = info["proxy"]
+            try:
+                if data is not None:
+                    for k, v in data.items():
+                        proxy_output = "%s : %s" % (k, v)
+                        output.append(proxy_output)
+            except KeyError:
+                pass
+            content = ({"proxy": output})
+            UI().print_out_json(content)
+
+        if "system" in headers:
+            data = info["system"]
+            system = {}
+            if data is not None:
+                for key, val in list(data.items()):
+                    if key == "ethernet":
+                        embedded_nic = {"Embedded NIC Count": data["NICCount"]}
+                        system.update(embedded_nic)
+                        for name in sorted(data["ethernet"]):
+                            mac_name = name +" "+"MAC"
+                            mac = {mac_name: data["ethernet"][name]}
+                            system.update(mac)
+                    elif not key == "NICCount":
+                        nic = {key:val}
+                        system.update(nic)
+                    content = {"system":system}
+                UI().print_out_json(content)
 
     def prettyprintinfo(self, info, absent):
         """Print info in human readable form from json
@@ -384,11 +589,14 @@ class ServerInfoCommand:
             output += "Software Information\n"
             output += "------------------------------------------------\n"
             if data is not None:
-                if isinstance(data, dict):
+                if isinstance(data, dict) or isinstance(data, list):
                     for sw in data:
-                        output += "%s : %s\n" % (sw["Name"], sw["Version"])
-                else:
-                    output = "No information available for the server"
+                        if not self.rdmc.app.typepath.defs.isgen9:
+                            output += "%s : %s\n" % (sw["Name"], sw["Version"])
+                        else:
+                            output += "%s : %s\n" % (data[sw]['Name'], data[sw]['Version'])
+            else:
+                output = "No information available for the server"
             self.rdmc.ui.printer(output, verbose_override=True)
 
         if "proxy" in headers and info["proxy"]:
@@ -419,10 +627,10 @@ class ServerInfoCommand:
                     output += "Max Speed: %s MHz\n" % processor["MaxSpeedMHz"]
                     try:
                         output += (
-                            "Speed: %s MHz\n"
-                            % processor["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "RatedSpeedMHz"
-                            ]
+                                "Speed: %s MHz\n"
+                                % processor["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                    "RatedSpeedMHz"
+                                ]
                         )
                     except KeyError:
                         pass
@@ -457,21 +665,21 @@ class ServerInfoCommand:
                 output += "Memory/DIMM Board Information:\n"
                 output += "------------------------------------------------\n"
                 output += (
-                    "Advanced Memory Protection Status: %s\n"
-                    % collectiondata["AmpModeStatus"]
+                        "Advanced Memory Protection Status: %s\n"
+                        % collectiondata["AmpModeStatus"]
                 )
                 for board in collectiondata["MemoryList"]:
                     output += "Board CPU: %s \n" % board["BoardCpuNumber"]
                     output += (
-                        "\tTotal Memory Size: %s MiB\n" % board["BoardTotalMemorySize"]
+                            "\tTotal Memory Size: %s MiB\n" % board["BoardTotalMemorySize"]
                     )
                     output += (
-                        "\tBoard Memory Frequency: %s MHz\n"
-                        % board["BoardOperationalFrequency"]
+                            "\tBoard Memory Frequency: %s MHz\n"
+                            % board["BoardOperationalFrequency"]
                     )
                     output += (
-                        "\tBoard Memory Voltage: %s MiB\n"
-                        % board["BoardOperationalVoltage"]
+                            "\tBoard Memory Voltage: %s MiB\n"
+                            % board["BoardOperationalVoltage"]
                     )
                 output += "------------------------------------------------\n"
                 output += "Memory/DIMM Configuration:\n"
@@ -490,10 +698,10 @@ class ServerInfoCommand:
                         output += "Speed: %s MHz\n" % dimm["OperatingSpeedMhz"]
 
                         output += (
-                            "Status: %s\n"
-                            % dimm["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "DIMMStatus"
-                            ]
+                                "Status: %s\n"
+                                % dimm["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                    "DIMMStatus"
+                                ]
                         )
                         output += "Health: %s\n" % dimm["Status"]["Health"]
                     except KeyError:
@@ -514,70 +722,70 @@ class ServerInfoCommand:
             if data is not None:
                 for control in data["PowerControl"]:
                     output += (
-                        "Total Power Capacity: %s W\n" % control["PowerCapacityWatts"]
+                            "Total Power Capacity: %s W\n" % control["PowerCapacityWatts"]
                     )
                     output += (
-                        "Total Power Consumed: %s W\n" % control["PowerConsumedWatts"]
+                            "Total Power Consumed: %s W\n" % control["PowerConsumedWatts"]
                     )
                     output += "\n"
                     output += (
-                        "Power Metrics on %s min. Intervals:\n"
-                        % control["PowerMetrics"]["IntervalInMin"]
+                            "Power Metrics on %s min. Intervals:\n"
+                            % control["PowerMetrics"]["IntervalInMin"]
                     )
                     output += (
-                        "\tAverage Power: %s W\n"
-                        % control["PowerMetrics"]["AverageConsumedWatts"]
+                            "\tAverage Power: %s W\n"
+                            % control["PowerMetrics"]["AverageConsumedWatts"]
                     )
                     output += (
-                        "\tMax Consumed Power: %s W\n"
-                        % control["PowerMetrics"]["MaxConsumedWatts"]
+                            "\tMax Consumed Power: %s W\n"
+                            % control["PowerMetrics"]["MaxConsumedWatts"]
                     )
                     output += (
-                        "\tMinimum Consumed Power: %s W\n"
-                        % control["PowerMetrics"]["MinConsumedWatts"]
+                            "\tMinimum Consumed Power: %s W\n"
+                            % control["PowerMetrics"]["MinConsumedWatts"]
                     )
                 try:
                     for supply in data["PowerSupplies"]:
                         output += "------------------------------------------------\n"
                         output += (
-                            "Power Supply %s:\n"
-                            % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "BayNumber"
-                            ]
+                                "Power Supply %s:\n"
+                                % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                    "BayNumber"
+                                ]
                         )
                         output += "------------------------------------------------\n"
 
                         output += (
-                            "Power Capacity: %s W\n" % supply["PowerCapacityWatts"]
+                                "Power Capacity: %s W\n" % supply["PowerCapacityWatts"]
                         )
                         output += (
-                            "Last Power Output: %s W\n" % supply["LastPowerOutputWatts"]
+                                "Last Power Output: %s W\n" % supply["LastPowerOutputWatts"]
                         )
                         output += "Input Voltage: %s V\n" % supply["LineInputVoltage"]
                         output += (
-                            "Input Voltage Type: %s\n" % supply["LineInputVoltageType"]
+                                "Input Voltage Type: %s\n" % supply["LineInputVoltageType"]
                         )
                         output += (
-                            "Hotplug Capable: %s\n"
-                            % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "HotplugCapable"
-                            ]
+                                "Hotplug Capable: %s\n"
+                                % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                    "HotplugCapable"
+                                ]
                         )
                         output += (
-                            "iPDU Capable: %s\n"
-                            % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "iPDUCapable"
-                            ]
+                                "iPDU Capable: %s\n"
+                                % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                    "iPDUCapable"
+                                ]
                         )
                         try:
                             output += "Health: %s\n" % supply["Status"]["Health"]
                         except KeyError:
                             pass
-                        if absent:
-                            try:
-                                output += "State: %s\n" % supply["Status"]["State"]
-                            except KeyError:
-                                pass
+
+                        try:
+                            output += "State: %s\n" % supply["Status"]["State"]
+                        except KeyError:
+                            pass
                     for redundancy in data["Redundancy"]:
                         output += "------------------------------------------------\n"
                         output += "%s\n" % redundancy["Name"]
@@ -585,11 +793,11 @@ class ServerInfoCommand:
                         output += "Redundancy Mode: %s\n" % redundancy["Mode"]
                         try:
                             output += (
-                                "Redundancy Health: %s\n"
-                                % redundancy["Status"]["Health"]
+                                    "Redundancy Health: %s\n"
+                                    % redundancy["Status"]["Health"]
                             )
                             output += (
-                                "Redundancy State: %s\n" % redundancy["Status"]["State"]
+                                    "Redundancy State: %s\n" % redundancy["Status"]["State"]
                             )
                         except KeyError:
                             pass
@@ -608,20 +816,20 @@ class ServerInfoCommand:
                     else:
                         output += "%s:\n" % fan["FanName"]
                     output += (
-                        "\tLocation: %s\n"
-                        % fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Location"]
+                            "\tLocation: %s\n"
+                            % fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Location"]
                     )
                     if "Reading" in fan:
                         output += "\tReading: %s%%\n" % fan["Reading"]
                         output += (
-                            "\tRedundant: %s\n"
-                            % fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Redundant"]
+                                "\tRedundant: %s\n"
+                                % fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Redundant"]
                         )
                         output += (
-                            "\tHot Pluggable: %s\n"
-                            % fan["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "HotPluggable"
-                            ]
+                                "\tHot Pluggable: %s\n"
+                                % fan["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                    "HotPluggable"
+                                ]
                         )
                     try:
                         if "Health" in fan["Status"]:
@@ -629,11 +837,10 @@ class ServerInfoCommand:
                     except KeyError:
                         pass
 
-                    if absent:
-                        try:
-                            output += "\tState: %s\n" % fan["Status"]["State"]
-                        except KeyError:
-                            pass
+                    try:
+                        output += "\tState: %s\n" % fan["Status"]["State"]
+                    except KeyError:
+                        pass
             self.rdmc.ui.printer(output, verbose_override=True)
 
         if "thermals" in headers and info["thermals"]:
@@ -649,14 +856,14 @@ class ServerInfoCommand:
                     output += "\tCurrent Temp: %s C\n" % temp["ReadingCelsius"]
                     if "UpperThresholdCritical" in temp:
                         output += (
-                            "\tCritical Threshold: %s C\n"
-                            % temp["UpperThresholdCritical"]
+                                "\tCritical Threshold: %s C\n"
+                                % temp["UpperThresholdCritical"]
                         )
                     else:
                         output += "\tCritical Threshold: -\n"
                     if "UpperThresholdFatal" in temp:
                         output += (
-                            "\tFatal Threshold: %s C\n" % temp["UpperThresholdFatal"]
+                                "\tFatal Threshold: %s C\n" % temp["UpperThresholdFatal"]
                         )
                     else:
                         output += "\tFatal Threshold: -\n"
@@ -820,7 +1027,7 @@ class ServerInfoCommand:
             dest="json",
             action="store_true",
             help="Optionally include this flag if you wish to change the"
-            " displayed output to JSON format. Preserving the JSON data"
-            " structure makes the information easier to parse.",
+                 " displayed output to JSON format. Preserving the JSON data"
+                 " structure makes the information easier to parse.",
             default=False,
         )

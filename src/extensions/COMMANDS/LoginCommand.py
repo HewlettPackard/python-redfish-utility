@@ -222,20 +222,16 @@ class LoginCommand:
         if not hasattr(options, "user_root_ca_password"):
             options.user_root_ca_password = self.rdmc.config.user_root_ca_password
 
-        if not (
-            hasattr(options, "user_certificate")
-            or hasattr(options, "user_root_ca_key")
-            or hasattr(options, "user_root_ca_password")
-        ):
-            if options.username and not options.password:
-                # Option for interactive entry of password
-                tempinput = getpass.getpass().rstrip()
-                if tempinput:
-                    options.password = tempinput
-                else:
-                    raise InvalidCommandLineError(
+        if options.user and not options.password and (not hasattr(options,'user_certificate') or \
+                     not hasattr(options,'user_root_ca_key') or hasattr(options,'user_root_ca_password')):
+            # Option for interactive entry of password
+            tempinput = getpass.getpass().rstrip()
+            if tempinput:
+                options.password = tempinput
+            else:
+                raise InvalidCommandLineError(
                         "Empty or invalid password was entered."
-                    )
+                )
 
         if options.user:
             self.username = options.user
