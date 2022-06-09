@@ -17,7 +17,7 @@
 # -*- coding: utf-8 -*-
 """ Version strings for the utility """
 
-__version__ = "3.5.0.0"
+__version__ = "3.5.1.0"
 __shortname__ = "iLOrest"
 __longname__ = "RESTful Interface Tool"
 __extracontent__ = (

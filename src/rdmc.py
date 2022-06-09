@@ -86,6 +86,7 @@ from rdmc_helper import InvalidMSCfileInputError
 from rdmc_helper import InvalidOrNothingChangedSettingsError
 from rdmc_helper import LERR
 from rdmc_helper import LOGGER
+from rdmc_helper import LOUT
 from rdmc_helper import MultipleServerConfigError
 from rdmc_helper import NicMissingOrConfigurationError
 from rdmc_helper import NoChangesFoundOrMadeError
@@ -137,8 +138,9 @@ try:
             FIPSSTR = (
                 "FIPS mode enabled using openssl version %s.\n" % ssl.OPENSSL_VERSION
             )
+            LOGGER.info("FIPS mode enabled!")
         else:
-            sys.stderr.write("WARNING: Unable to enable FIPS mode!\n")
+            LOGGER.info("FIPS mode can not be enabled!")
 except AttributeError:
     pass
 
@@ -289,7 +291,7 @@ class RdmcCommand(RdmcCommandBase):
 
         if opts.debug:
             LOGGER.setLevel(logging.DEBUG)
-            LERR.setLevel(logging.DEBUG)
+            LOUT.setLevel(logging.DEBUG)
 
         if not opts.nologo and not self.interactive:
             CLI.version(
@@ -811,7 +813,7 @@ class RdmcCommand(RdmcCommandBase):
             self.retcode = ReturnCodes.V1_SECURITY_STATE_ERROR
             self.ui.printer(
                 "High security mode [%s] has been enabled. "
-                "Please provide credentials.\n" % str(excp)
+                "Please provide valid credentials.\n" % str(excp)
             )
         except redfish.hpilo.risblobstore2.ChifDllMissingError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_CHIF_DLL_MISSING_ERROR

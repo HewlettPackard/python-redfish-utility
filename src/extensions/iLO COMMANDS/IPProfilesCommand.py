@@ -66,7 +66,7 @@ class IPProfilesCommand:
             "Provide the unique key that corresponds to the ipprofile"
             " data you want to delete.\n\tSeveral IDs can be comma-separated"
             " with no space in between to delete more than one profile. "
-            "\n\tipprofiles -d ID1,ID2,ID3..."
+            "\n\tipprofiles --delete ID1,ID2,ID3..."
             "\n\n\tCopies ip profile with the specified ID into the ip job queue."
             "and starts it.\n\texample: ipprofiles --start=<profile ID>",
             "summary": "This is used to manage hpeipprofile data store.",
@@ -334,6 +334,7 @@ class IPProfilesCommand:
             raise InvalidFileFormattingError("System failed to reboot")
 
         # After reboot, login again
+        time.sleep(options.sleep_time)   # Sleep until reboot
         self.validation(options)
 
         later_state = self.monitorinipstate(ipprovider)
@@ -647,7 +648,6 @@ class IPProfilesCommand:
             default=None,
         )
         customparser.add_argument(
-            "-d",
             "--delete",
             dest="del_key",
             action="append",
@@ -660,4 +660,12 @@ class IPProfilesCommand:
             dest="start_ip",
             help="Copies the specified ip profile into the job queue and starts it",
             default=None,
+        )
+        customparser.add_argument(
+            "-t",
+            "--sleeptime",
+            dest="sleep_time",
+            type=int,
+            help="Sleep time in seconds when server in OS mode and rebooted",
+            default=320,
         )

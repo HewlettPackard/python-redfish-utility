@@ -141,8 +141,15 @@ class GetInventoryCommand():
         if options.sut:
             if 'system1' not in alldata:
                 try:
-                    results = self.rdmc.app.select(selector="ComputerSystem.", path_refresh=True)
-                    alldata['systems1'] = next(iter(results)).resp.dict
+                    results = self.rdmc.app.select(selector="ComputerSystemCollection.")
+                    results = results[0].dict
+                    members = results["Members"]
+                    for id in members:
+                        for mem_id in id.values():
+                            results = self.rdmc.app.get_handler(mem_id, service=True, silent=True).dict
+                            id = results["Id"]
+                            if id == "1":
+                                alldata.update({"systems1":results})
                 except:
                     alldata.update({'systems1': {}})
             else:

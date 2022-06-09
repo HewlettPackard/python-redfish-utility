@@ -14,7 +14,7 @@ def readme() -> str:
 
 setup(
     name='ilorest',
-    version='3.5.0.0',
+    version='3.5.1.0',
     description='Python utility for interacting with the iLOREST API.',
     long_description=readme(),
     author='',

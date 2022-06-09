@@ -1,0 +1,189 @@
+TOPDIR:=$(shell pwd)/topdir
+BUILD_DIR := $(shell pwd)/.blddir
+SRCROOT := $(shell pwd)
+CHROOT_LOCAL_DIR:= $(shell pwd)
+
+NAME:=ilorest
+VERSION:=2.4.1
+RELEASE:=1
+SPHINXBUILD:=$(BUILD_DIR)/pylib/Sphinx-1.0.7/sphinx-build.py
+BLOFLY := /net
+#CREATE_CHROOT := /net/blofly.us.rdlabs.hpecorp.net/data/blofly/iss-linux-sdk/chrootbuilder/create_chroot.sh
+CREATE_CHROOT := $(CHROOT_LOCAL_DIR)/chrootbuilder/create_chroot.sh
+#CHROOT := /net/blofly.us.rdlabs.hpecorp.net/data/blofly/iss-linux-sdk/chrootbuilder/tools/muchroot
+CHROOT := $(CHROOT_LOCAL_DIR)/chrootbuilder/tools/muchroot
+UNAME_SPOOF := /net/blofly.us.rdlabs.hpecorp.net/data/blofly/iss-linux-sdk/chrootbuilder/tools/uname_spoof
+export CHROOT_DESTDIR=/home
+
+ifdef MTX_PRODUCT_VERSION
+  VERSION:=$(MTX_PRODUCT_VERSION)
+endif
+
+
+ifdef MTX_BUILD_NUMBER
+  RELEASE:=$(MTX_BUILD_NUMBER)
+endif
+
+DEBCHROOTD := $(BUILD_DIR)/chroots/squeeze
+
+all: vmware tbz chroot freeze-ilorest
+
+.PHONY:
+vmware:
+	rm -rf /tmp/vmware-sdk/
+	mkdir -p /tmp/vmware-sdk/
+	#tar xfz $(MTX_STAGING_PATH)/externals/hexdk-7.0.0-15843807-15899670.tar.gz -C /tmp/vmware-sdk/
+
+export PYTHONPATH=$(BUILD_DIR)/pylib/docutils-0.8:$(BUILD_DIR)/pylib/roman-2.0.0/src:$(BUILD_DIR)/pylib/Jinja2-2.5.5:$(BUILD_DIR)/pylib/Sphinx-1.0.7
+
+tbz:
+	rm -rf hp
+	git clone git@github.hpe.com:ess-morpheus/chrootbuilder.git $(CHROOT_LOCAL_DIR)/chrootbuilder
+	rm -rf $(BUILD_DIR)/pylib
+	mkdir -p $(BUILD_DIR)/pylib
+	cd $(BUILD_DIR)/pylib && unzip $(SRCROOT)/packaging/packages/roman/roman-2.0.0.zip
+	tar xfz $(SRCROOT)/packaging/packages/sphinx/Sphinx-1.0.7.tar.gz -C $(BUILD_DIR)/pylib
+	tar xfz $(SRCROOT)/packaging/packages/docutils/docutils-0.8.tar.gz -C $(BUILD_DIR)/pylib
+	tar xfz $(SRCROOT)/packaging/packages/jinja/Jinja2-2.5.5.tar.gz -C $(BUILD_DIR)/pylib
+
+	rm -rf "$(NAME)-$(VERSION)"
+	rm -f  "$(NAME)-$(VERSION).tar.bz2"
+	mkdir -p "$(NAME)-$(VERSION)"
+	cp -r src docs rdmc-pyinstaller-lin.spc rdmc-linux.conf  "$(NAME)-$(VERSION)"
+	sed -e "s/\%VERSION\%/$(VERSION)/g"  -e "s/\%RELEASE\%/$(RELEASE)/g"\
+            rdmc.spec.in > "$(NAME)-$(VERSION)/rdmc.spec"
+	sed -i -e "s/\%VERSION\%/$(VERSION)/g" -e "s/\%RELEASE\%/$(RELEASE)/g" \
+            docs/sphinx/conf.py
+
+	#make -C "$(NAME)-$(VERSION)/docs/sphinx" man  SPHINXBUILD=$(SPHINXBUILD)
+	#gzip -c "$(NAME)-$(VERSION)/docs/sphinx/_build/man/ilorest.8" > "$(NAME)-$(VERSION)/docs/sphinx/_build/man/ilorest.8.gz"
+
+	rm -rf "$(NAME)-$(VERSION)/Sphinx-1.0.7"
+	rm -rf "$(NAME)-$(VERSION)/docutils-0.8"
+	rm -rf "$(NAME)-$(VERSION)/Jinja2-2.5.5"
+	rm -rf "$(NAME)-$(VERSION)/scexe_src/scexe.spec"
+	mkdir -p "$(NAME)-$(VERSION)"/externals/
+	cp -r $(MTX_STAGING_PATH)/externals/*.so "$(NAME)-$(VERSION)"/externals/
+	tar cfj "$(NAME)-$(VERSION).tar.bz2" "$(NAME)-$(VERSION)"
+	rm -rf "$(NAME)-$(VERSION)"
+
+.PHONY:
+freeze-ilorest:
+	-$(CHROOT) $(DEBCHROOTD) bash -c 'useradd -m monkey'
+	-rm -rf $(DEBCHROOTD)/home/monkey/build
+	mkdir -p $(DEBCHROOTD)/home/monkey/build
+	cp "$(NAME)-$(VERSION).tar.bz2" $(DEBCHROOTD)/home/monkey/build
+	tar xf "$(NAME)-$(VERSION).tar.bz2" -C $(DEBCHROOTD)/home/monkey/build/
+	cd $(DEBCHROOTD)/home/monkey/build/ilorest-$(VERSION)/ && mv rdmc-pyinstaller-lin.spc rdmc-pyinstaller-lin.spec
+	$(CHROOT) $(DEBCHROOTD) chown -R monkey /home/monkey/build
+	$(CHROOT) $(DEBCHROOTD) bash -c 'su - monkey -c "cd /home/monkey/build/ilorest-$(VERSION) && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/pyinstaller rdmc-pyinstaller-lin.spec"'
+
+	#Create tarball
+	-rm -rf /tmp/dist/
+	mkdir -p /tmp/dist/bin/ /tmp/dist/lib64/ /tmp/dist/etc/
+	cp -r $(DEBCHROOTD)/home/monkey/build/ilorest-$(VERSION)/dist/ilorest /tmp/dist/bin/
+	cp -r $(DEBCHROOTD)/home/monkey/build/ilorest-$(VERSION)/externals/ilorest_chif.so /tmp/dist/lib64/
+	cp -r $(DEBCHROOTD)/home/monkey/build/ilorest-$(VERSION)/rdmc-linux.conf /tmp/dist/etc/redfish.conf
+	cd /tmp/dist/ && tar --format=gnu -cvf /tmp/ilorest_vmware.tar *
+	cp /tmp/ilorest_vmware.tar $(DEBCHROOTD)/tmp
+	$(CHROOT) $(DEBCHROOTD) /opt/vmware/vibtools-7.0.0-15843807/bin/vmtar -c /tmp/ilorest_vmware.tar -v -o /tmp/ilorest_vmware.vmtar
+	cp $(DEBCHROOTD)/tmp/ilorest_vmware.vmtar /tmp/ilorest_vmware.vmtar
+	gzip -9 < /tmp/ilorest_vmware.vmtar > /tmp/ilorest_vmware.v00
+	gzip -9 < /tmp/ilorest_vmware.tar > /tmp/ilorest_vmware.tgz
+
+
+ifdef MTX_COLLECTION_PATH
+	cp -r /tmp/ilorest_vmware.tgz $(MTX_COLLECTION_PATH)/
+	cp -r /tmp/ilorest_vmware.v00 $(MTX_COLLECTION_PATH)/
+endif
+
+chroot:
+	rm -rf $(BUILD_DIR)/chroots
+
+	$(CREATE_CHROOT) -d RHEL6.6 -a x86_64 -D $(DEBCHROOTD)
+
+	#$(CHROOT) $(DEBCHROOTD) zypper --non-interactive install zlib-devel libffi-devel openssl
+	#$(CHROOT) $(DEBCHROOTD) zypper --non-interactive install libxml2-devel libxslt-devel ncurses-devel expat sqlite3-devel readline-devel bzip2
+	#$(CHROOT) $(DEBCHROOTD) openssl version
+
+	$(CHROOT) $(DEBCHROOTD) yum install -y zlib-devel
+	$(CHROOT) $(DEBCHROOTD) yum install -y libxml2-devel libxslt-devel ncurses-devel expat-devel sqlite-devel readline-devel bzip2-devel
+	$(CHROOT) $(DEBCHROOTD) yum install -y openssl-devel which util-linux glibc.i686
+
+	tar -zxvf $(MTX_STAGING_PATH)/externals/hexdk-7.0.0-15843807-15899670.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /rpms && ls -al && rpm -ivh --force vmware*.rpm'
+
+	echo "/opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/lib" >> $(DEBCHROOTD)/etc/ld.so.conf.d/opt-python3.5.conf
+	$(CHROOT) $(DEBCHROOTD) ldconfig -v
+
+	unzip $(SRCROOT)/packaging/ext/setuptools-50.3.2.zip -d $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /setuptools-50.3.2 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+	tar xfz $(SRCROOT)/packaging/ext/pyinstaller-hooks-contrib-2020.10.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /pyinstaller-hooks-contrib-2020.10 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/python-dotenv-0.15.0.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /python-dotenv-0.15.0 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/altgraph-0.17.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /altgraph-0.17 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/pyinstaller/PyInstaller-3.6.tar.gz -C $(DEBCHROOTD)
+	cp $(SRCROOT)/vmware_bootloader/64bit/run* $(DEBCHROOTD)/PyInstaller-3.6/PyInstaller/bootloader/Linux-64bit/
+	cp $(SRCROOT)/vmware_bootloader/32bit/run* $(DEBCHROOTD)/PyInstaller-3.6/PyInstaller/bootloader/Linux-32bit/
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /PyInstaller-3.6 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/jsonpointer-2.0.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /jsonpointer-2.0 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/six-1.15.0.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /six-1.15.0 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/ply-3.11.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /ply-3.11 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/decorator-4.4.2.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /decorator-4.4.2 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/jsonpatch-1.26.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /jsonpatch-1.26 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/jsonpath-rw-1.4.0.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /jsonpath-rw-1.4.0 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	#tar xfz $(SRCROOT)/packaging/ext/setproctitle-1.1.8.tar.gz -C $(DEBCHROOTD)
+	#$(CHROOT) $(DEBCHROOTD) bash -c 'cd /setproctitle-1.1.8 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/pyudev-0.22.0.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /pyudev-0.22.0 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/jsondiff-1.2.0.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /jsondiff-1.2.0 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/pyaes-1.6.1.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /pyaes-1.6.1 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/urllib3-1.26.2.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /urllib3-1.26.2 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/colorama-0.4.4.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'export LC_ALL=en_US.UTF-8 && cd /colorama-0.4.4 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/tabulate-0.8.7.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /tabulate-0.8.7 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/wcwidth-0.2.5.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /wcwidth-0.2.5 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/prompt_toolkit-2.0.10.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /prompt_toolkit-2.0.10 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	tar xfz $(SRCROOT)/packaging/ext/certifi-2020.11.8.tar.gz -C $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /certifi-2020.11.8 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+	cp -r $(MTX_STAGING_PATH)/externals/*.zip packaging/ext
+	unzip packaging/ext/python-ilorest-library-$(MX_ILOREST_LIB_VERSION).zip -d $(DEBCHROOTD)
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /python-ilorest-library-$(MX_ILOREST_LIB_VERSION) && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
+
+clean:
+	rm -f "$(NAME)-$(VERSION).tar.bz2"
+	rm -rf topdir .blddir
