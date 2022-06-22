@@ -53,20 +53,11 @@ clean:
 	rm -f "$(NAME)-$(VERSION).tar.bz2"
 	rm -rf $(BUILD_DIR)
 
-
 DEBCHROOTD := $(BUILD_DIR)/chroots/squeeze
-
-ifdef MTX_COLLECTION_PATH
-	cp -r ./RPMS $(MTX_COLLECTION_PATH)/
-	# hpsign will error out if signing not successful
-	hpsign --signonly `find /opt/mxdk/buildagent/work/MTX_COLLECTION_PATH -type f -name '*.rpm'`
-endif
-
 
 freeze-src:
 	rm -rf hp
 	git clone git@github.hpe.com:ess-morpheus/chrootbuilder.git $(CHROOT_LOCAL_DIR)/chrootbuilder
-
 
 define freeze-bin
 	$(call freeze-src,$1)
