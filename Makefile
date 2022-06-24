@@ -1,7 +1,6 @@
 BUILD_DIR := $(PWD)/dist/rpmbuild
 SRCROOT := $(shell pwd)
 CHROOT_LOCAL_DIR:= $(shell pwd)
-BUILD_METADATA ?= 1~development~$(shell git rev-parse --short HEAD)
 
 NAME:=ilorest
 VERSION := $(shell awk '/Version/{print $$NF; exit}' ${SRCROOT}/docs/slate/source/includes/_changelog.md)
@@ -46,8 +45,8 @@ rdmc.spec: rdmc.spec.in
 
 rpm: doc-ver rpmprep rdmc.spec
 	tar --transform 'flags=r;s,^,/${NAME}-${VERSION}/,' --exclude .git --exclude .gitignore --exclude dist -cvjf ${BUILD_DIR}/SOURCES/${NAME}-${VERSION}.tar.bz2 .
-	BUILD_METADATA=$(BUILD_METADATA) rpmbuild -ts ${BUILD_DIR}/SOURCES/${NAME}-${VERSION}.tar.bz2 --define "_topdir $(BUILD_DIR)"
-	BUILD_METADATA=$(BUILD_METADATA) rpmbuild -ba rdmc.spec --define "_topdir $(BUILD_DIR)"
+	rpmbuild -ts ${BUILD_DIR}/SOURCES/${NAME}-${VERSION}.tar.bz2 --define "_topdir $(BUILD_DIR)"
+	rpmbuild -ba rdmc.spec --define "_topdir $(BUILD_DIR)"
 
 clean:
 	rm -f "$(NAME)-$(VERSION).tar.bz2"
