@@ -312,6 +312,9 @@
             <a href="#change-log" class="toc-h1 toc-link" data-title="Change Log">Change Log</a>
               <ul class="toc-list-h2">
                   <li>
+                    <a href="#version-3-6-0-0" class="toc-h2 toc-link" data-title="Version 3.6.0.0">Version 3.6.0.0</a>
+                  </li>
+                  <li>
                     <a href="#version-3-5-1-0" class="toc-h2 toc-link" data-title="Version 3.5.1.0">Version 3.5.1.0</a>
                   </li>
                   <li>
@@ -353,7 +356,13 @@
                                     <a href="#windows" class="toc-h4 toc-link" data-title="Windows">Windows</a>
                                   </li>
                                   <li>
-                                    <a href="#linux" class="toc-h4 toc-link" data-title="Linux">Linux</a>
+                                    <a href="#linux-and-ubuntu" class="toc-h4 toc-link" data-title="Linux and Ubuntu">Linux and Ubuntu</a>
+                                  </li>
+                                  <li>
+                                    <a href="#mac" class="toc-h4 toc-link" data-title="MAC">MAC</a>
+                                  </li>
+                                  <li>
+                                    <a href="#vmware-esxi" class="toc-h4 toc-link" data-title="Vmware ESXi">Vmware ESXi</a>
                                   </li>
                               </ul>
                           </li>
@@ -414,9 +423,6 @@
                   <li>
                     <a href="#global-commands" class="toc-h2 toc-link" data-title="Global Commands">Global Commands</a>
                       <ul class="toc-list-h3">
-                          <li>
-                            <a href="#help-command" class="toc-h3 toc-link" data-title="Help Command">Help Command</a>
-                          </li>
                           <li>
                             <a href="#login-command" class="toc-h3 toc-link" data-title="Login Command">Login Command</a>
                           </li>
@@ -544,9 +550,6 @@
                             <a href="#reboot-command" class="toc-h3 toc-link" data-title="Reboot Command">Reboot Command</a>
                           </li>
                           <li>
-                            <a href="#results-command" class="toc-h3 toc-link" data-title="Results Command">Results Command</a>
-                          </li>
-                          <li>
                             <a href="#sendtest-command" class="toc-h3 toc-link" data-title="Sendtest Command">Sendtest Command</a>
                           </li>
                           <li>
@@ -641,6 +644,14 @@
                           </li>
                           <li>
                             <a href="#smartarray-command" class="toc-h3 toc-link" data-title="SmartArray Command">SmartArray Command</a>
+                          </li>
+                      </ul>
+                  </li>
+                  <li>
+                    <a href="#smart-nic-commands" class="toc-h2 toc-link" data-title="Smart NIC Commands">Smart NIC Commands</a>
+                      <ul class="toc-list-h3">
+                          <li>
+                            <a href="#smartnic-command" class="toc-h3 toc-link" data-title="Smartnic Command">Smartnic Command</a>
                           </li>
                       </ul>
                   </li>
@@ -992,9 +1003,6 @@
                       </ul>
                   </li>
                   <li>
-                    <a href="#customer-self-repair" class="toc-h2 toc-link" data-title="Customer self-repair">Customer self-repair</a>
-                  </li>
-                  <li>
                     <a href="#remote-support" class="toc-h2 toc-link" data-title="Remote Support">Remote Support</a>
                   </li>
                   <li>
@@ -1014,7 +1022,7 @@
       </ul>
         <ul class="toc-footer">
             <li><a href='https://www.hpe.com/'>Hewlett Packard Enterprise Development LP</a></li>
-            <li>Copyright &copy; 2016-2021</li>
+            <li>Copyright &copy; 2016-2022</li>
         </ul>
     </div>
     <div class="page-wrapper">
@@ -1024,8 +1032,8 @@
 <p>The RESTful Interface Tool (iLOREST) is a command-line interface that allows you to manage Hewlett Packard Enterprise 
 products that take advantage of RESTful APIs. For this release of the tool, you can manage HPE Gen10 servers running 
 iLO 5 version 2.10 or later and Gen9 servers running iLO 4 version 2.10 or later through iLO RESTful APIs. 
-You can install the tool on your computer for remote use or you can install the tool locally on a server with a 
-Windows OS or Linux OS. In addition to using the tool manually to execute individual commands, 
+You can install the tool on your laptop(windows/mac) for remote use or you can install the tool locally on a server with a 
+Windows/Linux/Ubuntu/ESXi OS. In addition to using the tool manually to execute individual commands, 
 you can create scripts to automate tasks.</p>
 
 <p>iLOREST can display and set parameters for the following:</p>
@@ -1036,7 +1044,26 @@ you can create scripts to automate tasks.</p>
 <li><strong>HPE iLO Repository</strong></li>
 <li><strong>Smart Array support</strong></li>
 </ul>
-<h1 id='change-log'>Change Log</h1><h2 id='version-3-5-1-0'>Version 3.5.1.0</h2>
+<h1 id='change-log'>Change Log</h1><h2 id='version-3-6-0-0'>Version 3.6.0.0</h2>
+<p><strong>Fixes:</strong></p>
+
+<ul>
+<li>Fixed several issues related to command and subcommand help.</li>
+<li>Fixed an issue in ipprofiles command to push HVT profile to Intelligent Provisioning page when server in poweroff or POST mode.</li>
+<li>Fixed issues with setpassword command when resetting password to blank in both Gen9 and Gen10 servers.</li>
+<li>Fixed several issues with serverclone command.</li>
+<li>Fixed several customer issues reported in github.</li>
+<li>Fixed issues in serverinfo command w.r.t. json formatting and filtering.</li>
+<li>Upgraded openssl to 1.0.2zd</li>
+</ul>
+
+<p><strong>Enhancements:</strong></p>
+
+<ul>
+<li>Added support for ESXi 8.0.</li>
+<li>Introduced smartnic command to manage pensando and other Smart NICs</li>
+</ul>
+<h2 id='version-3-5-1-0'>Version 3.5.1.0</h2>
 <p><strong>Fixes:</strong></p>
 
 <ul>
@@ -1181,9 +1208,9 @@ you can create scripts to automate tasks.</p>
 <p>The requirements for the server, which you will manage with the tool, are as follows:</p>
 
 <ul>
-<li>Local management: Gen9 or greater server with a Windows OS or Linux OS (64&#8209;bit) installed.<br>
+<li>Local management: Gen9 or greater server with a Windows/Linux/Ubuntu/ESXi OS (64&#8209;bit) installed.<br>
 Note: On a fresh windows installation, Chif driver need to be installed which will be available in Service Pack for ProLiant(SPP). </li>
-<li>Operating System: Windows 2019, 2016, 2012R2, RHEL 7.x, 8.x, SUSE 15SPx, 12SP3, MAC, Debian 9, 10<br></li>
+<li>Operating System: Windows 2022, 2019, 2016, RHEL 8.x, 9.x, SUSE 15SPx, 12SP3, MAC, Ubuntu, Debian, ESXi7.0 and ESXi 8.0.<br></li>
 <li>Remote management: Gen9 or greater server with or without an OS installed.</li>
 <li>iLO 5: 2.10 or later</li>
 <li>iLO 4: 2.10 or later</li>
@@ -1194,7 +1221,7 @@ Note: On a fresh windows installation, Chif driver need to be installed which wi
 Note: When using an earlier version of iLO or an earlier version of the RESTful Interface Tool, you must manually get the latest JSON schemas from the SPP located in the <code>hp_restful_api</code> directory. Copy the schema files to the appropriate directory:</p>
 <h3 id='installing-the-restful-interface-tool'>Installing the RESTful Interface Tool</h3>
 <p>Perform the following steps to install the tool in a Windows OS or Linux OS.<br>
-Note: Debian, Ubuntu and Mac Versions are available from <a href="https://github.com/HewlettPackard/python-redfish-utility/releases/latest">Github Releases</a> URL.</p>
+Note: Debian, Ubuntu and Mac Versions are available from <a href="https://github.com/HewlettPackard/python-redfish-utility/releases/latest">Github Releases</a> URL. And ESXi Versions are available in <a href="http://vibsdepot.hpe.com/index.html">VIBS Depot</a> </p>
 
 <ol>
 <li>Download the RESTful Interface Tool for your operating system from <a href="https://www.hpe.com/us/en/servers/restful-api.html">iLO Restful API Ecosystem</a> or directly from <a href="https://github.com/HewlettPackard/python-redfish-utility/releases/latest">Github Releases</a></li>
@@ -1208,10 +1235,20 @@ Note: Debian, Ubuntu and Mac Versions are available from <a href="https://github
 <li>Click <strong>Hewlett Packard Enterprise</strong> &gt; <strong>RESTful Interface Tool</strong>.</li>
 <li>Right-click the <strong>RESTful Interface Tool</strong> prompt, and then click <strong>Run as Administrator</strong>.</li>
 </ol>
-<h4 id='linux'>Linux</h4>
+<h4 id='linux-and-ubuntu'>Linux and Ubuntu</h4>
 <ol>
 <li>Open a terminal window.</li>
 <li>Run the following command as an administrator to start interactive mode: <code>/usr/sbin/ilorest</code></li>
+</ol>
+<h4 id='mac'>MAC</h4>
+<ol>
+<li>Open a terminal window.</li>
+<li>Run the following command as an administrator to start interactive mode: <code>/Applications/ilorest</code></li>
+</ol>
+<h4 id='vmware-esxi'>Vmware ESXi</h4>
+<ol>
+<li>Open a terminal window and install ilorest component.</li>
+<li>Run the following command as an administrator to start interactive mode: <code>/opt/ilorest/bin/ilorest.sh</code> for ESXi 8.0 and <code>/opt/tools/ilorest</code> for ESXi 7.0</li>
 </ol>
 <h1 id='using-the-restful-interface-tool'>Using the RESTful Interface Tool</h1><h2 id='restful-interface-tool-modes-of-operation'>RESTful Interface Tool Modes of Operation</h2>
 <p>The RESTful Interface Tool has three modes of operation. By default, the interactive mode is utilized when you start the RESTful Interface Tool. With scriptable mode, you can use a script that gives commands to the RESTful Interface Tool. The file-based mode allows you to use a script that gives commands to the RESTful Interface Tool and uses a file to load and save settings.</p>
@@ -1219,19 +1256,31 @@ Note: Debian, Ubuntu and Mac Versions are available from <a href="https://github
 <p>Interactive mode is started when you run the RESTful Interface Tool without any command-line parameters. The <code>ilorest &gt;</code> prompt is displayed and you can enter commands one at a time. Interactive mode provides immediate feedback for an entered command. You can also use this mode to validate a script.</p>
 
 <p>To start an interactive session:
-<ul><li>On Windows systems, double-click <code>ilorest.exe</code>. You must be an administrator to run <code>ilorest.exe</code>.</li>
-<li>On Linux systems, enter the following command as administrator: <code>/usr/sbin/ilorest</code></li></ul></p>
+<ul><li>On Windows systems, goto <code>C:\Program Files\Hewlett Packard Enterprise\RESTful Interface Tool</code> and double-click <code>ilorest.exe</code>. You must be an administrator to run <code>ilorest.exe</code>.</li>
+<li>On Linux and Ubuntu systems, enter the following command as administrator: <code>/usr/sbin/ilorest</code></li>
+<li>On MAC, enter the following command as administrator: <code>/Applications/ilorest</code></li>
+<li>On VMware ESXi 7.0, enter the following command as administrator: <code>/opt/tools/ilorest</code></li>
+<li>On VMware ESXi 8.0, enter the following command as administrator: <code>/opt/ilorest/bin/ilorest.sh</code><br>
+NOTE: In ESXi 7.0/8.0, ilorest is also integrated with esxcli utility of vmware.<br>
+Some Examples:<br>
+esxcli ilorest cmd -q login<br>
+esxcli ilorest cmd -q types<br>
+esxcli ilorest cmd -q &quot;select Bios.&quot;<br>
+esxcli ilorest cmd -q logout<br>
+esxcli ilorest help<br>
+esxcli ilorest debug -q login<br>
+esxcli ilorest debug -q logout<br></li></ul></p>
 
 <p>You can exit the interactive mode by entering the <code>exit</code> command at the prompt.</p>
 
 <p><img src="images/InteractiveMode_1-b4a7827e.png" title="Interactive Mode" alt="Interactive Mode" /></p>
 <h4 id='tab-complete'>Tab complete</h4>
 <p>Tab complete is available for interactive mode in multiple capacities. See the features below.</p>
-<h5 id='commands'>Commands</h5>
+<h5 id='for-commands'>For Commands</h5>
 <p>Tab complete is available for viewing and completing commands.</p>
 
 <p><img src="images/tab_command-1490d158.gif" title="Tab complete commands" alt="Tab complete commands" /></p>
-<h5 id='types'>Types</h5>
+<h5 id='for-types'>For Types</h5>
 <p>Each Redfish resource is associated to a data type. To view or modify a resource, you must first select its type.
 NOTE: Types descriptions are available in the <a href="https://hewlettpackard.github.io/ilo-rest-api-docs/ilo5">iLO5 API reference</a></p>
 
@@ -1242,7 +1291,7 @@ NOTE: Types descriptions are available in the <a href="https://hewlettpackard.gi
 </ul>
 
 <p><img src="images/tab_types-9685c004.gif" title="Tab complete types" alt="Tab complete types" /></p>
-<h5 id='properties-and-sub-properties'>Properties and sub-properties</h5>
+<h5 id='for-properties-and-sub-properties'>For Properties and sub-properties</h5>
 <p>Tab complete is available for viewing and completing properties.</p>
 
 <ul>
@@ -1251,7 +1300,7 @@ NOTE: Types descriptions are available in the <a href="https://hewlettpackard.gi
 </ul>
 
 <p><img src="images/tab_props-d1d155eb.gif" title="Tab complete props" alt="Tab complete props" /></p>
-<h5 id='schema-information-for-properties'>Schema information for properties</h5>
+<h5 id='for-schema-information-for-properties'>For Schema information for properties</h5>
 <p>Tab complete can also show schema information for properties.</p>
 
 <ul>
@@ -1527,11 +1576,11 @@ ilorest --cache-dir=server10 login ilo-server10 -u username -p password
 </code></pre></div>
 <p>The configuration file contains the default settings for the tool. You can use a text editor to change the behavior of the tool such as adding a server IP address, username, and password. The settings that you add or update in the configuration file are automatically loaded each time you start the tool.</p>
 
-<p>Configuration file locations:</p>
+<p>Configuration file locations(only present for Windows/Linux/Ubuntu OS):</p>
 
 <ul>
 <li>Windows OS: The same location as the executable file that starts the tool.</li>
-<li>Linux OS: <code>/etc/ilorest/Redfish.conf</code></li>
+<li>Linux/Ubuntu OS: <code>/etc/ilorest/redfish.conf</code></li>
 </ul>
 <h2 id='higher-security-modes'>Higher Security Modes</h2>
 <p>This section describes how to set higher security modes and how to use the RESTful Interface Tool in these modes. For more information about the higher security modes in iLO 5, see the <a href="https://hewlettpackard.github.io/ilo-rest-api-docs/ilo5/#securitystate" target="_blank">Security State topic in the iLO 5 API documentation</a>. 
@@ -1545,7 +1594,7 @@ ilorest --cache-dir=server10 login ilo-server10 -u username -p password
 <aside class="notice">After the commit operation has been completed, iLO will reset to apply the changes.</aside>
 <h3 id='using-restful-interface-tool-in-ilo-higher-security-modes'>Using RESTful Interface Tool in iLO Higher Security Modes</h3>
 <p>RESTful Interface Tool in remote mode continues to function normally in higher security modes.
-To use RESTful Interface Tool locally in higher security modes, you must pass credentials along with your commands.
+To use RESTful Interface Tool locally in higher security modes, you must pass iLO credentials along with your commands.
 <aside class="warning">In interactive mode, you only need to pass your credentials during the login command. In command line mode, you must pass credentials for EACH COMMAND, even if you are already logged in.</aside></p>
 
 <blockquote>
@@ -1567,7 +1616,7 @@ If you do not pass the proper credentials in local mode, you receive a similar e
 
 <p>Including the help flag will display general help for the tool.</p>
 
-<p><strong>-c, --config=CONFIGFILE</strong></p>
+<p><strong>--config=CONFIGFILE</strong></p>
 
 <p>Use the provided configuration file instead of the default.</p>
 
@@ -1653,9 +1702,21 @@ Body Response of /redfish/v1/: {"@odata.context":"/redfish/v1/$metadata#ServiceR
 
 <p>Include to block bottom status bar.</p>
 
-<p><strong>--proxy=PROXYURL</strong></p>
+<p><strong>--useproxy=PROXYURL</strong></p>
 
 <p>Use the provided proxy for communication.</p>
+
+<p><strong>--notab</strong></p>
+
+<p>Disable tab complete.</p>
+
+<p><strong>--redirectconsole</strong></p>
+
+<p>Optionally include this flag to redirect stdout/stderr console.</p>
+
+<p><strong>--toolbar</strong></p>
+
+<p>Show toolbar at the bottom.</p>
 
 <p><strong>--redfish</strong></p>
 
@@ -1672,218 +1733,6 @@ Might cause errors in some data retrieval due to difference in schema versions.
 </aside>
 <h2 id='global-commands'>Global Commands</h2>
 <p>This section includes commands as well as their usage and examples of general commands in the RESTful Interface Tool. They include commands used to do things such as listing help for using commands, viewing, retrieving, modifying, and committing changes to server properties, authenticating and logging in and out of the server.</p>
-<h3 id='help-command'>Help Command</h3>
-<blockquote>
-<p>Help example commands:
-Entering help will list the global options and all available commands for iLOREST.</p>
-</blockquote>
-
-<pre>
-iLOrest > <span style="color: #01a982; ">help</span>
-usage: iLOrest [GLOBAL OPTIONS] [COMMAND] [COMMAND ARGUMENTS] [COMMAND OPTIONS]
-
-iLOrest is a command-line or interactive interface that allows users to manage Hewlett Packard Enterprise products that take advantage of RESTful APIs.
-
-In order to view or manage a system you must first login. You can login using the login command or during execution of any other command.
-From here you can run any other commands. To learn more about specific commands, run iLOrest COMMAND -h.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -c FILE, --config FILE
-                        Use the provided configuration file instead of the default one.
-  --cache-dir PATH      Use the provided directory as the location to cache data (default location: C:\Users\kallur\AppData\Roaming\.iLOrest)
-  -v, --verbose         Display verbose information (with increasing level). '-v': Level 1, Logging, Stdout, Stderr. '-vv': Level 2, Extends Level 1 with slightly
-                        elaborated iLO and HTTP response message. '-vvv': Level3, Extends Level 2 with message id, validation class, message text with embedded args,
-                        and possible resolution/mitigation for iLO responses. High detailed HTTP responses. **NOTE 1**: Some responses may only contain limited
-                        information from the source.**NOTE 4**: Default level is 0.
-  -d, --debug           Display debug information.
-  --logdir PATH         Use the provided directory as the location for log file.
-  --nocache             During execution the application will temporarily store data only in memory.
-  --nologo              Include to block copyright and logo.
-  --toolbar             Show toolbar at the bottom.
-  --redfish             Use this flag if you wish to to enable Redfish only compliance. It is enabled by default in systems with iLO5 and above.
-  --latestschema        Optionally use the latest schema instead of the one requested by the file. Note: May cause errors in some data retrieval due to difference in
-                        schema versions.
-  --redirectconsole [REDIRECT CONSOLE]
-                        Optionally include this flag to redirect stdout/stderr console.
-
-BIOS COMMANDS
-biosdefaults              - Set the currently logged in server to default BIOS settings.
-bootorder                 - Displays and sets the current boot order.
-iscsiconfig               - Displays and configures the current iscsi settings.
-setpassword               - Sets the admin password and power-on password
-
-COMMANDS
-commit                    - Applies all the changes made during the current session.
-get                       - Displays the current value(s) of a property(ies) within a selected type.
-info                      - Displays detailed information about a property within a selected type.
-list                      - Displays the current value(s) of a property(ies) within a selected type including reserved properties.
-load                      - Loads the server configuration settings from a file.
-login                     - Connects to a server, establishes a secure session, and discovers data from iLO.
-logout                    - Ends the current session and disconnects from the server.
-pending                   - Show the pending changes that will be applied on reboot.
-results                   - Show the results of changes which require a server reboot.
-save                      - Saves the selected type's settings to a file.
-select                    - Selects the object type to be used.
-set                       - Changes the value of a property within the currently selected type.
-status                    - Displays all pending changes within a selected type that need to be committed.
-types                     - Displays all selectable types within the currently logged in server.
-exit                      - Exits from the interactive shell.
-help                      - Displays command line syntax and help menus for individual commands. Example: help login
-
-PERSISTENT MEMORY COMMANDS
-provisionpmm              - Applies specified configuration to PMM.
-applypmmconfig            - Applies a pre-defined configuration to PMM.
-clearpmmpendingconfig     - Clear pending config tasks
-pmmsecuritystate          - Displaying the Security state of dimms.
-showpmm                   - Display information about Persistent Memory modules.
-showpmmpendingconfig      - Shows the pending configuration for PMM.
-showrecommendedpmmconfig  - Show Recommended Configuration
-
-RAW COMMANDS
-rawdelete                 - Raw form of the DELETE command.
-rawget                    - Raw form of the GET command.
-rawhead                   - Raw form of the HEAD command.
-rawpatch                  - Raw form of the PATCH command.
-rawpost                   - Raw form of the POST command.
-rawput                    - Raw form of the PUT command.
-
-SMART ARRAY COMMANDS
-clearcontrollerconfig     - Clears smart array controller configuration.
-createlogicaldrive        - Creates a new logical drive on the selected controller.
-deletelogicaldrive        - Deletes logical drives from the selected controller.
-drivesanitize             - Erase/Sanitize physical drive(s)
-factoryresetcontroller    - Factory resets a controller by index or location.
-smartarray                - Discovers all storage controllers installed in the server and managed by the SmartStorage.
-
-iLO COMMANDS
-certificate               - Command for importing both iLO and login authorization certificates as well as generating iLO certificate signing requests (CSR)
-clearrestapistate         - Clears the persistent state of the REST API. Some portions of the API may not be available until after the server reboots.
-directory                 - Update directory settings, add/delete directory roles, and test directory settings on the currently logged in server.
-disableilofunctionality   - disables iLO's accessibility via the network and resets iLO. WARNING: This should be used with caution as it will render iLO unable to respond to further network operations (including REST operations) until iLO is re-enabled using the RBSU menu.
-eskm                      - Command for all ESKM available actions.
-ethernet                  - Command for configuring Ethernet Management Controller Interfaces and associated properties
-factorydefaults           - Resets iLO to factory defaults. WARNING: user data will be removed use with caution.
-fwintegritycheck          - Perform a firmware integrity check on the currently logged in server.
-firmwareupdate            - Perform a firmware update on the currently logged in server.
-iloaccounts               - Views/Adds/deletes/modifies an iLO account on the currently logged in server.
-backuprestore             - Backup and restore iLO to a server using a .bak file.
-ilofederation             - Adds / deletes an iLO federation group on the currently logged in server.
-ilolicense                - Adds an iLO license key to the currently logged in server.
-iloreset                  - Reset iLO on the current logged in server.
-ipprofiles                - This is used to manage hpeipprofile data store.
-onebuttonerase            - Performs One Button Erase on a system.
-reboot                    - Reboot operations for the current logged in server.
-sendtest                  - Command for sending various tests to iLO.
-serverclone               - Creates a JSON formatted clone file of a system's iLO, Bios, and SSA configuration which can be duplicated onto other systems. User editable JSON file can be manipulated to modify settings before being loaded onto another machine.
-serverinfo                - Shows aggregate health status and details of the currently logged in server.
-serverlogs                - Download and perform log operations.
-serverstate               - Returns the current state of the server.
-sigrecompute              - Command to recalculate the signature of the computer's configuration.
-singlesignon              - Command for all single sign on available actions.
-virtualmedia              - Command for inserting and removing virtual media.
-
-iLO REPOSITORY COMMANDS
-deletecomp                - Deletes components/binaries from the iLO Repository.
-downloadcomp              - Downloads components/binaries from the iLO Repository.
-flashfwpkg                - Flashes fwpkg components using the iLO repository.
-installset                - Manages install sets for iLO.
-listcomp                  - Lists components/binaries from the iLO Repository.
-maintenancewindow         - Manages the maintenance windows for iLO.
-makeinstallset            - Creates install sets for iLO.
-taskqueue                 - Manages the update task queue for iLO.
-uploadcomp                - Upload components/binary to the iLO Repository.
-</pre>
-
-<blockquote>
-<p>The syntax to get help details for specific command is &#39;&lt;command&gt; <strong>-h</strong> or <strong>--help</strong>&#39;</p>
-</blockquote>
-
-<pre>
-iLOrest > <span style="color: #01a982; ">login -h</span>
-usage: login [-h] [--url URL] [--sessionid SESSIONID] [-u USER] [-p PASSWORD] [--biospassword BIOSPASSWORD] [--https HTTPS_CERT]
-             [--includelogs] [--path PATH] [--force-vnic] [--logout]
-             [--selector SELECTOR]
-
-To login remotely run using iLO url and iLO credentials
-        example: login &lt;iLO url/hostname&gt; -u &lt;iLO username&gt; -p &lt;iLO password&gt;
-
-        To login on a local server run without arguments
-        example: login
-
-        NOTE: A [URL] can be specified with an IPv4, IPv6, or hostname address.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --selector SELECTOR   Optionally include this flag to select a type to run the current command on. Use this flag when you wish to select a type without entering another command, or if you wish to work with a type that is different from the one you currently have selected.
-
-LOGIN OPTIONS:
-  Options for logging in to a system.
-
-  --url URL             Use the provided iLO URL to login.
-  --sessionid SESSIONID
-                        Use the provided sessionid to login.
-  -u USER, --user USER  If you are not logged in yet, including this flag along with the
-                        password and URL flags can be used to login to a server in the same command.
-  -p PASSWORD, --password PASSWORD
-                        Use the provided iLO password to log in.
-  --biospassword BIOSPASSWORD
-                        Select this flag to input a BIOS password. Include this
-                        flag if second-level BIOS authentication is needed for the command to execute.
-                        This option is only used on Gen 9 systems.
-  --https HTTPS_CERT    Use the provided CA bundle or SSL certificate with your login to
-                        connect securely to the system in remote mode. This flag has no effect in local mode.
-  --includelogs         Optionally include logs in the data retrieval process.
-  --path PATH           Optionally set a starting point for data collection during login.
-                        If you do not specify a starting point, the default path will be /redfish/v1/.
-                        Note: The path flag can only be specified at the time of login.
-                        Warning: Only for advanced users, and generally not needed for normal operations.  
-  --logout              Logout after the completion of the command.
-</pre>
-
-<p class="fake_header">Syntax</p>
-
-<p>help <em>[command] [optional parameters]</em></p>
-
-<p class="fake_header">Description</p>
-
-<p>Displays command-line syntax and help menus for individual commands. Use this command if you want to know more about a command or need help using a command. Alternatively, you can use the <code>help</code> command without specifying a particular command if you wish to see all the available commands and options.</p>
-
-<p class="fake_header">Parameters</p>
-
-<ul>
-<li>Command</li>
-</ul>
-
-<p>Supplying a command to help will display the help message corresponding to the given command, as well as the options relating to that particular command.</p>
-
-<aside class="notice">If no command is provided, the help command lists and provides a brief description of all available commands.</aside>
-
-<ul>
-<li><strong>-h, --help</strong></li>
-</ul>
-
-<p>Running the <code>help</code> command with the <strong>&#8209;h</strong> or <strong>&#8209;&#8209;help</strong> parameter displays information on how to use the <code>help</code> command.</p>
-
-<ul>
-<li><strong>-c FILE, --config=FILE</strong></li>
-</ul>
-
-<p>Use the provided configuration file instead of the default one.</p>
-
-<ul>
-<li><strong>--cache-dir=PATH</strong></li>
-</ul>
-
-<p>Use the provided directory as the location to cache data (default location: <code>C:\Users\USERNAME\AppData\Roaming\.ilorest</code>).</p>
-
-<p class="fake_header">Inputs</p>
-
-<p>None</p>
-
-<p class="fake_header">Outputs</p>
-
-<p>None</p>
 <h3 id='login-command'>Login Command</h3>
 <blockquote>
 <p>To login remotely, with basic authentication, supply the URL, username, and password for the server.</p>
@@ -2504,7 +2353,7 @@ Boot=
 <li><strong>--filter [FILTER_ATTRIBUTE=FILTER_VALUE]</strong></li>
 </ul>
 
-<p>Optionally set a filter value for a filter attribute. This uses the provided filter for the currently selected type. (see <a href="#filter-option">Filter Option</a> for more information).</p>
+<p>Optionally set a filter value for a filter attribute. This uses the provided filter for the currently selected type. (see <a href="#filtering-option">Filter Option</a> for more information).</p>
 
 <aside class="notice"> Use this flag to narrow down your results. For example, selecting a common type might return multiple objects that are all of that type. If you want to modify the properties of only one of those objects, use the filter flag to narrow down results based on properties.</aside>
 
@@ -2958,7 +2807,7 @@ Oem=
 <li><strong>--filter [FILTER_ATTRIBUTE=FILTER_VALUE]</strong></li>
 </ul>
 
-<p>Optionally set a filter value for a filter attribute. This uses the provided filter for the currently selected type. (see <a href="#filter-option">Filter Option</a> for more information).</p>
+<p>Optionally set a filter value for a filter attribute. This uses the provided filter for the currently selected type. (see <a href="#filtering-option">Filter Option</a> for more information).</p>
 
 <aside class="notice"> Use this flag to narrow down your results. For example, selecting a common type might return multiple objects that are all of that type. If you want to modify the properties of only one of those objects, use the filter flag to narrow down results based on properties.</aside>
 
@@ -3150,7 +2999,7 @@ AdminName=Jason E
 <li><strong>--filter [FILTER_ATTRIBUTE=FILTER_VALUE]</strong></li>
 </ul>
 
-<p>Optionally set a filter value for a filter attribute. This uses the provided filter for the currently selected type. (see <a href="#filter-option">Filter Option</a> for more information).</p>
+<p>Optionally set a filter value for a filter attribute. This uses the provided filter for the currently selected type. (see <a href="#filtering-option">Filter Option</a> for more information).</p>
 
 <aside class="notice"> Use this flag to narrow down your results. For example, selecting a common type might return multiple objects that are all of that type. If you want to modify the properties of only one of those objects, use the filter flag to narrow down results based on properties.</aside>
 
@@ -3355,7 +3204,7 @@ Logging session out.
 <li><strong>--filter [FILTER_ATTRIBUTE=FILTER_VALUE]</strong></li>
 </ul>
 
-<p>Optionally set a filter value for a filter attribute. This uses the provided filter for the currently selected type. (see <a href="#filter-option">Filter Option</a> for more information).</p>
+<p>Optionally set a filter value for a filter attribute. This uses the provided filter for the currently selected type. (see <a href="#filtering-option">Filter Option</a> for more information).</p>
 
 <aside class="notice"> Use this flag to narrow down your results. For example, selecting a common type might return multiple objects that are all of that type. If you want to modify the properties of only one of those objects, use the filter flag to narrow down results based on properties.</aside>
 
@@ -3428,7 +3277,7 @@ Logging session out.
 <blockquote>
 <p>Load example commands:</p>
 
-<p>If no filename is supplied with the (-f, --filename) option, save looks for a file named <code>ilorest.json</code> in the current working directory. Save will automatically select the required type to make changes.</p>
+<p>If no filename is supplied with the (-f, --filename) option, load looks for a file named <code>ilorest.json</code> in the current working directory. Save will automatically select the required type to make changes.</p>
 </blockquote>
 
 <pre>
@@ -3496,6 +3345,12 @@ All servers have been successfully configured.
 </ul>
 
 <p>Including the help flag will display help for the command.</p>
+
+<ul>
+<li><strong>--reboot</strong></li>
+</ul>
+
+<p>Including the reboot flag will restart the server after loading.</p>
 
 <ul>
 <li><strong>-f FILENAME, --filename=FILENAME</strong></li>
@@ -3630,6 +3485,12 @@ No changes found
 </ul>
 
 <p>Including the help flag will display help for the command.</p>
+
+<ul>
+<li><strong>-j, --json</strong></li>
+</ul>
+
+<p>Including the json flag will display in json format.</p>
 
 <p class="fake_header">Inputs</p>
 
@@ -4215,7 +4076,7 @@ Current iSCSI Attempts:
 </blockquote>
 
 <pre>
-iLOrest > iscsiconfig <span style="color: #01a982; ">--add [2]</span>
+iLOrest > iscsiconfig <span style="color: #01a982; ">--add 2</span>
 One or more properties were changed and will not take effect until system is reset.
 iLOrest > iscsiconfig --list
 Current iSCSI Attempts:
@@ -4647,7 +4508,7 @@ Please make sure the order of passwords is maintained. The passwords are extract
 <blockquote>
 <p>Setpassword example commands:</p>
 
-<p>To set a new password, include the new password and the current password. When setting a bios or power on password with no previous password set, <code>OLD_PASSWORD</code> must be set to <code>None</code> signifying no password.</p>
+<p>To set a new password, include the new password and the current password. When setting a bios or power on password with no previous password set, <code>OLD_PASSWORD</code> must be set to <code>None</code> or <code>none</code> or <code>null</code> signifying no password.</p>
 </blockquote>
 
 <pre>
@@ -4658,7 +4519,7 @@ The operation completed successfully.
 </pre>
 
 <blockquote>
-<p>When setting a bios or power on password back to nothing, <code>NEW_PASSWORD</code> must be set to <code>&quot;&quot;</code>.</p>
+<p>When setting a bios or power on password back to nothing, <code>NEW_PASSWORD</code> must be set to <code>None</code> or <code>none</code> or <code>null</code>.</p>
 </blockquote>
 
 <pre>
@@ -4748,7 +4609,7 @@ securely to the system in remote mode. This flag has no effect in local mode.</p
 <ul>
 <li>certificate: Gen10 with limited functionality for Gen9
 <li>fwintegritycheck: Gen10
-<li>iloclone: Gen10
+<li>serverclone: Gen10
 <li>sigrecompute: Gen9
 </ul></p>
 <h3 id='backuprestore-command'>Backuprestore Command</h3>
@@ -5481,7 +5342,7 @@ To change settings, you must first enable the directory. You can use the `--enab
 <li><strong>--addrolemap=ROLES, --removerolemap=ROLES</strong></li>
 </ul>
 
-<p>Use this command to add or remove Role Mapping(s) for the LDAP and Kerberos services.</p>
+<p>Use this command to add or remove Role Mapping(s) for the LDAP services.</p>
 
 <aside class="notice">
 When adding role map, SID is optional.
@@ -6223,8 +6084,8 @@ This command has been recently changed. Please review the new method to specify 
 <p>Adds/deletes an iLO account on the currently logged in server and modifies iLO account privileges.</p>
 
 <ul>
-<li><strong>LOGINNAME:</strong>  The account name, not used to login.</li>
-<li><strong>USERNAME:</strong> The account username name, used to login.</li>
+<li><strong>LOGINNAME:</strong>  The account name, used to login.</li>
+<li><strong>USERNAME:</strong> The account username name, not used to login.</li>
 <li><strong>PASSWORD:</strong>  The account password, used to login.</li>
 <li><strong>Id:</strong> The number associated with an iLO user account.</li>
 <li><p><strong>PRIVILEGES:</strong></p>
@@ -7050,7 +6911,7 @@ Turning on the server in 3 seconds...
 iLO response with code [400]: The operation was not successful due to the current power state (for example, attempting to turn the power off when it is already off).
 </pre>
 
-<aside class="notice">The reboot command will log out, the user, from the server. Wait for the system to fully reboot before attempting to login, or data such as Bios may be unavailable.</aside>
+<aside class="notice">The reboot command will log out the user from the server. Wait for the system to fully reboot before attempting to login, or data such as Bios may be unavailable.</aside>
 
 <aside class="notice">Arguments are not case-sensitive.</aside>
 
@@ -7153,58 +7014,6 @@ iLO response with code [400]: The operation was not successful due to the curren
 <p>You can optionally choose to set the <strong>includelogs</strong> flag. Doing so will include logs in the data retrieval process.</p>
 
 <aside class="notice">This option can be used to limit long login times.</aside>
-
-<ul>
-<li><strong>--logout</strong></li>
-</ul>
-
-<p>Optionally include the logout flag to log out of the server after this command is completed. Using this flag when not logged in will have no effect.</p>
-
-<p class="fake_header">Input</p>
-
-<p>None</p>
-
-<p class="fake_header">Output</p>
-
-<p>None</p>
-<h3 id='results-command'>Results Command</h3>
-<p class="fake_header">Syntax</p>
-
-<p>results <em>[Optional Parameters]</em></p>
-
-<p class="fake_header">Description</p>
-
-<p>Use this command to retrieve a Redfish response messages. The results command provides feedback after an iLO state change as a list of attributes that have been modified and a short message log that contains details regarding the state change. The results captured are limited to Redfish response messages for these groups: BIOS, iSCSI, and Smart Array.</p>
-
-<p class="fake_header">Parameters</p>
-
-<ul>
-<li><strong>-h, --help</strong></li>
-</ul>
-
-<p>Including the help flag will display help for the command.</p>
-
-<p class="fake_header">Login Parameters</p>
-
-<p>The following parameters can be included to login to a server in the same line as the command is run.</p>
-
-<ul>
-<li><strong>--url=URL</strong></li>
-</ul>
-
-<p>If you are not logged in yet, use the provided iLO URL along with the user and password flags to login to the server in the same command.</p>
-
-<ul>
-<li><strong>-u User, --user=USER</strong></li>
-</ul>
-
-<p>If you are not logged in yet, use this flag along with the password and URL flags to login to a server in the same command.</p>
-
-<ul>
-<li><strong>-p Password, --password=PASSWORD</strong></li>
-</ul>
-
-<p>If you are not logged in yet, use this flag along with the user and URL flags to login. Use the provided iLO password corresponding to the username you gave to login.</p>
 
 <ul>
 <li><strong>--logout</strong></li>
@@ -7342,7 +7151,7 @@ Saving of clonefile to 'ilorest_clone.json' is complete.
 </pre>
 
 <blockquote>
-<p>To save an iLO and Bios config while providing a placeholder value for all user inputs run the command with the <code>save</code> argument and include the (<code>--auto</code>) option. This option can be used to problematically create a file without user input and then use a script to fill in the settings.</p>
+<p>To save an iLO and Bios config while providing a placeholder value for all user inputs run the command with the <code>save</code> argument and include the (<code>--auto</code>) option. This option can be used to programmatically create a file without user input and then use a script to fill in the settings.</p>
 </blockquote>
 
 <pre>
@@ -7391,7 +7200,7 @@ A configuration file 'ilorest_clone.json' containing configuration changes will 
 Proceeding with ServerClone Load Operation...
 This system has BIOS Version U32.
 BIOS Versions are different. Suggest to have 'U30' in place before upgrading.
-This system has has iLO 5 with firmware revision 1.40.
+This system has iLO 5 with firmware revision 1.40.
 iLO Versions are compatible.
 iLO Firmware Revisions are compatible.
 Would you like to continue with migration of iLO configuration from 'ProLiant DL380 Gen10' to 'ProLiant DL360 Gen10'? (y/n)
@@ -7466,7 +7275,7 @@ Discovering data...Done
 iLOrest > serverclone load <span style="color: #01a982; "> --auto --tlscert sso_certificate.txt --ssocert certificate.txt</span>
 This system has BIOS Version U32.
 BIOS Versions are different. Suggest to have 'U30' in place before upgrading.
-This system has has iLO 5 with firmware revision 1.40.
+This system has iLO 5 with firmware revision 1.40.
 iLO Versions are compatible.
 iLO Firmware Revisions are compatible.
 Attempting Clone from a 'ProLiant DL380 Gen10' to a 'ProLiant DL360 Gen10'.
@@ -7660,22 +7469,24 @@ The contents of type: '#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup' shou
 <p>This is an optional command used to rename the default clone file &#39;ilorest_clone.json&#39;.</p>
 
 <ul>
-<li><strong>--errarch=ARCHIVE, --archive=ARCHIVE</strong></li>
-</ul>
-
-<p>Allow for save to automatically archive the clone file and error log file. Use with load will archive the clone file, temporary patch file, error log file and changelog file.</p>
-
-<ul>
 <li><strong>--uniqueoverride</strong></li>
 </ul>
 
 <p>Use this command to override the measures stopping the tool from writing over items that are system unique.</p>
 
 <ul>
-<li><strong>auto</strong></li>
+<li><strong>--auto</strong></li>
 </ul>
 
-<p>This optional command provides preset credentials. The preset value of <strong><p/k></strong> is used as the password for the iLO account manager accounts and the iLO federation group keys. Warning and confirmation messages are suppressed including those used to alert the user of mismatches and system reboots/iLO resets.</p>
+<p>This optional command provides preset credentials. The preset value of <code>&lt;p/k&gt;</code> is used as the password for the iLO account manager accounts and the iLO federation group keys. Warning and confirmation messages are suppressed including those used to alert the user of mismatches and system reboots/iLO resets. 
+When used with load, it reboots the server after load successfully completed.</p>
+
+<ul>
+<li><strong>--noautorestart</strong></li>
+</ul>
+
+<p>This optional command when used with load --auto subcommand, it does not reboot the server automatically.  This is provided for customers who want
+to use both --auto and --noautorestart options together.</p>
 
 <ul>
 <li><strong>--ilossa</strong></li>
@@ -8090,7 +7901,7 @@ Severity=OK
 <p>Use this with the --selectlog option to perform operations on the IML logs.</p>
 
 <ul>
-<li><strong>SA</strong></li>
+<li><strong>SL</strong></li>
 </ul>
 
 <p>Use this with the --selectlog option to perfrom opertation on the Security logs.</p>
@@ -9061,7 +8872,7 @@ Logging session out.
 </pre>
 
 <aside class="notice">
-Some firmware can be flashed directly without a reboot, may require a reboot to take effect, or may only be staged for flash on reboot. The command will inform users when a firmware update will take place.
+Some firmware can be flashed directly without a reboot, some may require a reboot to take effect, or some may only be staged for flash on reboot. The command will inform users when a firmware update will take place.
 </aside>
 
 <p class="fake_header">Syntax</p>
@@ -10084,7 +9895,7 @@ One or more properties were changed an will not take effect until system is rese
 
 <pre>
 
-ilorest > <span style="color: #01a982; ">createlogicaldrive quickdrive Raid0 1E:1:2 HDD SATA Internal --controller=1</span>
+ilorest > <span style="color: #01a982; ">createlogicaldrive quickdrive Raid0 1 SSD SAS --locationtype=Internal --controller="Slot 0"</span>
 
 One or more properties were changed an will not take effect until system is reset.
 </pre>
@@ -10350,7 +10161,7 @@ ilorest > deletelogicaldrive --controller=1 <span style="color: #01a982; ">--all
 </blockquote>
 
 <pre>
-ilorest > drivesanitize --controller=1 1I:3:4
+ilorest > drivesanitize --controller=0 1I:3:4 --mediatype="HDD"
 Setting physical drive 1I:3:4 for sanitization
 One or more properties were changed and will not take effect until system is reset.
 Sanitization will occur on the next system reboot.
@@ -10361,7 +10172,7 @@ Sanitization will occur on the next system reboot.
 </blockquote>
 
 <pre>
-ilorest > drivesanitize --controller=<span style="color: #01a982; ">1 1I:3:3,1I:3:2,1I:3:1</span>
+ilorest > drivesanitize --controller=<span style="color: #01a982; ">0 1I:3:3,1I:3:2,1I:3:1 --mediatype="HDD"</span>
 Setting physical drive 1I:3:3 for sanitization
 Setting physical drive 1I:3:2 for sanitization
 Setting physical drive 1I:3:1 for sanitization
@@ -10390,6 +10201,12 @@ Sanitization will occur on the next system reboot.
 </ul>
 
 <p>Use this flag to select the corresponding controller.</p>
+
+<ul>
+<li><strong>--mediatype=HDD/SSD</strong></li>
+</ul>
+
+<p>Use this flag to indicate if the drive is HDD or SSD.  This is mandatory option.</p>
 
 <ul>
 <li><strong>--reboot</strong></li>
@@ -10564,40 +10381,23 @@ Physical Drives&#58;
 </blockquote>
 
 <pre>
-ilorest > <span style="color: #01a982; ">smartarray --controller=1</span>
-{
-  "CurrentParallelSurfaceScanCount": 1,
-  "DataGuard": "Disabled",
-  "DegradedPerformanceOptimization": "Disabled",
-  "DriveWriteCache": "Disabled",
-  "ElevatorSort": "Enabled",
-  "EncryptionConfiguration": "None",
-  "EncryptionEULA": null,
-  "ExpandPriority": "Medium",
-  "FlexibleLatencySchedulerSetting": "Default",
-  "InconsistencyRepairPolicy": "Disabled",
-  "Location": "Slot 0",
-  "LocationFormat": "PCISlot",
-  "LogicalDrives": [
-    {
-      "CapacityBlocks": 1172058032,
-      "ParityGroupCount": 0,
-      "SpareRebuildMode": null,
-      "Raid": "Raid0",
-      "LogicalDriveNumber": 1,
-      "Accelerator": "ControllerCache",
-      "BlockSizeBytes": 512,
-      "CapacityGiB": 558,
-      "SpareDrives": [],
-      "DriveLocationFormat": "ControllerPort:Box:Bay",
-      "LogicalDriveName": "004D56ABPEYHC0ARH951TK A39C",
-      "VolumeUniqueIdentifier": "600508B1001C599DE361257397F69972",
-      "StripeSizeBytes": 262144,
-      "StripSizeBytes": 262144,
-      "DataDrives": [
-        "1I:3:2"
-      ]
-  ...
+ilorest > <span style="color: #01a982; ">smartarray --controller=0</span>
+Selected option(s): #StorageCollection.StorageCollection
+------------------------------------------------
+Controller Info
+------------------------------------------------
+Id: 0
+Name: HPE Smart Array SR308i-p Gen11
+FirmwareVersion: 5.32
+Manufacturer: HPE
+Model: HPE Smart Array SR308i-p Gen11
+PartNumber: 830826-001
+SerialNumber: PZDLCX1GFG002O
+SKU: 836269-001
+Status: {'Health': 'Critical', 'State': 'Enabled'}
+SupportedDeviceProtocols: ['SAS', 'SATA']
+SupportedControllerProtocols: ['PCIe']
+ILOREST return code: 0
 </pre>
 
 <blockquote>
@@ -10605,8 +10405,9 @@ ilorest > <span style="color: #01a982; ">smartarray --controller=1</span>
 </blockquote>
 
 <pre>
-ilorest > <span style="color: #01a982; ">smartarray --controller=1 --pdrive=1I:3:4</span>
+ilorest > <span style="color: #01a982; ">smartarray --controller=0 --pdrive=1I:3:4 -j</span>
 {
+  "Controller": "Slot=3 - HPE Smart Array SR308i-p Gen11",
   "BlockSizeBytes": 512,
   "CapacityGB": 400,
   "CapacityLogicalBlocks": 781422768,
@@ -10649,8 +10450,9 @@ ilorest > <span style="color: #01a982; ">smartarray --controller=1 --pdrive=1I:3
 </blockquote>
 
 <pre>
-iLOrest > <span style="color: #01a982; ">smartarray --controller=1 --ldrive=1</span>
+iLOrest > <span style="color: #01a982; ">smartarray --controller=0 --ldrive=1 -j</span>
 {
+  "Controller": "Slot=3 - HPE Smart Array SR308i-p Gen11",
   "Accelerator": "ControllerCache",
   "BlockSizeBytes": 512,
   "CapacityBlocks": 1172058032,
@@ -10717,6 +10519,221 @@ iLOrest > <span style="color: #01a982; ">smartarray --controller=1 --ldrive=1</s
 </ul>
 
 <p>Use this flag to select the corresponding logical disk.</p>
+
+<p class="fake_header">Login Parameters</p>
+
+<p>The following parameters can be included to login to a server in the same line as the command is run.</p>
+
+<ul>
+<li><strong>--url=URL</strong></li>
+</ul>
+
+<p>If you are not logged in yet, use the provided iLO URL along with the user and password flags to login to the server in the same command.</p>
+
+<ul>
+<li><strong>-u User, --user=USER</strong></li>
+</ul>
+
+<p>If you are not logged in yet, including this flag along with the password and URL flags can be used to login to a server in the same command.</p>
+
+<ul>
+<li><strong>-p Password, --password=PASSWORD</strong></li>
+</ul>
+
+<p>If you are not logged in yet, use this flag along with the user and URL flags to login. Use the provided iLO password corresponding to the username you gave to login.</p>
+
+<ul>
+<li><strong>--logout</strong></li>
+</ul>
+
+<p>Optionally include the logout flag to log out of the server after this command is completed. Using this flag when not logged in will have no effect.</p>
+
+<p class="fake_header">Input</p>
+
+<p>None</p>
+
+<p class="fake_header">Output</p>
+
+<p>None</p>
+<h2 id='smart-nic-commands'>Smart NIC Commands</h2>
+<p>The Smart NIC commands are designed for use with HPE Gen10 servers.</p>
+
+<aside class="notice">
+<ul>
+<li>A Smart NIC Capable controller capable of communicating with iLO is required.</li>
+</ul>
+</aside>
+<h3 id='smartnic-command'>Smartnic Command</h3>
+<blockquote>
+<p>To list all available smart NICs run the command without arguments.</p>
+</blockquote>
+
+<pre>
+ilorest > <span style="color: #01a982; ">smartnic</span>
+------------------------------------------------
+SmartNic Information
+------------------------------------------------
+System 2:
+        Model: Pensando DSC25v2 10/25G 2p 32GB
+        Manufacturer: HPE
+        Name: Data Processing Unit
+        Firmware Version:
+        PowerState: On
+        SerialNumber: 5UP135004C
+        SystemType: DPU
+        Health: Critical
+        State: Disabled
+        Operating System: Unknown  OS
+        OS Version: Unknown
+        Available SystemCapabilities:
+        Enable SystemCapabilities:
+        Integration Config: OsReadyTimeout: 300
+        UUID: 1DD80000-0000-4000-8000-00AECDF624A0
+</pre>
+
+<blockquote>
+<p>To list all smartnics in json format and without any logo.</p>
+</blockquote>
+
+<pre>
+ilorest > <span style="color: #01a982; ">smartnic -j --nologo</span>
+{
+  "SmartNic Information": {
+    "System 2": {
+      "Available SystemCapabilities": [],
+      "Enable SystemCapabilities": [],
+      "Firmware Version": "",
+      "Health": "Critical",
+      "Integration Config": {
+        "OsReadyTimeout": 300
+      },
+      "Manufacturer": "HPE",
+      "Name": "Data Processing Unit",
+      "OS Version": "Unknown",
+      "Operating System": "Unknown  OS",
+      "PowerState": "On",
+      "SerialNumber": "5UP135004C",
+      "State": "Disabled",
+      "SystemType": "DPU",
+      "UUID": "1DD80000-0000-4000-8000-00AECDF624A0",
+      "model": "Pensando DSC25v2 10/25G 2p 32GB"
+    }
+  }
+}
+</pre>
+
+<blockquote>
+<p>To view the logs of particular smartnic.</p>
+</blockquote>
+
+<pre>
+ilorest > <span style="color: #01a982; ">smartnic --id=2 --logs -j --nologo</span>
+{
+  "Logs View": {
+    "Created": "2021-06-10T08:08:42Z",
+    "DPU Log cleared by": " Administrator",
+    "EntryType": "Oem",
+    "Id": "1",
+    "Name": "DPU Log",
+    "Severity": "OK"
+  }
+}
+</pre>
+
+<blockquote>
+<p>To update FW of a particular smartnic.</p>
+</blockquote>
+
+<pre>
+ilorest > <span style="color: #01a982; ">smartnic --id=2 --update_fw https://1.1.1.1/pensando.tar</span>
+Uploading firmware: pensando.tar
+Firmware update in progress
+Firmware update in completed
+</pre>
+
+<blockquote>
+<p>To view the bootprogress of smartnic.</p>
+</blockquote>
+
+<pre>
+ilorest > <span style="color: #01a982; ">smartnic --id=2 --bootprogress -j --nologo</span>
+{
+  "Boot Progress": {
+    "Id": "2",
+    "LastState": "OEM",
+    "OemLastState": "Unknown"
+  }
+}
+</pre>
+
+<blockquote>
+<p>To reset the smartnic.</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">smartnic --id=2 --reset=GracefulRestart</span>
+Graceful server restart. Note, the current session will be terminated.
+Please wait for the server to boot completely before logging in again.
+Rebooting the server in 3 seconds...
+</pre>
+
+<p class="fake_header">Syntax</p>
+
+<p>Smartnic <em>[Optional Parameters]</em></p>
+
+<p class="fake_header">Description</p>
+
+<p>Discovers all smartnics installed in the server and managed by the SmartStorage.  </p>
+
+<p class="fake_header">Parameters</p>
+
+<ul>
+<li><strong>-h, --help</strong></li>
+</ul>
+
+<p>Including the help flag will display help for the command.</p>
+
+<ul>
+<li><strong>--id=ID</strong></li>
+</ul>
+
+<p>Use this flag to select the corresponding smartnic.</p>
+
+<ul>
+<li><strong>-j</strong></li>
+</ul>
+
+<p>Use this flag to print the smartnic info in json format.</p>
+
+<ul>
+<li><strong>--logs</strong></li>
+</ul>
+
+<p>Use this flag to get the logs of specified smartnic.</p>
+
+<ul>
+<li><strong>--clearlog</strong></li>
+</ul>
+
+<p>Use this flag to clear log of smartnic.</p>
+
+<ul>
+<li><strong>--bootprogress</strong></li>
+</ul>
+
+<p>Use this flag to check the bootprogress.</p>
+
+<ul>
+<li><strong>--update_fw=FWPKG</strong></li>
+</ul>
+
+<p>Use this flag to update the FW of smartnic.</p>
+
+<ul>
+<li><strong>--reset=GracefulShutdown/ForceRestart/Nmi/GracefulRestart</strong></li>
+</ul>
+
+<p>Use this flag to reset the smart as specified above.</p>
 
 <p class="fake_header">Login Parameters</p>
 
@@ -12089,7 +12106,7 @@ HpeESKM.v2_0_0
 <td>Adds a Federation group membership and grant associated privileges on iLO4 and iLO5.</td>
 </tr>
 <tr>
-<td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Add_sso_rec.sh" target="_blank">Add_sso_rec.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Add_sso_rec.bat" target="_blank">Add_sso_rec.bat</a></td>
+<td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/add_sso_rec.sh" target="_blank">add_sso_rec.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/add_sso_rec.bat" target="_blank">add_sso_rec.bat</a></td>
 <td>Adds an HPE SIM Single Sign-On (SSO) server record to the end of the database on iLO4 or iLO5.</td>
 </tr>
 <tr>
@@ -12133,16 +12150,12 @@ HpeESKM.v2_0_0
 <td>Deletes a Federation group membership on iLO4 and iLO5.</td>
 </tr>
 <tr>
-<td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Delete_sso_rec.sh" target="_blank">Delete_sso_rec.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Delete_sso_rec.bat" target="_blank">Delete_sso_rec.bat</a></td>
+<td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/delete_sso_rec.sh" target="_blank">delete_sso_rec.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/delete_sso_rec.bat" target="_blank">delete_sso_rec.bat</a></td>
 <td>Deletes an HPE SIM Single Sign-On (SSO) server record by index.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Delete_User.sh" target="_blank">Delete_User.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Delete_User.bat" target="_blank">Delete_User.bat</a></td>
 <td>Deletes a user from the database of local users on iLO4 and iLO5.</td>
-</tr>
-<tr>
-<td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/delete_sso_rec.sh" target="_blank">delete_sso_rec.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/delete_sso_rec.bat" target="_blank">delete_sso_rec.bat</a></td>
-<td>Deletes an HPE SIM Single Sign-On (SSO) server record by index.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Eject_Virtual_Media.sh" target="_blank">Eject_Virtual_Media.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Eject_Virtual_Media.bat" target="_blank">Eject_Virtual_Media.bat</a></td>
@@ -14114,11 +14127,11 @@ iLOrest return code: 0
 
 <ol>
 <li><p>Use a selector that is exclusive to the type you want.</p></li>
-<li><p>Verify that the type you have selected, does not have more than one instance. In this case, the <a href="#filter-option">filter option</a> can help you limit the results to the instance you want.</p></li>
+<li><p>Verify that the type you have selected, does not have more than one instance. In this case, the <a href="#filtering-option">filter option</a> can help you limit the results to the instance you want.</p></li>
 </ol>
 
 <blockquote>
-<p>This example shows that we are selecting only 1 type, but multiple instances are available for that type. We only want to modify or view 1 instance! We can use the <a href="#filter-option">--filter</a> option to limit to 1 instance only.</p>
+<p>This example shows that we are selecting only 1 type, but multiple instances are available for that type. We only want to modify or view 1 instance! We can use the <a href="#filtering-option">--filter</a> option to limit to 1 instance only.</p>
 </blockquote>
 
 <pre>
@@ -14266,15 +14279,14 @@ The operation completed successfully.
 <p>This list describes any reboot or reset behavior for commands:</p>
 
 <ul>
-<li>The following commands will reboot your system:
+<li><p>The following commands will reboot your system:</p>
 
 <ul>
 <li>Reboot</li>
 <li>OneButtonErase</li>
 <li>Serverclone</li>
-<li>iLOclone</li>
 </ul></li>
-<li>The following commands can reboot your system if you specify the option:
+<li><p>The following commands can reboot your system if you specify the option:</p>
 
 <ul>
 <li>BiosDefaults</li>
@@ -14286,20 +14298,19 @@ The operation completed successfully.
 <li>Set</li>
 <li>VirtualMedia</li>
 </ul></li>
-<li>The following commands will reset iLO:
+<li><p>The following commands will reset iLO:</p>
 
 <ul>
 <li>OneButtonErase</li>
 <li>Serverclone</li>
-<li>iLOclone</li>
 <li>iLOreset</li>
 <li>Uploadcomp - Can reset iLO if the firmware requires an iLO reset to finish flashing and you are directly flashing</li>
 <li>flashfwpkg - Can reset iLO if the firmware requires an iLO reset to finish flashing</li>
 </ul></li>
-<li>The following commands will factory reset your iLO:
+<li><p>The following commands will factory reset your iLO:</p>
 
 <ul>
-<li>iLOclone</li>
+<li>Serverclone</li>
 <li>factoryreset</li>
 </ul></li>
 </ul>
@@ -14357,8 +14368,6 @@ The operation completed successfully.
 
 <aside class="notice">Access to some updates might require product entitlement when accessed through the <b>Hewlett Packard Enterprise Support Center</b>. You must have an HPE Passport set up with relevant entitlements.</aside>
 <h2 id='websites-and-documents'>Websites and documents</h2><h3 id='tutorial-videos'>Tutorial Videos</h3>
-<p><a href="https://www.youtube.com/watch?v=CGl8DsYTdQo">Creating iLO REST Extensions</a></p>
-
 <p><a href="https://www.youtube.com/watch?v=xfEN95pNNfY">An Introduction to the RESTful Interface Tool</a></p>
 
 <p><a href="https://www.youtube.com/watch?v=WPz2FP8bXYU">Benefits of RESTful Interface Tool vs. CONREP</a></p>
@@ -14388,10 +14397,6 @@ The operation completed successfully.
 <tr>
 <td>Software Depot</td>
 <td><a href="http://www.hpe.com/support/softwaredepot">www.hpe.com/support/softwaredepot</a></td>
-</tr>
-<tr>
-<td>Customer Self Repair</td>
-<td><a href="http://www.hpe.com/support/selfrepair">www.hpe.com/support/selfrepair</a></td>
 </tr>
 <tr>
 <td>Insight Remote Support</td>
@@ -14434,8 +14439,8 @@ The operation completed successfully.
 <td><a href="http://www.hpe.com/servers/spp">www.hpe.com/servers/spp</a></td>
 </tr>
 <tr>
-<td>HPE iLO 4</td>
-<td><a href="http://www.hpe.com/info/ilo/docs">www.hpe.com/info/ilo/docs</a></td>
+<td>HPE iLO 5 User Guide</td>
+<td><a href="https://hewlettpackard.github.io/ilo-rest-api-docs/ilo5/">hewlettpackard.github.io/ilo-rest-api-docs/ilo5</a></td>
 </tr>
 <tr>
 <td>HPE iLO University videos</td>
@@ -14466,12 +14471,6 @@ The operation completed successfully.
 <li><a href="http://h20628.www2.hpe.com/km-ext/kmcsdirect/emr_na-c00705292-47.pdf">HPE BladeSystem Onboard Administrator User Guide</a></li>
 <li><a href="http://h20564.www2.hpe.com/hpsc/doc/public/display?docId=c04149067">HPE iLO Federation User Guide</a></li>
 </ul>
-<h2 id='customer-self-repair'>Customer self-repair</h2>
-<p><strong>Hewlett Packard Enterprise customer self repair</strong> (CSR) programs allow you to repair your product. If a CSR part needs to be replaced, it will be shipped directly to you so that you can install it at your convenience. Some parts do not qualify for CSR. Your Hewlett Packard Enterprise authorized service provider will determine whether a repair can be accomplished by CSR.</p>
-
-<p>For more information about CSR, contact your local service provider or go to the CSR website.</p>
-
-<p><a href="http://www.hpe.com/support/selfrepair">www.hpe.com/support/selfrepair</a></p>
 <h2 id='remote-support'>Remote Support</h2>
 <p>Remote support is available with supported devices as part of your warranty or contractual support agreement. It provides intelligent event diagnosis, and automatic, secure submission of hardware event notifications to Hewlett Packard Enterprise, which will initiate a fast and accurate resolution based on your product&apos;s service level. Hewlett Packard Enterprise strongly recommends that you register your device for remote support.</p>
 
@@ -14492,16 +14491,16 @@ The operation completed successfully.
 </tr>
 </thead><tbody>
 <tr>
+<td>--ilossa option in serverclone command is not yet supported.</td>
+<td>NA</td>
+<td>Smartarray cloning is not yet supported by serverclone command.</td>
+<td>Smartarray has to be created using createlogicaldrive.</td>
+</tr>
+<tr>
 <td>Chif login error out in SLES 12 SP4.</td>
 <td><a href="https://si.its.hpecorp.net/si/?ObjectType=52&amp;Object=SID7946">SID7946</a>.</td>
 <td>Logging into iLO in SLES 12SP4 may error out.</td>
 <td>Use remote or vnic login.</td>
-</tr>
-<tr>
-<td>--proxy global login option does not work.</td>
-<td>NA</td>
-<td>--proxy global option does not work.</td>
-<td>Configure and use system proxy at OS level.</td>
 </tr>
 <tr>
 <td>Certificate login in ESXi 7.0 does not work.</td>
@@ -14516,28 +14515,22 @@ The operation completed successfully.
 <td>Use remote or vnic login or GUI to update the recovery set.</td>
 </tr>
 <tr>
-<td>Serverclone load error when input file is encrypted.</td>
-<td>NA</td>
-<td>Serverclone load command errors when input configuration file is encrypted.</td>
-<td>Use unencrypted input file for serverclone load.</td>
-</tr>
-<tr>
 <td>Directory group clone does not work with serverclone command.</td>
 <td>NA</td>
 <td>Serverclone save, create a directory grp, serverclone load to old config and directory group is not erased.</td>
 <td>Directory Groups need to be manually created/erased.</td>
 </tr>
 <tr>
-<td>UnifiedCertificate may error out when generating certificate.</td>
+<td>smartnic --id 2 --reset may not work</td>
 <td>NA</td>
-<td>UnifiedCertificate command is future replacement for certificate command.</td>
-<td>Use Certificate command instead to generate certificate and get certificate.</td>
+<td>This may happen due to post request not sent to iLO</td>
+<td>Use rawpost command to reset the smartnic.</td>
 </tr>
 <tr>
-<td>iscsiconfig --list may error out with &#39;Name&#39; not found</td>
+<td>smartnic --id 2 --bootprogress and --logs may not work without -j option</td>
 <td>NA</td>
-<td>This may happen due to iscsi is added as second attempt onwards.</td>
-<td>Use rawget command to list the iscsi attempts.</td>
+<td>This may happen due to an error in code</td>
+<td>Always use -j option if --bootprogress and --logs are used.</td>
 </tr>
 </tbody></table>
 <h1 id='error-codes'>Error Codes</h1>
@@ -14945,7 +14938,7 @@ The operation completed successfully.
 <td>76</td>
 <td>REST_ILOREST_BLOB_OVERRIDE_ERROR (see REST_ILOREST_WRITE_BLOB_ERROR)</td>
 <td>iLO RESTful API BLOB override error.</td>
-<td>Blobstore may not be available or the size of the data may exceed 15KB. Attempt to reset iLO as well as cycle logout and login operations. Review ilorest.debug log using &#39;-d&#39;. Report this issue for further investigation.</td>
+<td>This may happen if more than 1 users are accessing the iLO in local mode/inband. Make sure only one user is accessing the iLO data. And also check if the size of the data exceeds 15KB.</td>
 </tr>
 <tr>
 <td>77</td>
