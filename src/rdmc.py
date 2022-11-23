@@ -1166,7 +1166,7 @@ class RdmcCommand(RdmcCommandBase):
         return checkargs(cmdinstance.parser.parse_known_args(exarglist))
 
 
-if __name__ == "__main__":
+def ilorestcommand():
     # Initialization of main command class
     ARGUMENTS = sys.argv[1:]
 
@@ -1204,3 +1204,6 @@ if __name__ == "__main__":
 
     # Return code
     sys.exit(RDMC.retcode)
+
+if __name__ == "__main__":
+    ilorestcommand()
