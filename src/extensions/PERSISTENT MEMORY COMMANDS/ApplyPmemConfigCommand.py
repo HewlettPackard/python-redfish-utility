@@ -19,14 +19,24 @@
 from __future__ import absolute_import
 from copy import deepcopy
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    LOGGER,
-    NoChangesFoundOrMadeError,
-    NoContentsFoundForOperationError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        LOGGER,
+        NoChangesFoundOrMadeError,
+        NoContentsFoundForOperationError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        LOGGER,
+        NoChangesFoundOrMadeError,
+        NoContentsFoundForOperationError,
+    )
 
 from .lib.DisplayHelpers import DisplayHelpers
 from .lib.RestHelpers import RestHelpers

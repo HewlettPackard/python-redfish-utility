@@ -20,13 +20,22 @@
 import getpass
 from argparse import SUPPRESS, ArgumentParser
 
-from rdmc_helper import (
-    Encryption,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    ReturnCodes,
-    UnableToDecodeError,
-)
+try:
+    from rdmc_helper import (
+        Encryption,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
+        UnableToDecodeError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        Encryption,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
+        UnableToDecodeError,
+    )
 
 
 class SetPasswordCommand:

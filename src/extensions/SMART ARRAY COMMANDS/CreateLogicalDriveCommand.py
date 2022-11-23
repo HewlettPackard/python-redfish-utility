@@ -19,14 +19,22 @@
 
 from argparse import RawDescriptionHelpFormatter
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    Encryption,
-    InvalidSmartArrayConfigurationError,
-)
-
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        Encryption,
+        InvalidSmartArrayConfigurationError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        Encryption,
+        InvalidSmartArrayConfigurationError,
+    )
 
 class CreateLogicalDriveCommand:
     """Create logical drive command"""

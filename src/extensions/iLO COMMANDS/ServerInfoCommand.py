@@ -22,12 +22,20 @@ from collections import OrderedDict
 
 import jsonpath_rw
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    UI,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        UI,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        UI,
+    )
 
 
 class ServerInfoCommand:

@@ -36,17 +36,31 @@ from six import StringIO, BytesIO
 
 import redfish.hpilo.risblobstore2 as risblobstore2
 
-from rdmc_helper import (
-    ReturnCodes,
-    CommandNotEnabledError,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    StandardBlobErrorHandler,
-    InvalidFileInputError,
-    PartitionMoutingError,
-    BirthcertParseError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        CommandNotEnabledError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        StandardBlobErrorHandler,
+        InvalidFileInputError,
+        PartitionMoutingError,
+        BirthcertParseError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        CommandNotEnabledError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        StandardBlobErrorHandler,
+        InvalidFileInputError,
+        PartitionMoutingError,
+        BirthcertParseError,
+        Encryption,
+    )
+
 
 if os.name == "nt":
     import win32api

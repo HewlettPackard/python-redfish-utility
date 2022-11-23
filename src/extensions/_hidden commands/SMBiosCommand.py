@@ -25,13 +25,23 @@ from argparse import ArgumentParser
 
 import redfish.ris
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    IncompatibleiLOVersionError,
-    InvalidCommandLineError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+    )
+
 
 __filename__ = "smbios.json"
 

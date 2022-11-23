@@ -33,16 +33,28 @@ from six import StringIO, BytesIO
 import redfish
 from redfish.hpilo.risblobstore2 import BlobStore2
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineErrorOPTS,
-    InvalidFileFormattingError,
-    UnableToDecodeError,
-    Encryption,
-    PathUnavailableError,
-    InvalidFileInputError,
-    NoContentsFoundForOperationError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileFormattingError,
+        UnableToDecodeError,
+        Encryption,
+        PathUnavailableError,
+        InvalidFileInputError,
+        NoContentsFoundForOperationError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileFormattingError,
+        UnableToDecodeError,
+        Encryption,
+        PathUnavailableError,
+        InvalidFileInputError,
+        NoContentsFoundForOperationError,
+    )
 
 
 class IPProfilesCommand:

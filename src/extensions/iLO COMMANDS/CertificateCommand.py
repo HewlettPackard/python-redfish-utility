@@ -19,15 +19,27 @@
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    InvalidFileInputError,
-    IncompatibleiLOVersionError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        InvalidFileInputError,
+        IncompatibleiLOVersionError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        InvalidFileInputError,
+        IncompatibleiLOVersionError,
+        Encryption,
+    )
+
 
 __filename__ = "certificate.txt"
 

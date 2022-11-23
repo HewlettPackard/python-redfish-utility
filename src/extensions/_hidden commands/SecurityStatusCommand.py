@@ -32,8 +32,14 @@ from redfish.hpilo.rishpilo import (
 from redfish.rest.connections import ChifDriverMissingOrNotFound
 from redfish.hpilo.risblobstore2 import BlobStore2, ChifDllMissingError
 
-from rdmc_base_classes import RdmcCommandBase
-from rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS, Encryption
+try:
+    from rdmc_base_classes import RdmcCommandBase
+except ImportError:
+    from ilorest.rdmc_base_classes import RdmcCommandBase
+try:
+    from rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS, Encryption
+except ImportError:
+    from ilorest.rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS, Encryption
 
 
 class SecurityStatusCommand(RdmcCommandBase):

@@ -44,16 +44,29 @@ from redfish.hpilo.rishpilo import (
 from redfish.hpilo.rishpilo import BlobReturnCodes
 from redfish.hpilo.risblobstore2 import BlobStore2, Blob2SecurityError
 from redfish.rest.connections import Blobstore2Connection
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineErrorOPTS,
-    Encryption,
-    UploadError,
-    InvalidCommandLineError,
-    IncompatibleiLOVersionError,
-    TimeOutError,
-    InvalidFileInputError,
-)
+
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        Encryption,
+        UploadError,
+        InvalidCommandLineError,
+        IncompatibleiLOVersionError,
+        TimeOutError,
+        InvalidFileInputError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        Encryption,
+        UploadError,
+        InvalidCommandLineError,
+        IncompatibleiLOVersionError,
+        TimeOutError,
+        InvalidFileInputError,
+    )
 
 
 def human_readable_time(seconds):

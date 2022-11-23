@@ -17,13 +17,22 @@
 # -*- coding: utf-8 -*-
 """ Delete Component Command for rdmc """
 
-from rdmc_helper import (
-    IncompatibleiLOVersionError,
-    ReturnCodes,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-    InvalidCommandLineError,
-)
+try:
+    from rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+    )
 
 
 class DeleteComponentCommand:

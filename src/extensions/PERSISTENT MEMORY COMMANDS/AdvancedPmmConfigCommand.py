@@ -21,14 +21,25 @@ from __future__ import absolute_import  # verify if python3 libs can handle
 from copy import deepcopy
 from argparse import Action, REMAINDER
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    LOGGER,
-    NoChangesFoundOrMadeError,
-    NoContentsFoundForOperationError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        LOGGER,
+        NoChangesFoundOrMadeError,
+        NoContentsFoundForOperationError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        LOGGER,
+        NoChangesFoundOrMadeError,
+        NoContentsFoundForOperationError,
+    )
+
 
 from .lib.DisplayHelpers import DisplayHelpers
 from .lib.Mapper import Mapper

@@ -38,18 +38,32 @@ from redfish.ris.rmc_helper import IloResponseError, IdTokenError, InstanceNotFo
 
 from six.moves import input
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidKeyError,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-    InvalidFileInputError,
-    NoChangesFoundOrMadeError,
-    NoContentsFoundForOperationError,
-    ResourceExists,
-    NoDifferencesFoundError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidKeyError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        NoChangesFoundOrMadeError,
+        NoContentsFoundForOperationError,
+        ResourceExists,
+        NoDifferencesFoundError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidKeyError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        NoChangesFoundOrMadeError,
+        NoContentsFoundForOperationError,
+        ResourceExists,
+        NoDifferencesFoundError,
+    )
 
 # default file name
 __DEFAULT__ = "<p/k>"

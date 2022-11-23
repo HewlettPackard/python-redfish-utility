@@ -18,13 +18,22 @@
 """ Single Sign On Command for rdmc """
 from argparse import RawDescriptionHelpFormatter
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+    )
 
 
 class SingleSignOnCommand:

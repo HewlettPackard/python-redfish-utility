@@ -36,23 +36,43 @@ import redfish.hpilo.risblobstore2 as risblobstore2
 from redfish.ris.utils import filter_output
 from redfish.rest.connections import SecurityStateError
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    UI,
-    InvalidKeyError,
-    InvalidMSCfileInputError,
-    InvalidCommandLineErrorOPTS,
-    InvalidFileInputError,
-    LOGGER,
-    InvalidCListFileError,
-    NoContentsFoundForOperationError,
-    IncompatibleiLOVersionError,
-    Encryption,
-    PartitionMoutingError,
-    MultipleServerConfigError,
-    UnabletoFindDriveError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        UI,
+        InvalidKeyError,
+        InvalidMSCfileInputError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        LOGGER,
+        InvalidCListFileError,
+        NoContentsFoundForOperationError,
+        IncompatibleiLOVersionError,
+        Encryption,
+        PartitionMoutingError,
+        MultipleServerConfigError,
+        UnabletoFindDriveError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        UI,
+        InvalidKeyError,
+        InvalidMSCfileInputError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        LOGGER,
+        InvalidCListFileError,
+        NoContentsFoundForOperationError,
+        IncompatibleiLOVersionError,
+        Encryption,
+        PartitionMoutingError,
+        MultipleServerConfigError,
+        UnabletoFindDriveError,
+    )
+
 
 if os.name == "nt":
     import win32api

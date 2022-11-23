@@ -20,16 +20,28 @@ import os
 import time
 from redfish.ris.ris import SessionExpired
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    IncompatibleiLOVersionError,
-    InvalidCommandLineErrorOPTS,
-    UI,
-    TimeOutError,
-    FirmwareUpdateError,
-    UploadError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineErrorOPTS,
+        UI,
+        TimeOutError,
+        FirmwareUpdateError,
+        UploadError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineErrorOPTS,
+        UI,
+        TimeOutError,
+        FirmwareUpdateError,
+        UploadError,
+    )
 
 
 class SmartNicCommand:

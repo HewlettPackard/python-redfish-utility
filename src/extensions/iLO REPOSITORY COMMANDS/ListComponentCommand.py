@@ -19,12 +19,20 @@
 
 import json
 
-from rdmc_helper import (
-    IncompatibleiLOVersionError,
-    ReturnCodes,
-    InvalidCommandLineErrorOPTS,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        Encryption,
+    )
 
 
 class ListComponentCommand:

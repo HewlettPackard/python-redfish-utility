@@ -21,14 +21,24 @@ import time
 
 from redfish.ris.resp_handler import ResponseHandler
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    FirmwareUpdateError,
-    NoContentsFoundForOperationError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        FirmwareUpdateError,
+        NoContentsFoundForOperationError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        FirmwareUpdateError,
+        NoContentsFoundForOperationError,
+        Encryption,
+    )
 
 
 class FirmwareUpdateCommand:

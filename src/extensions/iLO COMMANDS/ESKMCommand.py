@@ -17,13 +17,22 @@
 # -*- coding: utf-8 -*-
 """ ESKM Command for rdmc """
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        Encryption,
+    )
 
 
 class ESKMCommand:

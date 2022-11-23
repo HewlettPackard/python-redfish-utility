@@ -19,13 +19,22 @@
 
 from six.moves import input
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+    )
 
 
 class DeleteLogicalDriveCommand:

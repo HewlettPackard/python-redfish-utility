@@ -20,7 +20,10 @@ from __future__ import absolute_import
 
 from enum import Enum
 from tabulate import tabulate
-from rdmc_helper import LOGGER, UI
+try:
+    from rdmc_helper import LOGGER, UI
+except ImportError:
+    from ilorest.rdmc_helper import LOGGER, UI
 
 
 class OutputFormats(Enum):

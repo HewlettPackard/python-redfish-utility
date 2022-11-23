@@ -31,15 +31,27 @@ from argparse import (
 
 from redfish.ris.rmc_helper import IloResponseError, IdTokenError
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    IncompatibleiLOVersionError,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    ResourceExists,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        ResourceExists,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        ResourceExists,
+        Encryption,
+    )
+
 
 __subparsers__ = ["ldap", "kerberos", "test"]
 

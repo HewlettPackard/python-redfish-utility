@@ -27,14 +27,24 @@ from argparse import ArgumentParser, SUPPRESS
 
 from argparse import ArgumentParser
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidFileFormattingError,
-    InvalidCommandLineErrorOPTS,
-    InvalidFileInputError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidFileFormattingError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidFileFormattingError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        Encryption,
+    )
 
 
 class RawPatchCommand:

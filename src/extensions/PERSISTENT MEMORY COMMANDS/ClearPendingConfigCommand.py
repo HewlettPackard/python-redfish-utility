@@ -18,14 +18,24 @@
 """Command to clear pending tasks"""
 from __future__ import absolute_import
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    NoChangesFoundOrMadeError,
-    LOGGER,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        NoChangesFoundOrMadeError,
+        LOGGER,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        NoChangesFoundOrMadeError,
+        LOGGER,
+    )
 from .lib.RestHelpers import RestHelpers
 
 

@@ -25,14 +25,24 @@ from collections import OrderedDict
 
 from argparse import ArgumentParser
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    InvalidFileInputError,
-    InvalidFileFormattingError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        InvalidFileFormattingError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        InvalidFileFormattingError,
+        Encryption,
+    )
 
 
 class RawPostCommand:

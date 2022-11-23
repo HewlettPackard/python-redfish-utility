@@ -22,13 +22,22 @@ import re
 from argparse import REMAINDER, Action
 
 from enum import Enum
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    LOGGER,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        LOGGER,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        LOGGER,
+    )
 
 from .lib.DisplayHelpers import DisplayHelpers, OutputFormats
 from .lib.Mapper import Mapper

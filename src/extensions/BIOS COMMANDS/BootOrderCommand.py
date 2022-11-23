@@ -24,16 +24,30 @@ from argparse import SUPPRESS, ArgumentParser
 from functools import reduce
 
 import six
-from rdmc import RdmcCommand
-from rdmc_helper import (
-    UI,
-    BootOrderMissingEntriesError,
-    Encryption,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    InvalidOrNothingChangedSettingsError,
-    ReturnCodes,
-)
+try:
+    from rdmc import RdmcCommand
+except ImportError:
+    from ilorest.rdmc import RdmcCommand
+try:
+    from rdmc_helper import (
+        UI,
+        BootOrderMissingEntriesError,
+        Encryption,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        InvalidOrNothingChangedSettingsError,
+        ReturnCodes,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        UI,
+        BootOrderMissingEntriesError,
+        Encryption,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        InvalidOrNothingChangedSettingsError,
+        ReturnCodes,
+    )
 
 
 class BootOrderCommand:

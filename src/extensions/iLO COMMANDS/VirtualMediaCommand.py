@@ -17,14 +17,24 @@
 # -*- coding: utf-8 -*-
 """ Virtual Media Command for rdmc """
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-    UI,
-    IloLicenseError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        UI,
+        IloLicenseError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        UI,
+        IloLicenseError,
+    )
 
 
 class VirtualMediaCommand:

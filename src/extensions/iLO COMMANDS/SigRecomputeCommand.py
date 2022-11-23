@@ -17,13 +17,22 @@
 # -*- coding: utf-8 -*-
 """ SigRecompute Command for rdmc """
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-    IncompatibleiLOVersionError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        IncompatibleiLOVersionError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        IncompatibleiLOVersionError,
+    )
 
 
 class SigRecomputeCommand:

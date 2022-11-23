@@ -25,15 +25,26 @@ from ctypes import c_char_p, c_int
 
 import redfish.hpilo.risblobstore2 as risblobstore2
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineErrorOPTS,
-    InvalidCommandLineError,
-    DownloadError,
-    InvalidFileInputError,
-    IncompatibleiLOVersionError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        DownloadError,
+        InvalidFileInputError,
+        IncompatibleiLOVersionError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        DownloadError,
+        InvalidFileInputError,
+        IncompatibleiLOVersionError,
+        Encryption,
+    )
 
 
 def human_readable_time(seconds):

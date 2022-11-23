@@ -22,12 +22,20 @@ import json
 
 from argparse import ArgumentParser
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+    )
 
 
 class RawDeleteCommand:

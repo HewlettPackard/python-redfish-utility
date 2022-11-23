@@ -22,12 +22,20 @@ import json
 
 from six.moves import input
 
-from rdmc_helper import (
-    IncompatibleiLOVersionError,
-    ReturnCodes,
-    InvalidCommandLineErrorOPTS,
-    InvalidCommandLineError,
-)
+try:
+    from rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+    )
 
 
 class MakeInstallSetCommand:

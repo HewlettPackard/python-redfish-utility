@@ -39,19 +39,36 @@ from six.moves.urllib.request import urlretrieve, urlopen
 
 from redfish.ris.rmc_helper import IloResponseError
 
-from rdmc_helper import (
-    ReturnCodes,
-    CommandNotEnabledError,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    InvalidOrNothingChangedSettingsError,
-    NoContentsFoundForOperationError,
-    NoChangesFoundOrMadeError,
-    IncompatibleiLOVersionError,
-    PathUnavailableError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        CommandNotEnabledError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        InvalidOrNothingChangedSettingsError,
+        NoContentsFoundForOperationError,
+        NoChangesFoundOrMadeError,
+        IncompatibleiLOVersionError,
+        PathUnavailableError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        CommandNotEnabledError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        InvalidOrNothingChangedSettingsError,
+        NoContentsFoundForOperationError,
+        NoChangesFoundOrMadeError,
+        IncompatibleiLOVersionError,
+        PathUnavailableError,
+    )
 
-from rdmc_base_classes import HARDCODEDLIST
+try:
+    from rdmc_base_classes import HARDCODEDLIST
+except ImportError:
+    from ilorest.rdmc_base_classes import HARDCODEDLIST
+
 
 __error_logfile__ = "automatictesting_error_logfile.log"
 __pass_fail__ = "passfail"

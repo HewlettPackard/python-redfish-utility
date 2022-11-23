@@ -20,15 +20,26 @@
 import time
 import datetime
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    IloLicenseError,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-    IncompatibleiLOVersionError,
-    TimeOutError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        IloLicenseError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        IncompatibleiLOVersionError,
+        TimeOutError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        IloLicenseError,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        IncompatibleiLOVersionError,
+        TimeOutError,
+    )
 
 
 class FirmwareIntegrityCheckCommand:

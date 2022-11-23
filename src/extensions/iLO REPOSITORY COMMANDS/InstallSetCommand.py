@@ -23,15 +23,26 @@ from datetime import datetime
 
 from argparse import RawDescriptionHelpFormatter
 
-from rdmc_helper import (
-    IncompatibleiLOVersionError,
-    ReturnCodes,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-    InvalidCommandLineError,
-    NoContentsFoundForOperationError,
-    InvalidFileInputError,
-)
+try:
+    from rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        NoContentsFoundForOperationError,
+        InvalidFileInputError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        NoContentsFoundForOperationError,
+        InvalidFileInputError,
+    )
 
 
 class InstallSetCommand:

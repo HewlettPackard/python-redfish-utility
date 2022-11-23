@@ -19,13 +19,22 @@
 
 from __future__ import absolute_import
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    LOGGER,
-    NoContentsFoundForOperationError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        LOGGER,
+        NoContentsFoundForOperationError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        LOGGER,
+        NoContentsFoundForOperationError,
+    )
 
 from .lib.DisplayHelpers import DisplayHelpers, OutputFormats
 from .lib.Mapper import Mapper

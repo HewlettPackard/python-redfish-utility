@@ -25,16 +25,28 @@ from argparse import Action, RawDescriptionHelpFormatter
 from redfish.ris.ris import SessionExpired
 from redfish.ris.rmc_helper import IdTokenError
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    ResourceExists,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    IncompatibleiLOVersionError,
-    UsernamePasswordRequiredError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        ResourceExists,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        IncompatibleiLOVersionError,
+        UsernamePasswordRequiredError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        ResourceExists,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        IncompatibleiLOVersionError,
+        UsernamePasswordRequiredError,
+        Encryption,
+    )
 
 __subparsers__ = ["add", "modify", "changekey", "delete"]
 

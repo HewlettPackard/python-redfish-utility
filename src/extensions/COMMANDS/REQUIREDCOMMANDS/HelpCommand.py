@@ -20,8 +20,14 @@
 import sys
 
 from argparse import ArgumentParser
-from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
-from rdmc_helper import ReturnCodes, InvalidCommandLineError, InvalidCommandLineErrorOPTS
+try:
+    from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
+except ImportError:
+    from ilorest.rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
+try:
+    from rdmc_helper import ReturnCodes, InvalidCommandLineError, InvalidCommandLineErrorOPTS
+except ImportError:
+    from ilorest.rdmc_helper import ReturnCodes, InvalidCommandLineError, InvalidCommandLineErrorOPTS
 
 
 class HelpCommand(RdmcCommandBase):

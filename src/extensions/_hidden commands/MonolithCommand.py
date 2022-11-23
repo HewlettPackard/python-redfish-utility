@@ -22,12 +22,21 @@ import json
 from argparse import ArgumentParser
 from redfish.rest.containers import JSONEncoder
 from redfish.ris import UndefinedClientError
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineErrorOPTS,
-    InvalidFileInputError,
-    UI,
-)
+
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        UI,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        UI,
+    )
 
 
 class MonolithCommand:

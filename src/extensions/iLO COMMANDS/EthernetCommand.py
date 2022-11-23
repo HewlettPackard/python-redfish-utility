@@ -38,17 +38,32 @@ from redfish.ris.rmc_helper import (
 )
 
 from redfish.ris.utils import diffdict
-from rdmc_helper import (
-    ReturnCodes,
-    RdmcError,
-    InvalidCommandLineError,
-    UI,
-    InvalidCommandLineErrorOPTS,
-    InvalidFileInputError,
-    Encryption,
-    InvalidPropertyError,
-    NoDifferencesFoundError,
-)
+
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        RdmcError,
+        InvalidCommandLineError,
+        UI,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        Encryption,
+        InvalidPropertyError,
+        NoDifferencesFoundError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        RdmcError,
+        InvalidCommandLineError,
+        UI,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        Encryption,
+        InvalidPropertyError,
+        NoDifferencesFoundError,
+    )
+
 
 __eth_file__ = "eth.json"
 __subparsers__ = ["save", "load"]

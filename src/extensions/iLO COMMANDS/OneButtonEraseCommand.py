@@ -25,14 +25,25 @@ from collections import OrderedDict
 import colorama
 from six.moves import input
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    IncompatibleiLOVersionError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        IncompatibleiLOVersionError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        IncompatibleiLOVersionError,
+        Encryption,
+    )
+
 
 CURSOR_UP_ONE = "\x1b[1A"
 ERASE_LINE = "\x1b[2K"

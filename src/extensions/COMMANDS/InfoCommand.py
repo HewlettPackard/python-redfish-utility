@@ -17,13 +17,24 @@
 # -*- coding: utf-8 -*-
 """ Info Command for RDMC """
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineErrorOPTS,
-    InfoMissingEntriesError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InfoMissingEntriesError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        InfoMissingEntriesError,
+    )
 
-from rdmc_base_classes import HARDCODEDLIST
+try:
+    from rdmc_base_classes import HARDCODEDLIST
+except ImportError:
+    from ilorest.rdmc_base_classes import HARDCODEDLIST
+
 from argparse import ArgumentParser, SUPPRESS
 
 

@@ -31,20 +31,37 @@ from six.moves import queue
 import redfish.ris
 
 from redfish.ris.rmc_helper import LoadSkipSettingError
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    InvalidFileFormattingError,
-    NoChangesFoundOrMadeError,
-    InvalidFileInputError,
-    NoDifferencesFoundError,
-    MultipleServerConfigError,
-    InvalidMSCfileInputError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileFormattingError,
+        NoChangesFoundOrMadeError,
+        InvalidFileInputError,
+        NoDifferencesFoundError,
+        MultipleServerConfigError,
+        InvalidMSCfileInputError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileFormattingError,
+        NoChangesFoundOrMadeError,
+        InvalidFileInputError,
+        NoDifferencesFoundError,
+        MultipleServerConfigError,
+        InvalidMSCfileInputError,
+        Encryption,
+    )
 
-from rdmc_base_classes import HARDCODEDLIST
+try:
+    from rdmc_base_classes import HARDCODEDLIST
+except ImportError:
+    from ilorest.rdmc_base_classes import HARDCODEDLIST
 
 # default file name
 __filename__ = "ilorest.json"

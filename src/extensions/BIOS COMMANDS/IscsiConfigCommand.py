@@ -22,14 +22,24 @@ import re
 from argparse import SUPPRESS, ArgumentParser
 
 import redfish.ris
-from rdmc_helper import (
-    BootOrderMissingEntriesError,
-    Encryption,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    NicMissingOrConfigurationError,
-    ReturnCodes,
-)
+try:
+    from rdmc_helper import (
+        BootOrderMissingEntriesError,
+        Encryption,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NicMissingOrConfigurationError,
+        ReturnCodes,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        BootOrderMissingEntriesError,
+        Encryption,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NicMissingOrConfigurationError,
+        ReturnCodes,
+    )
 
 
 class IscsiConfigCommand:

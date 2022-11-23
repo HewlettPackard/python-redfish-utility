@@ -22,21 +22,36 @@ import json
 import redfish
 
 from argparse import ArgumentParser, SUPPRESS, RawDescriptionHelpFormatter
-from rdmc_base_classes import RdmcCommandBase, HARDCODEDLIST
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    Encryption,
-    IncompatableServerTypeError,
-    InvalidCommandLineErrorOPTS,
-    UI,
-)
+
+try:
+    from rdmc_base_classes import RdmcCommandBase, HARDCODEDLIST
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        IncompatableServerTypeError,
+        InvalidCommandLineErrorOPTS,
+        UI,
+    )
+except ImportError:
+    from ilorest.rdmc_base_classes import RdmcCommandBase, HARDCODEDLIST
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        Encryption,
+        IncompatableServerTypeError,
+        InvalidCommandLineErrorOPTS,
+        UI,
+    )
 from redfish.ris.resp_handler import ResponseHandler
 from redfish.ris.utils import iterateandclear
 
 __config_file__ = "smartarray_config.json"
 
-from rdmc_base_classes import HARDCODEDLIST
+try:
+    from rdmc_base_classes import HARDCODEDLIST
+except ImportError:
+    from ilorest.rdmc_base_classes import HARDCODEDLIST
 
 __subparsers__ = ["load", "save", "state"]
 

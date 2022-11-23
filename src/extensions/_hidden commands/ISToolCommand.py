@@ -19,7 +19,10 @@
 
 from argparse import ArgumentParser
 
-from rdmc_helper import ReturnCodes, InvalidCommandLineError, InvalidCommandLineErrorOPTS
+try:
+    from rdmc_helper import ReturnCodes, InvalidCommandLineError, InvalidCommandLineErrorOPTS
+except ImportError:
+    from ilorest.rdmc_helper import ReturnCodes, InvalidCommandLineError, InvalidCommandLineErrorOPTS
 
 
 class ISToolCommand:

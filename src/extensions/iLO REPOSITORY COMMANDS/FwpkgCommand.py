@@ -28,17 +28,30 @@ from ctypes import c_char_p, c_int, c_bool
 
 from redfish.hpilo.risblobstore2 import BlobStore2
 
-from rdmc_helper import (
-    IncompatibleiLOVersionError,
-    ReturnCodes,
-    Encryption,
-    InvalidCommandLineErrorOPTS,
-    InvalidCommandLineError,
-    InvalidFileInputError,
-    UploadError,
-    TaskQueueError,
-    FirmwareUpdateError,
-)
+try:
+    from rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        InvalidFileInputError,
+        UploadError,
+        TaskQueueError,
+        FirmwareUpdateError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        InvalidFileInputError,
+        UploadError,
+        TaskQueueError,
+        FirmwareUpdateError,
+    )
 
 
 def _get_comp_type(payload):

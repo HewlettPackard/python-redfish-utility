@@ -19,17 +19,32 @@
 import time
 from argparse import RawDescriptionHelpFormatter
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineErrorOPTS,
-    IncompatibleiLOVersionError,
-    NoCurrentSessionEstablished,
-    CloudConnectTimeoutError,
-    CloudConnectFailedError,
-    ProxyConfigFailedError,
-    AlreadyCloudConnectedError,
-    InvalidCommandLineError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        IncompatibleiLOVersionError,
+        NoCurrentSessionEstablished,
+        CloudConnectTimeoutError,
+        CloudConnectFailedError,
+        ProxyConfigFailedError,
+        AlreadyCloudConnectedError,
+        InvalidCommandLineError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineErrorOPTS,
+        IncompatibleiLOVersionError,
+        NoCurrentSessionEstablished,
+        CloudConnectTimeoutError,
+        CloudConnectFailedError,
+        ProxyConfigFailedError,
+        AlreadyCloudConnectedError,
+        InvalidCommandLineError,
+    )
+
+
 from redfish.ris.ris import SessionExpired
 
 

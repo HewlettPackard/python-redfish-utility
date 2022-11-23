@@ -20,13 +20,22 @@ from __future__ import absolute_import, division
 
 from collections import OrderedDict
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    LOGGER,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        LOGGER,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        LOGGER,
+    )
 
 from .lib.DisplayHelpers import DisplayHelpers, OutputFormats
 from .lib.Mapper import Mapper

@@ -17,14 +17,22 @@
 # -*- coding: utf-8 -*-
 """ Drive Erase/ Sanitize Command for rdmc """
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    Encryption,
-    NoContentsFoundForOperationError,
-)
-
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        Encryption,
+        NoContentsFoundForOperationError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        Encryption,
+        NoContentsFoundForOperationError,
+    )
 
 class DriveSanitizeCommand:
     """Drive erase/sanitize command"""

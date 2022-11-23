@@ -25,12 +25,21 @@ from ctypes import c_char_p, c_ubyte, c_int, POINTER, create_string_buffer
 from redfish.hpilo.rishpilo import HpIlo
 import redfish.hpilo.risblobstore2 as risblobstore2
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    LOGGER,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        LOGGER,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        LOGGER,
+    )
+
 
 if os.name != "nt":
     from _ctypes import dlclose

@@ -25,14 +25,24 @@ from random import randint
 
 from redfish.ris.rmc_helper import ValidationError
 
-from rdmc_helper import (
-    IncompatibleiLOVersionError,
-    ReturnCodes,
-    NoContentsFoundForOperationError,
-    InvalidCommandLineErrorOPTS,
-    InvalidCommandLineError,
-    Encryption,
-)
+try:
+    from rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        NoContentsFoundForOperationError,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        Encryption,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        NoContentsFoundForOperationError,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        Encryption,
+    )
 
 __subparsers__ = ["add", "delete"]
 

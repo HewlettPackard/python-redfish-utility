@@ -18,15 +18,26 @@
 """ Factory Defaults Command for rdmc """
 import os
 
-from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    NoContentsFoundForOperationError,
-    InvalidFileInputError,
-    Encryption,
-    UploadError,
-)
+try:
+    from rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        InvalidFileInputError,
+        Encryption,
+        UploadError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        ReturnCodes,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoContentsFoundForOperationError,
+        InvalidFileInputError,
+        Encryption,
+        UploadError,
+    )
 
 
 class IloBackupRestoreCommand:

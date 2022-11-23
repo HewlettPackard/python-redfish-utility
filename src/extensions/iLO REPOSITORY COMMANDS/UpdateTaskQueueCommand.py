@@ -22,15 +22,26 @@ from argparse import RawDescriptionHelpFormatter
 
 from redfish.ris.rmc_helper import IdTokenError
 
-from rdmc_helper import (
-    IncompatibleiLOVersionError,
-    ReturnCodes,
-    NoContentsFoundForOperationError,
-    InvalidCommandLineErrorOPTS,
-    InvalidCommandLineError,
-    Encryption,
-    TaskQueueError,
-)
+try:
+    from rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        NoContentsFoundForOperationError,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        Encryption,
+        TaskQueueError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        IncompatibleiLOVersionError,
+        ReturnCodes,
+        NoContentsFoundForOperationError,
+        InvalidCommandLineErrorOPTS,
+        InvalidCommandLineError,
+        Encryption,
+        TaskQueueError,
+    )
 
 __subparsers__ = ["create"]
 

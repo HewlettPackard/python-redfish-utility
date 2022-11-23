@@ -19,7 +19,10 @@
 
 import sys
 
-from rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS
+try:
+    from rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS
+except ImportError:
+    from ilorest.rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS
 
 class ExitCommand():
     """ Exit class to handle exiting from interactive mode """
