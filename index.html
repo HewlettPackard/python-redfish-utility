@@ -312,6 +312,9 @@
             <a href="#change-log" class="toc-h1 toc-link" data-title="Change Log">Change Log</a>
               <ul class="toc-list-h2">
                   <li>
+                    <a href="#version-4-0-0-0" class="toc-h2 toc-link" data-title="Version 4.0.0.0">Version 4.0.0.0</a>
+                  </li>
+                  <li>
                     <a href="#version-3-6-0-0" class="toc-h2 toc-link" data-title="Version 3.6.0.0">Version 3.6.0.0</a>
                   </li>
                   <li>
@@ -1044,7 +1047,22 @@ you can create scripts to automate tasks.</p>
 <li><strong>HPE iLO Repository</strong></li>
 <li><strong>Smart Array support</strong></li>
 </ul>
-<h1 id='change-log'>Change Log</h1><h2 id='version-3-6-0-0'>Version 3.6.0.0</h2>
+<h1 id='change-log'>Change Log</h1><h2 id='version-4-0-0-0'>Version 4.0.0.0</h2>
+<p><strong>Fixes:</strong></p>
+
+<ul>
+<li>Fixed several customer issues reported in github. </li>
+<li>Upgraded openssl to 1.0.2zf</li>
+</ul>
+
+<p><strong>Enhancements:</strong></p>
+
+<ul>
+<li>Added support for new storage RDE URLs for iLO6 (Gen11)</li>
+<li>iLOLicense command is enhanced with install, uninstall and check license options.</li>
+<li>Cerificate command has new option to support SCEP (Simple Certificate Enrollment Protocol)</li>
+</ul>
+<h2 id='version-3-6-0-0'>Version 3.6.0.0</h2>
 <p><strong>Fixes:</strong></p>
 
 <ul>
@@ -1854,6 +1872,8 @@ Locally you will be logged in automatically unless running in higher security mo
 </ul>
 
 <p>Connect to the server with the password corresponding to the given user.</p>
+
+<p>NOTE: In Linux, if password contains &#39;!&#39; (exclamation), then enclose the password with single quotation (&#39;)</p>
 
 <ul>
 <li><strong>--usercert UserCertificate</strong></li>
@@ -4755,6 +4775,75 @@ iLOrest > <span style="color: #01a982; ">certificate tls certfile.txt</span>
 The operation completed successfully.
 </pre>
 
+<blockquote>
+<p>To generate CSR use certificate command with gen_csr subcommand with all required arguments.</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">certificate gen_csr "Hewlet Packard Enterprice" "ILORestGroup" "iLORest" "US" "Americas" "Houston" "False"</span>
+The operation completed successfully.
+</pre>
+
+<blockquote>
+<p>To view https certificate use certificate command with view subcommand followed by option --https_cert </p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">certificate view --https_cert</span>
+Https Certificate details ...
+Id:HttpsCert
+target:/redfish/v1/Managers/1/SecurityService/HttpsCert/Actions/HpeHttpsCert.GenerateCSR/
+target:/redfish/v1/Managers/1/SecurityService/HttpsCert/Actions/HpeHttpsCert.ImportCertificate/
+CertificateSigningRequest:None
+Issuer:CN = Default Issuer (Do not trust), O = Hewlett Packard Enterprise, OU = ISS, L = Americas, ST = Houston, C = US
+SerialNumber:dc:XX:XX:XX:XX:XX:XX:XX
+Subject:CN = ILOSerNum-ACC.its.hpecorp.net, O = Hewlett Packard Enterprise, OU = ISS, L = Americas, ST = Houston, C = US
+ValidNotAfter:2037-10-11T18:30:00Z
+ValidNotBefore:2022-10-12T18:30:00Z
+</pre>
+
+<blockquote>
+<p>To view scep certificate use certificate command with view subcommand followed by option --scep_cert</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">certificate view --scep_cert</span>
+Scep Certificate details ...
+Id:AutomaticCertificateEnrollment
+Certificate@Redfish.AllowableValues:['Certificate']
+target:/redfish/v1/Managers/1/SecurityService/AutomaticCertificateEnrollment/Actions/HpeAutomaticCertEnrollment.ImportCACertificate/
+CACertificateName:/DC=local/DC=ilorest/CN=ilorest-ROOT-CA
+CertificateEnrollmentStatus:Disabled
+ChallengePassword:None
+ServerUrl:https://10.10.10.10/certsrv/mscep/mscep.dll
+ServiceEnabled:False
+City:Americas
+CommonName:ILOSerNum-ACC.its.hpecorp.net
+Country:US
+IncludeIP:False
+OrgName:Hewlett Packard Enterprise
+OrgUnit:ISS
+State:Houston
+</pre>
+
+<blockquote>
+<p>To import scep certificate use certificate command with import subcommand followed by option --scep provided with scep cert file</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">certificate import --scep scep.txt</span>
+Imported the scep certificate successfully
+</pre>
+
+<blockquote>
+<p>To auto enroll use certificate command with auto_enroll  subcommand followed by required arguments</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">certificate auto_enroll "Hewlet Packard Enterprice" "ILORestGroup" "iLORest" "US" "Americas" "Houston" "https://10.10.10.10/certsrv/mscep/mscep.dll" "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" "True" "False"</span>
+
+</pre>
+
 <aside class="notice">
 <ul>
 <li>Please make sure the order of arguments is correct. The parameters are extracted based on their position in the arguments list.</li>
@@ -4766,7 +4855,7 @@ The operation completed successfully.
 
 <p class="fake_header">Syntax</p>
 
-<p>certificate <em>[Optional Parameters]</em></p>
+<p>certificate <em>[SUBCOMMAND]</em> <em>[Optional Parameters]</em></p>
 
 <p class="fake_header">Description</p>
 
@@ -4780,8 +4869,20 @@ The operation completed successfully.
 
 <p>Including the help flag will display help for the command.</p>
 
+<p class="fake_header">SUBCOMMAND</p>
+
+<p>Subcommand can be csr/getcsr/ca/crl/tls/gen_csr/view/import/auto_enroll. Usages are each one are given on the right side.</p>
+
 <ul>
-<li><strong>-f FILENAME, --filename=FILENAME</strong></li>
+<li>csr/gen_csr - Creates new certificate request.</li>
+<li>getcsr - Downloads the certificate to certificate.txt.</li>
+<li>ca - Imports CA certificate.</li>
+<li>crl - Imports CRL certificate.</li>
+<li>tls - Imports TLS certificate.</li>
+<li>view - Prints scep certicate with option --scep_cert or https certificate with option --https_cert.</li>
+<li>auto_enroll - Configures new SCEP certificate.</li>
+<li><p>import - Imports certificate. To import scep certificate, use --scep option. </p></li>
+<li><p><strong>-f FILENAME, --filename=FILENAME</strong></p></li>
 </ul>
 
 <p>Use this flag if you wish to use a different filename for the certificate signing request. The default filename is certificate.txt.</p>
@@ -6520,6 +6621,98 @@ iLOrest > <span style="color: #01a982; ">ilolicense XXXXX-XXXXX-XXXXX-XXXXX-XXXX
 The resource has been created successfully.
 </pre>
 
+<blockquote>
+<p>To Apply an iLO license on the current logged in server run the command with the --install sub command and  license key as an argument.</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">ilolicense --install XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</span>
+The resource has been created successfully.
+</pre>
+
+<blockquote>
+<p>To check whether an iLO license key is installed on current logged in server run the command with the --check sub command and  license key as an argument.</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">ilolicense --check XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</span>
+Matched. Provided key is installed on this server
+</pre>
+
+<blockquote>
+<p>To uninstall an iLO license key on current logged in server run the command with the --uninstall sub command.</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">ilolicense --uninstall</span>
+Uninstalled license successfully
+</pre>
+
+<blockquote>
+<p>To check the confirmed state for an iLO license key on current logged in server run the command with the --check_confirm sub command.</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">ilolicense --check_confirm</span>
+"State: unconfirmed"
+License is not confirmed
+</pre>
+
+<blockquote>
+<p>To get the details of an iLO license key on current logged in server run the command without any subcommand.</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">ilolicense</span>
+Id:1
+Code:
+Message:
+Service:www.hpe.com/glis
+Status:False
+License:iLO Advanced
+LicenseKey:XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
+Quantity:1
+State:unconfirmed
+Signer:iLO
+ChipId:XXXXXXXXXXXXXXXX
+Product:ProLiant DL325 Gen11
+SerialNumber:XXXXXXXXXX
+Description:iLO License View
+License:iLO Advanced
+LicenseClass:FQL
+LicenseErr:
+LicenseExpire:
+AutoCertEnroll:True
+DirectoryAuth:True
+DowngradePolicy:True
+EmailAlert:True
+FWScan:True
+Federation:True
+Jitter:True
+KD:True
+KeyMgr:True
+MURC:True
+ODIM:False
+PowerReg:True
+RC:True
+Recovery:True
+RemoteSyslog:True
+Scrncap:True
+SecureErase:True
+SmartCard:True
+SuiteB:True
+TextCons:True
+VM:True
+VMScript:True
+VSPLogging:True
+LicenseInstallDate:19 Oct 2022
+LicenseKey:XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
+LicenseSeats:1
+LicenseTier:ADV
+LicenseType:Perpetual
+Name:iLO License
+</pre>
+
 <p class="fake_header">Syntax</p>
 
 <p>ilolicense <em>[LICENSE_KEY] [OPTIONS]</em></p>
@@ -6535,6 +6728,30 @@ The resource has been created successfully.
 </ul>
 
 <p>Including the help flag will display help for the command.</p>
+
+<ul>
+<li><strong>--install</strong></li>
+</ul>
+
+<p>Installs the provided iLO license.</p>
+
+<ul>
+<li><strong>--uninstall</strong></li>
+</ul>
+
+<p>Removes or uninstall the iLO license.</p>
+
+<ul>
+<li><strong>--check</strong></li>
+</ul>
+
+<p>Checks and matches the installed license with the provided license.</p>
+
+<ul>
+<li><strong>--check_confirm</strong></li>
+</ul>
+
+<p>Checks the status of installed iLO license.</p>
 
 <p class="fake_header">Login Parameters</p>
 
@@ -8284,7 +8501,7 @@ The operation completed successfully.
 </blockquote>
 
 <pre>
-iLOrest > <span style="color: #01a982; ">unifiedcertificate export -f cert.txt
+iLOrest > <span style="color: #01a982; ">unifiedcertificate export -f cert.txt</span>
 </pre>
 
 <p class="fake_header">Syntax</p>
@@ -8908,6 +9125,18 @@ Some firmware can be flashed directly without a reboot, some may require a reboo
 </ul>
 
 <p>Include this flag to ignore all checks to the taskqueue before attempting to process the .fwpkg file.</p>
+
+<ul>
+<li><strong>--tpmover</strong></li>
+</ul>
+
+<p>Use this flag if the server you are currently logged into has a TPM chip installed.</p>
+
+<ul>
+<li><strong>--update_srs</strong></li>
+</ul>
+
+<p>The component flashed will become a part of the system recovery set (srs).</p>
 
 <p class="fake_header">Login Parameters</p>
 
@@ -9913,26 +10142,33 @@ ilorest > <span style="color: #01a982; ">createlogicaldrive customdrive Raid5 1E
 One or more properties were changed an will not take effect until system is reset.
 </pre>
 
+<blockquote>
+<p>To create a volume run the command with the following arguments: The type of creation as volume, the raid level, the drive location. Also include the --controller option selecting the controller the drive will be created on. See the options list for possible values of these and more.</p>
+</blockquote>
+
+<pre>
+ilorest > <span style="color: #01a982; ">createlogicaldrive volume RAID0 1D:0:0 --DisplayName Name1 --iOPerfModeEnabled False --ReadCachePolicy ReadAhead --WriteCachePolicy ProtectedWriteBack --WriteHoleProtectionPolicy Yes --sparedrives 1E:0:0 --capacitygib 1000 --controller=0</span>
+Operation completed successfully
+</pre>
+
 <aside class="notice">
 The createlogicaldrive command requires a reboot before creating the logical drives. If the drives are not present after a full reboot, run the results command to check for errors in the configuration.
 </aside>
 
 <p class="fake_header">Syntax</p>
 
-<p>createlogicaldrive <em>[Optional Parameters]</em></p>
+<p>createlogicaldrive <em>[SUBCOMMAND]</em> <em>[Optional Parameters]</em></p>
 
 <p class="fake_header">Description</p>
 
 <p>Creates a new logical drive on the selected controller.</p>
 
-<p>Options:
-- raid-level:             Raid0, Raid1, Raid1ADM, Raid10, Raid10ADM, Raid5, Raid50, Raid6, Raid60
-- media-type:             SSD,HDD
-- interface-type:         SAS, SATA, NVMe
-- drive-location:         Internal, External
-- --spare-type:           Dedicated, Roaming
-- --accelerator-type:     ControllerCache, IOBypass, None
-- --paritytype:           Default, Rapid</p>
+<p class="fake_header">SUBCOMMAND</p>
+
+<ul>
+<li>Either QuickDrive or CustomDrive for iLO5(Gen10/Gen10Plus)</li>
+<li>Volume for Gen11(iLO6)</li>
+</ul>
 
 <p class="fake_header">Parameters</p>
 
@@ -9941,6 +10177,85 @@ The createlogicaldrive command requires a reboot before creating the logical dri
 </ul>
 
 <p>Including the help flag will display help for the command.</p>
+
+<ul>
+<li><strong>--DisplayName</strong></li>
+</ul>
+
+<p>Drive display name (usable for volume subcommand)</p>
+
+<ul>
+<li><strong>--iOPerfModeEnabled</strong></li>
+</ul>
+
+<p>Either True or False. (usable for volume subcommand)</p>
+
+<ul>
+<li><strong>--ReadCachePolicy</strong></li>
+</ul>
+
+<p>Either ReadAhead or Off. (usable for volume subcommand)</p>
+
+<ul>
+<li><strong>--WriteCachePolicy</strong></li>
+</ul>
+
+<p>Either Off, WriteThrough, ProtectedWriteBack or UnprotectedWriteBack. (usable for volume subcommand)</p>
+
+<ul>
+<li><strong>--WriteHoleProtectionPolicy</strong></li>
+</ul>
+
+<p>Either Yes or No (usable for volume subcommand)</p>
+
+<ul>
+<li><strong>--sparedrives</strong></li>
+</ul>
+
+<p>Specify Spare Drives if needed for create volume. Has to be different than main drive where volume is getting created. (usable for volume subcommand)</p>
+
+<ul>
+<li><strong>--raid-level</strong></li>
+</ul>
+
+<p>Use this to specify one of the raid levels<br>
+  Raid0, Raid1, Raid1ADM, Raid10, Raid10ADM, Raid5, Raid50, Raid6, Raid60  </p>
+
+<ul>
+<li><strong>--media-type</strong><br></li>
+</ul>
+
+<p>Either SSD or HDD</p>
+
+<ul>
+<li><strong>--interface-type</strong><br></li>
+</ul>
+
+<p>Should be SAS, SATA or NVMe</p>
+
+<ul>
+<li><strong>--drive-location</strong></li>
+</ul>
+
+<p>Either Internal or External  </p>
+
+<ul>
+<li><strong>spare-type</strong></li>
+</ul>
+
+<p>Either Dedicated or Roaming  </p>
+
+<ul>
+<li><strong>--accelerator-type</strong></li>
+</ul>
+
+<p>Either ControllerCache, IOBypass or None  </p>
+
+<ul>
+<li><strong>paritytype</strong></li>
+</ul>
+
+<p>Either Default or Rapid</p>
 
 <ul>
 <li><strong>--controller=CONTROLLER</strong></li>
@@ -9961,7 +10276,7 @@ The createlogicaldrive command requires a reboot before creating the logical dri
 <p>Optionally include to set the spare drives by the physical drive&#39;s drive Location (usable in custom creation only).</p>
 
 <ul>
-<li><strong>--capacityGiB=CAPACITYGIB</strong></li>
+<li><strong>--capacitygib=CAPACITYGIB</strong></li>
 </ul>
 
 <p>Optionally include to set the capacity of the drive in GiB (usable in custom creation only, use -1 for max size).</p>
@@ -10268,6 +10583,15 @@ One or more properties were changed and will not take effect until system is res
 </pre>
 
 <blockquote>
+<p>To factory reset a controller on Gen 11 server run the command with --resettype with options either resetall or preservevolumes followed by --storageid.</p>
+</blockquote>
+
+<pre>
+ilorest > <span style="color: #01a982; ">factoryresetcontroller --resettype resetall --storageid DE000100</span>
+Operation completed successfully
+</pre>
+
+<blockquote>
 <p>To factory reset all controllers run this command and include the <code>--all</code> option.</p>
 </blockquote>
 
@@ -10291,6 +10615,14 @@ One or more properties were changed and will not take effect until system is res
 </ul>
 
 <p>Including the help flag will display help for the command.</p>
+
+<p>-- <strong>--reset_type</strong></p>
+
+<p>Either ResetAll or PreserveVolumes (Usable in iLO6/Gen11 servers)</p>
+
+<p>-- <strong>--storage_id</strong></p>
+
+<p>Storage id like DE000010 (Usable in iLO6/Gen11 servers)</p>
 
 <ul>
 <li><strong>--controller=CONTROLLER</strong></li>
