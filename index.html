@@ -312,6 +312,9 @@
             <a href="#change-log" class="toc-h1 toc-link" data-title="Change Log">Change Log</a>
               <ul class="toc-list-h2">
                   <li>
+                    <a href="#version-4-1-0-0" class="toc-h2 toc-link" data-title="Version 4.1.0.0">Version 4.1.0.0</a>
+                  </li>
+                  <li>
                     <a href="#version-4-0-0-0" class="toc-h2 toc-link" data-title="Version 4.0.0.0">Version 4.0.0.0</a>
                   </li>
                   <li>
@@ -628,16 +631,16 @@
                       </ul>
                   </li>
                   <li>
-                    <a href="#smart-array-commands" class="toc-h2 toc-link" data-title="Smart Array Commands">Smart Array Commands</a>
+                    <a href="#storagecontroller-commands-previously-smartarray-command" class="toc-h2 toc-link" data-title="StorageController Commands (previously smartarray command)">StorageController Commands (previously smartarray command)</a>
                       <ul class="toc-list-h3">
                           <li>
                             <a href="#clearcontrollerconfig-command" class="toc-h3 toc-link" data-title="Clearcontrollerconfig Command">Clearcontrollerconfig Command</a>
                           </li>
                           <li>
-                            <a href="#createlogicaldrive-command" class="toc-h3 toc-link" data-title="Createlogicaldrive Command">Createlogicaldrive Command</a>
+                            <a href="#createvolume-command-previously-createlogicaldrive-command" class="toc-h3 toc-link" data-title="CreateVolume Command (previously Createlogicaldrive Command)">CreateVolume Command (previously Createlogicaldrive Command)</a>
                           </li>
                           <li>
-                            <a href="#deletelogicaldrive-command" class="toc-h3 toc-link" data-title="Deletelogicaldrive Command">Deletelogicaldrive Command</a>
+                            <a href="#deletevolume-command-previously-deletelogicaldrive-command" class="toc-h3 toc-link" data-title="Deletevolume Command (previously Deletelogicaldrive Command)">Deletevolume Command (previously Deletelogicaldrive Command)</a>
                           </li>
                           <li>
                             <a href="#drivesanitize-command" class="toc-h3 toc-link" data-title="Drivesanitize Command">Drivesanitize Command</a>
@@ -646,7 +649,7 @@
                             <a href="#factoryresetcontroller-command" class="toc-h3 toc-link" data-title="Factoryresetcontroller Command">Factoryresetcontroller Command</a>
                           </li>
                           <li>
-                            <a href="#smartarray-command" class="toc-h3 toc-link" data-title="SmartArray Command">SmartArray Command</a>
+                            <a href="#storagecontroller-command-previously-smartarray-command" class="toc-h3 toc-link" data-title="StorageController Command (previously Smartarray Command)">StorageController Command (previously Smartarray Command)</a>
                           </li>
                       </ul>
                   </li>
@@ -876,9 +879,6 @@
                     <a href="#virtual-media" class="toc-h2 toc-link" data-title="Virtual Media">Virtual Media</a>
                       <ul class="toc-list-h3">
                           <li>
-                            <a href="#mount-virtual-media" class="toc-h3 toc-link" data-title="Mount Virtual Media">Mount Virtual Media</a>
-                          </li>
-                          <li>
                             <a href="#eject-virtual-media" class="toc-h3 toc-link" data-title="Eject Virtual Media">Eject Virtual Media</a>
                           </li>
                       </ul>
@@ -1025,7 +1025,7 @@
       </ul>
         <ul class="toc-footer">
             <li><a href='https://www.hpe.com/'>Hewlett Packard Enterprise Development LP</a></li>
-            <li>Copyright &copy; 2016-2022</li>
+            <li>Copyright &copy; 2016-2023</li>
         </ul>
     </div>
     <div class="page-wrapper">
@@ -1033,10 +1033,8 @@
       <div class="content">
         <h1 id='overview'>Overview</h1>
 <p>The RESTful Interface Tool (iLOREST) is a command-line interface that allows you to manage Hewlett Packard Enterprise 
-products that take advantage of RESTful APIs. For this release of the tool, you can manage HPE Gen10 servers running 
-iLO 5 version 2.10 or later and Gen9 servers running iLO 4 version 2.10 or later through iLO RESTful APIs. 
-You can install the tool on your laptop(windows/mac) for remote use or you can install the tool locally on a server with a 
-Windows/Linux/Ubuntu/ESXi OS. In addition to using the tool manually to execute individual commands, 
+products that take advantage of RESTful APIs. For this release of the tool, you can manage HPE Gen11 servers running iLO6 1.10 onwards or Gen10 servers running iLO 5 version 2.10 or later and Gen9 servers running iLO 4 version 2.10 or later through iLO RESTful APIs. 
+You can install the tool on your laptop(windows/mac) for remote use or you can install the tool locally on a server with a Windows/Linux/Ubuntu/ESXi OS. In addition to using the tool manually to execute individual commands, 
 you can create scripts to automate tasks.</p>
 
 <p>iLOREST can display and set parameters for the following:</p>
@@ -1047,7 +1045,27 @@ you can create scripts to automate tasks.</p>
 <li><strong>HPE iLO Repository</strong></li>
 <li><strong>Smart Array support</strong></li>
 </ul>
-<h1 id='change-log'>Change Log</h1><h2 id='version-4-0-0-0'>Version 4.0.0.0</h2>
+<h1 id='change-log'>Change Log</h1><h2 id='version-4-1-0-0'>Version 4.1.0.0</h2>
+<p><strong>Fixes:</strong></p>
+
+<ul>
+<li>Fixed a customer issue in save where NVMe drives are getting saved 2 times.</li>
+<li>Fixed an issue set command for Oem/Hpe/ThermalConfiguration.</li>
+<li>Fixed several issues with storagecontroller command which is an alias to smartarray command.</li>
+<li>Fixed an issue with logging in and logging out with sessionid option in login command.</li>
+<li>Fixed minor issues with createvolume and deletevolume command.</li>
+<li>Fixed an issue fetching storage controller details using location details.</li>
+<li>Fixed an issue in clearcontroller command by specifying the location details.</li>
+<li>Fixed an issue in login command by specifying the proxy details.</li>
+<li>Fixed a github reported issue by giving --nologout option for reboot command.</li>
+</ul>
+
+<p><strong>Enhancements:</strong></p>
+
+<ul>
+<li>Added support for server cloning storage controller configurations in Gen11(iLO6) servers.</li>
+</ul>
+<h2 id='version-4-0-0-0'>Version 4.0.0.0</h2>
 <p><strong>Fixes:</strong></p>
 
 <ul>
@@ -1060,7 +1078,7 @@ you can create scripts to automate tasks.</p>
 <ul>
 <li>Added support for new storage RDE URLs for iLO6 (Gen11)</li>
 <li>iLOLicense command is enhanced with install, uninstall and check license options.</li>
-<li>Cerificate command has new option to support SCEP (Simple Certificate Enrollment Protocol)</li>
+<li>Certificate command has new option to support SCEP (Simple Certificate Enrollment Protocol)</li>
 </ul>
 <h2 id='version-3-6-0-0'>Version 3.6.0.0</h2>
 <p><strong>Fixes:</strong></p>
@@ -1230,6 +1248,7 @@ you can create scripts to automate tasks.</p>
 Note: On a fresh windows installation, Chif driver need to be installed which will be available in Service Pack for ProLiant(SPP). </li>
 <li>Operating System: Windows 2022, 2019, 2016, RHEL 8.x, 9.x, SUSE 15SPx, 12SP3, MAC, Ubuntu, Debian, ESXi7.0 and ESXi 8.0.<br></li>
 <li>Remote management: Gen9 or greater server with or without an OS installed.</li>
+<li>iLO 6: 1.10 or later</li>
 <li>iLO 5: 2.10 or later</li>
 <li>iLO 4: 2.10 or later</li>
 <li>Before you run the tool on a Linux system, the <code>/tmp</code> folder must be configured to allow code to execute. If the <code>/tmp</code> folder is set to <em>no-execution</em>, the tool will not run. You can work around this by exporting an environment variable to point to another location. <code>$ export TMPDIR=/some/other/location</code> You can assign a new location to any of the following environment variables: TMPDIR, TEMP, TMP.</li>
@@ -1601,8 +1620,8 @@ ilorest --cache-dir=server10 login ilo-server10 -u username -p password
 <li>Linux/Ubuntu OS: <code>/etc/ilorest/redfish.conf</code></li>
 </ul>
 <h2 id='higher-security-modes'>Higher Security Modes</h2>
-<p>This section describes how to set higher security modes and how to use the RESTful Interface Tool in these modes. For more information about the higher security modes in iLO 5, see the <a href="https://hewlettpackard.github.io/ilo-rest-api-docs/ilo5/#securitystate" target="_blank">Security State topic in the iLO 5 API documentation</a>. 
-<aside class="notice">These security settings are only available in HPE Gen10 servers.</aside></p>
+<p>This section describes how to set higher security modes and how to use the RESTful Interface Tool in these modes. For more information about the higher security modes in iLO 6, see the <a href="https://hewlettpackard.github.io/ilo-rest-api-docs/ilo6/#securitystate" target="_blank">Security State topic in the iLO 6 API documentation</a>. 
+<aside class="notice">These security settings are only available in HPE Gen10 or later servers.</aside></p>
 <h3 id='setting-ilo-higher-security-modes'>Setting iLO Higher Security Modes</h3>
 <blockquote>
 <p>To set security modes in RESTful Interface Tool, select the &quot;HpeSecurityService.&quot; type, and then set the &quot;SecurityState&quot; property to one of the allowed values and commit.
@@ -1762,6 +1781,15 @@ Discovering data...Done
 </pre>
 
 <blockquote>
+<p>To login with sessionid.</p>
+</blockquote>
+
+<pre>
+iLOrest > <span style="color: #01a982; ">login xx.xx.xx.xx --sessionid xxxxxxxxxxxx</span>
+Discovering data...Done
+</pre>
+
+<blockquote>
 <p>To login remotely, with Certificate, supply the URL, user certificate, user key and user passphrase to the server.</p>
 </blockquote>
 
@@ -1832,7 +1860,7 @@ privileged user account. Higher security modes, if configured, require a valid i
 <p>Login using certificate authentication has following requirements:  </p>
 
 <ul>
-<li>iLO 5 v2.40<br></li>
+<li>iLO 5 v2.40 or later</li>
 <li>Set NTP Server on iLO and verify accurate time<br></li>
 <li>&quot;iLO Advanced Premium Security Edition&quot; license<br></li>
 <li>X509 SSL certificate signed with root CA key<br></li>
@@ -1873,7 +1901,13 @@ Locally you will be logged in automatically unless running in higher security mo
 
 <p>Connect to the server with the password corresponding to the given user.</p>
 
-<p>NOTE: In Linux, if password contains &#39;!&#39; (exclamation), then enclose the password with single quotation (&#39;)</p>
+<p>NOTE: In Linux, if password contains &#39;!&#39; (exclamation), then enclose the password with single quotation (&#39;). Also, if the password include special characters, then escape that character with &#39;\&#39; (backslash). Eg: if the password is test#123, then type the password as test\#123</p>
+
+<ul>
+<li><strong>--sessionid</strong></li>
+</ul>
+
+<p>Connect to the server with the already known sessionid.</p>
 
 <ul>
 <li><strong>--usercert UserCertificate</strong></li>
@@ -2126,11 +2160,11 @@ Type options:
 </blockquote>
 
 <aside class="notice">
-Adding a period after the selected type will ensure the selection is limited to one type. For example, selecting **Bios** will select both **Bios.v1_0_0** and **HpeBiosMapping.v2_0_0**. Selecting **Bios.** will only select the **Bios.v1_0_0** type.
+Adding a period after the selected type will ensure the selection is limited to one type. For example, selecting **Bios** will select both **Bios.v1_0_0** and **HpeBiosMapping.v2_0_0**. Selecting **Bios** will only select the **Bios.v1_0_0** type.
 </aside>
 
 <aside class="notice">
-Supplying the type version is not required. The selection **Bios.** and **Bios.v1_0_0** are identical.
+Supplying the type version is not required. The selection Bios. and Bios.v1_0_0 are identical.
 </aside>
 
 <pre>
@@ -2378,6 +2412,16 @@ Boot=
 <aside class="notice"> Use this flag to narrow down your results. For example, selecting a common type might return multiple objects that are all of that type. If you want to modify the properties of only one of those objects, use the filter flag to narrow down results based on properties.</aside>
 
 <ul>
+<li><strong>--refresh</strong></li>
+</ul>
+
+<p>Use this option to refresh a type with the most up to date information.</p>
+
+<p>-<strong>--selector=SELECTOR</strong></p>
+
+<p>Optionally including the <strong>selector</strong> flag allows you to select a type to run while running the current command. Use this command to select a type without entering another command, or to work with a type that is different from the one currently selected.</p>
+
+<ul>
 <li><strong>-j, --json</strong></li>
 </ul>
 
@@ -2605,6 +2649,16 @@ READ-ONLY
 </ul>
 
 <p>Including the help flag will display help for the command.</p>
+
+<ul>
+<li><strong>--refresh</strong></li>
+</ul>
+
+<p>Use this option to refresh a type with the most up to date information.</p>
+
+<p>-<strong>--selector=SELECTOR</strong></p>
+
+<p>Optionally including the <strong>selector</strong> flag allows you to select a type to run while running the current command. Use this command to select a type without entering another command, or to work with a type that is different from the one currently selected.</p>
 
 <ul>
 <li><strong>--latestschema</strong></li>
@@ -3239,6 +3293,8 @@ Logging session out.
 </ul>
 
 <p>Optionally include this flag to encrypt a file using the key provided.</p>
+
+<p>Note: It is custom encryption where length of the key can 16,24 and 32.</p>
 
 <p class="fake_header">Login Parameters</p>
 
@@ -4013,6 +4069,12 @@ The operation completed successfully.
 
 <p>Use this flag to perform actions on secure boot keys. Possible values include defaultkeys: resets all keys to default, deletekeys: deletes all keys, deletepk: deletes all product keys.</p>
 
+<ul>
+<li><strong>--ignorematcherror</strong></li>
+</ul>
+
+<p>Use this flag when you want to run multiple matches and not throw an error in case there are no matches found for given expression.</p>
+
 <p class="fake_header">Login Parameters</p>
 
 <p>The following parameters can be included to login to a server in the same line as the command is run.</p>
@@ -4246,7 +4308,7 @@ Current iSCSI Attempts:
 <p>Use this iSCSI configuration option to delete an iSCSI configuration option.</p>
 
 <ul>
-<li><strong>--modifiy=MODIFY</strong></li>
+<li><strong>--modify=MODIFY</strong></li>
 </ul>
 
 <p>Use this iSCSI configuration option to modify an iSCSI configuration option.</p>
@@ -4627,10 +4689,10 @@ securely to the system in remote mode. This flag has no effect in local mode.</p
 
 <p>iLO commands that are supported for a specific HPE server generation:
 <ul>
-<li>certificate: Gen10 with limited functionality for Gen9
-<li>fwintegritycheck: Gen10
-<li>serverclone: Gen10
-<li>sigrecompute: Gen9
+<li>certificate: Gen10 and later with limited functionality for Gen9
+<li>fwintegritycheck: Gen10 and later
+<li>serverclone: Gen10 and later
+<li>sigrecompute: Gen9 and later
 </ul></p>
 <h3 id='backuprestore-command'>Backuprestore Command</h3>
 <blockquote>
@@ -4849,7 +4911,7 @@ iLOrest > <span style="color: #01a982; ">certificate auto_enroll "Hewlet Packard
 <li>Please make sure the order of arguments is correct. The parameters are extracted based on their position in the arguments list.</li>
 <li>Some certificate types are not available on Gen9.</li>
 <li>Use the singlesignon command to import single sign on certificates.</li>
-<li>Use quotes to include parameters, which contain whitespace when generating a CSR. For example: certificate csr "Hewlett Packard Enterprise" "iLORest Group" "CName" "United States" "Texas" "Houston"</li>
+<li>Use quotes to include parameters, which contain whitespace when generating a CSR. For example: certificate gen_csr "Hewlett Packard Enterprise" "iLORest Group" "CName" "United States" "Texas" "Houston" "False"</li>
 </ul>
 </aside>
 
@@ -4879,7 +4941,7 @@ iLOrest > <span style="color: #01a982; ">certificate auto_enroll "Hewlet Packard
 <li>ca - Imports CA certificate.</li>
 <li>crl - Imports CRL certificate.</li>
 <li>tls - Imports TLS certificate.</li>
-<li>view - Prints scep certicate with option --scep_cert or https certificate with option --https_cert.</li>
+<li>view - Prints scep certificate with option --scep_cert or https certificate with option --https_cert.</li>
 <li>auto_enroll - Configures new SCEP certificate.</li>
 <li><p>import - Imports certificate. To import scep certificate, use --scep option. </p></li>
 <li><p><strong>-f FILENAME, --filename=FILENAME</strong></p></li>
@@ -5348,9 +5410,7 @@ To change settings, you must first enable the directory. You can use the `--enab
 7. Host NIC Config
 8. Host Bios Config
 9. Host Storage Config
-10. System Recovery Config
-11. Self Password Change
-12. Configure Components</p>
+10. System Recovery Config</p>
 
 <p>LOCAL ROLES:
 - ReadOnly
@@ -5704,7 +5764,7 @@ iLOrest return code: 0
 <li><strong>Load</strong></li>
 </ul>
 
-<p>Load a network cofiguration.</p>
+<p>Load a network configuration.</p>
 <h4 id='optional-parameters'>Optional parameters</h4>
 <ul>
 <li><p><strong>-h, --help</strong><br>
@@ -5733,6 +5793,8 @@ Disable network interfaces by listing each interface to be disabled. <strong>Not
 Configure Domain Name Servers (DNS) in a list: <DNS1> <DNS2></p></li>
 <li><p><strong>--network_ipv4 <ipv4 address>, <ipv4 gateway>, <ipv4 network mask>.</strong><br>
 Configure Static IPv4 Settings. Provide a list of network settings</p></li>
+<li><p><strong>--network_ipv6 <ipv6 address>, <ipv6 gateway>, <ipv6 network mask>.</strong><br>
+Configure Static IPv6 Settings. Provide a list of network settings </p></li>
 </ul>
 <h3 id='factorydefaults-command'>Factorydefaults Command</h3>
 <blockquote>
@@ -5834,7 +5896,7 @@ Logging session out.
 
 <p class="fake_header">Description</p>
 
-<p>Use this command to update the firmware via URI. iLO must be able to access the URI for update to complete successfully. This command only supports firmware with a <code>.bin</code> extension.</p>
+<p>Use this command to update the firmware via URI. iLO must be able to access the URI for update to complete successfully. This command only supports firmware with all supported extensions.</p>
 
 <aside class="notice">The firmware update command is only supported in <b>iLO 4 2.20</b> or higher.</aside>
 
@@ -5844,7 +5906,7 @@ Logging session out.
 <li><strong>URI</strong></li>
 </ul>
 
-<p>Point the <strong>firmwareupdate</strong> command towards the .bin file that holds the file for the firmware update.</p>
+<p>Point the <strong>firmwareupdate</strong> command towards the firmware file that holds the file for the firmware update.</p>
 
 <ul>
 <li><strong>-h, --help</strong></li>
@@ -5890,7 +5952,7 @@ Logging session out.
 
 <p>File</p>
 
-<p>Input a URI pointing to a <code>.bin</code> file to perform the <code>firmwareupdate</code> command. The .bin file should hold the file needed to perform the firmware update.</p>
+<p>Input a URI pointing to a firmware file to perform the <code>firmwareupdate</code> command. The firmware file should hold the file needed to perform the firmware update.</p>
 
 <p class="fake_header">Output</p>
 
@@ -6161,11 +6223,6 @@ iLOrest > <span style="color: #01a982; ">rawget "/redfish/v1/AccountService/User
 <li>iLO Config</li>
 <li>Virtual Media</li>
 <li>Virtual Power and Reset</li>
-</ol>
-
-<p>iLO 5 added privileges:</p>
-
-<ol>
 <li>Host NIC Config</li>
 <li>Host Bios Config</li>
 <li>Host Storage Config</li>
@@ -6185,29 +6242,29 @@ This command has been recently changed. Please review the new method to specify 
 <p>Adds/deletes an iLO account on the currently logged in server and modifies iLO account privileges.</p>
 
 <ul>
-<li><strong>LOGINNAME:</strong>  The account name, used to login.</li>
-<li><strong>USERNAME:</strong> The account username name, not used to login.</li>
+<li><strong>LOGINNAME:</strong>  The account name, not used to login.</li>
+<li><strong>USERNAME:</strong> The account username name, used to login.</li>
 <li><strong>PASSWORD:</strong>  The account password, used to login.</li>
 <li><strong>Id:</strong> The number associated with an iLO user account.</li>
-<li><p><strong>PRIVILEGES:</strong></p>
+</ul>
+
+<p><strong>PRIVILEGES:</strong></p>
+
+<ol>
+<li>Login</li>
+<li>Remote Console</li>
+<li>User Config</li>
+<li>iLO Config</li>
+<li>Virtual Media</li>
+<li>Virtual Power and Reset</li>
+<li>Host NIC Config</li>
+<li>Host Bios Config</li>
+<li>Host Storage Config</li>
+<li>System Recovery Config</li>
+</ol>
 
 <ul>
-<li>1: Login</li>
-<li>2: Remote Console</li>
-<li>3: User Config</li>
-<li>4: iLO Config</li>
-<li>5: Virtual Media</li>
-<li>6: Virtual Power and Reset</li>
-</ul></li>
-<li><p><strong>iLO 5 added privileges:</strong></p>
-
-<ul>
-<li>7: Host NIC Config</li>
-<li>8: Host Bios Config</li>
-<li>9: Host Storage Config</li>
-<li>10: System Recovery Config</li>
-</ul></li>
-<li><p><strong>Roles:</strong></p>
+<li><strong>Roles:</strong>
 
 <ul>
 <li>Administrator</li>
@@ -6503,11 +6560,6 @@ SystemRecoveryConfigPriv=False
 <li>iLO Config</li>
 <li>Virtual Media</li>
 <li>Virtual Power and Reset</li>
-</ol>
-
-<p>iLO 5 added privileges:</p>
-
-<ol>
 <li>Host NIC Config</li>
 <li>Host Bios Config</li>
 <li>Host Storage Config</li>
@@ -6530,24 +6582,17 @@ Please make sure the order of arguments is correct. The parameters are extracted
 <li><strong>FEDERATIONNAME</strong>: The name (Id) of the federation group.</li>
 <li><strong>KEY</strong>:  The key required to join the federation.</li>
 <li><p><strong>Id</strong>: The number associated with an iLO federation.</p></li>
-<li><p><strong>PRIVILEGES:</strong></p>
-
-<ul>
-<li>1: Login</li>
-<li>2: Remote Console</li>
-<li>3: User Config</li>
-<li>4: iLO Config</li>
-<li>5: Virtual Media</li>
-<li>6: Virtual Power and Reset</li>
-</ul></li>
-<li><p><strong>iLO 5 added privileges:</strong></p>
-
-<ul>
-<li>7: Host NIC Config</li>
-<li>8: Host Bios Config</li>
-<li>9: Host Storage Config</li>
-<li>10: System Recovery Config</li>
-</ul></li>
+<li><p><strong>PRIVILEGES:</strong></p></li>
+<li><p>Login</p></li>
+<li><p>Remote Console</p></li>
+<li><p>User Config</p></li>
+<li><p>iLO Config</p></li>
+<li><p>Virtual Media</p></li>
+<li><p>Virtual Power and Reset</p></li>
+<li><p>Host NIC Config</p></li>
+<li><p>Host Bios Config</p></li>
+<li><p>Host Storage Config</p></li>
+<li><p>System Recovery Config</p></li>
 </ul>
 
 <p class="fake_header">Parameters</p>
@@ -6805,7 +6850,7 @@ This process may take up to 3 minutes.
 A management processor reset is in progress.
 </pre>
 
-<aside class="warning">Resetting iLO will render it unresponseive as it resets. The user will be logged out.</aside>
+<aside class="warning">Resetting iLO will render it unresponsive as it resets. The user will be logged out.</aside>
 
 <p class="fake_header">Syntax</p>
 
@@ -7029,7 +7074,7 @@ User Data Erase: Initiated \
 
 <aside class="warning"> This command will erase user data. Use this command with extreme caution. Complete erase can take up to 24 hours to complete. </aside>
 
-<p class="fake_header">Paramters</p>
+<p class="fake_header">Parameters</p>
 
 <ul>
 <li><strong>-h, --help</strong></li>
@@ -7191,6 +7236,12 @@ iLO response with code [400]: The operation was not successful due to the curren
 <p>Immediately removes power from the server, followed by a restart of the system.</p>
 
 <ul>
+<li><strong>nologout</strong></li>
+</ul>
+
+<p>Use this option to not logout of iLO during server reboot.</p>
+
+<ul>
 <li><strong>-h, --help</strong></li>
 </ul>
 
@@ -7328,7 +7379,7 @@ The operation completed successfully.
 <p>None</p>
 <h3 id='serverclone-command'>Serverclone Command</h3>
 <blockquote>
-<p>To save an iLO and Bios config run the command with the <code>save</code> argument. You can specify a filename using the (<code>-f, --filename</code>) option, if this option is not used the command will search for <code>ilorest_clone.json</code>.</p>
+<p>To save an iLO and Bios config run the command with the <code>save</code> argument. You can specify a filename using the (<code>-f, --filename</code>) option, if this option is not used the command will save the config in <code>ilorest_clone.json</code>.</p>
 </blockquote>
 
 <pre>
@@ -7627,7 +7678,7 @@ The contents of type: '#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup' shou
 
 <aside class="notice">When loading a clone file, login using an iLO account with full administrative privileges (such as the Administrator account) to ensure all system parameters are cloned successfully.</aside>
 
-<aside class="notice">When working with iLO Managment Accounts or iLO Federation Groups, remove entries from the JSON clone file (within the relevant dictionary) in order to perform deletion. In order to create new accounts on the server, simply add relevant nested dictionaries to the JSON file.</aside>
+<aside class="notice">When working with iLO Management Accounts or iLO Federation Groups, remove entries from the JSON clone file (within the relevant dictionary) in order to perform deletion. In order to create new accounts on the server, simply add relevant nested dictionaries to the JSON file.</aside>
 
 <aside class="notice">The Administrator account cannot be deleted using serverclone.</aside>
 
@@ -7813,61 +7864,61 @@ ProxyUserName :
 <p class="fake_header">Parameters</p>
 
 <ul>
-<li><strong>--firmware</strong></li>
+<li><strong>-fw, --firmware</strong></li>
 </ul>
 
-<p>Use this to view firware versions.</p>
+<p>Use this to view firmware versions.</p>
 
 <ul>
-<li><strong>--software</strong></li>
+<li><strong>-sw, --software</strong></li>
 </ul>
 
 <p>Use this view software/driver versions.</p>
 
 <ul>
-<li><strong>--proxy</strong></li>
+<li><strong>-proxy, --proxy</strong></li>
 </ul>
 
 <p>Use this to view proxy server settings.</p>
 
 <ul>
-<li><strong>--thermals</strong></li>
+<li><strong>-thermals, --thermals</strong></li>
 </ul>
 
 <p>Use this to view thermal settings.</p>
 
 <ul>
-<li><strong>--fans</strong></li>
+<li><strong>-fans, --fans</strong></li>
 </ul>
 
 <p>Use this to view Fan settings.</p>
 
 <ul>
-<li><strong>--memory</strong></li>
+<li><strong>-memory, --memory</strong></li>
 </ul>
 
 <p>Use this to view Memory or RAM settings.</p>
 
 <ul>
-<li><strong>--processors</strong></li>
+<li><strong>-processors, --processors</strong></li>
 </ul>
 
 <p>Use this to view Processor settings.</p>
 
 <ul>
-<li><strong>--power</strong></li>
+<li><strong>-power, --power</strong></li>
 </ul>
 
 <p>Use this to view Power settings.</p>
 
 <ul>
-<li><strong>--system</strong></li>
+<li><strong>-system, --system</strong></li>
 </ul>
 
 <p>Use this to view System settings.</p>
 
 <ul>
-<li><strong>--all</strong></li>
+<li><strong>-all, --all</strong></li>
 </ul>
 
 <p>Use this to view all the server settings (everything from above)</p>
@@ -7879,16 +7930,10 @@ ProxyUserName :
 <p>Including the help flag will display help for the command.</p>
 
 <ul>
-<li><strong>-f FILENAME, --filename=FILENAME</strong></li>
+<li><strong>--showabsent</strong></li>
 </ul>
 
-<p>Use this flag if you wish to use a different filename than the default one. The default filename is ilorest.json.</p>
-
-<ul>
-<li><strong>--filter=FILTER</strong></li>
-</ul>
-
-<p>Optionally set a filter value and a filter attribute to filter logs.</p>
+<p>Optionally show information on absent components in the output.</p>
 
 <ul>
 <li><strong>-j, --json</strong></li>
@@ -8121,7 +8166,7 @@ Severity=OK
 <li><strong>SL</strong></li>
 </ul>
 
-<p>Use this with the --selectlog option to perfrom opertation on the Security logs.</p>
+<p>Use this with the --selectlog option to perform operation on the Security logs.</p>
 
 <ul>
 <li><strong>-h, --help</strong></li>
@@ -8422,6 +8467,24 @@ The operation completed successfully.
 <p class="fake_header">Parameters</p>
 
 <ul>
+<li><strong>deleterecord RECORD</strong></li>
+</ul>
+
+<p>To delete single sign on record.</p>
+
+<ul>
+<li><strong>importdns</strong></li>
+</ul>
+
+<p>To import DNS settings for single sign on.</p>
+
+<ul>
+<li><strong>importcert CERT</strong></li>
+</ul>
+
+<p>To import the given certficate for single sign on.</p>
+
+<ul>
 <li><strong>-h, --help</strong></li>
 </ul>
 
@@ -8574,7 +8637,7 @@ iLOrest > <span style="color: #01a982; ">unifiedcertificate export -f cert.txt</
 <li><strong>-f File, --filename File</strong></li>
 </ul>
 
-<p>Sepcify the filename/filepath for the resulting certificate to be read from.</p>
+<p>Specify the filename/filepath for the resulting certificate to be read from.</p>
 
 <aside class="notice">A certificate must be imported from a file or from a URL (only supported for TLS/SSL certificates).</aside>
 
@@ -8638,7 +8701,7 @@ iLOrest > <span style="color: #01a982; ">unifiedcertificate export -f cert.txt</
 <li><strong>-f File, --filename File</strong></li>
 </ul>
 
-<p>Sepcify the filename/filepath for the resulting certificate to be saved to. By default, the certificate is printed to the console.</p>
+<p>Specify the filename/filepath for the resulting certificate to be saved to. By default, the certificate is printed to the console.</p>
 <h4 id='gen_csr-arguments'>Gen_CSR Arguments</h4>
 <ul>
 <li><strong>--csr_orgname</strong></li>
@@ -8656,7 +8719,7 @@ iLOrest > <span style="color: #01a982; ">unifiedcertificate export -f cert.txt</
 <li><strong>--csr_commonname</strong></li>
 </ul>
 
-<p>Specify the organization commonname for the certificate signing request (CSR).</p>
+<p>Specify the organization common name for the certificate signing request (CSR).</p>
 
 <ul>
 <li><strong>--csr_country</strong></li>
@@ -8704,7 +8767,7 @@ iLOrest > <span style="color: #01a982; ">unifiedcertificate export -f cert.txt</
 <li><strong>-f File, --filename File</strong></li>
 </ul>
 
-<p>Sepcify the filename/filepath for the resulting certificate signing request (CSR) to be saved to. By default, the CSR is printed to the console.</p>
+<p>Specify the filename/filepath for the resulting certificate signing request (CSR) to be saved to. By default, the CSR is printed to the console.</p>
 
 <p class="fake_header">Login Parameters</p>
 
@@ -8821,6 +8884,16 @@ Available Virtual Media Options:
 
 <p>Use this flag if you wish to boot from the image on next server reboot.</p>
 
+<aside class="notice">
+The image will be ejected automatically on the second server reboot so that the server does not boot to the image twice.
+</aside>
+
+<ul>
+<li><strong>-j, --json</strong></li>
+</ul>
+
+<p>Use this command to change the displayed output to JSON format. Preserving the JSON data structure makes the information easier to parse.</p>
+
 <p class="fake_header">Login Parameters</p>
 
 <p>The following parameters can be included to login to a server in the same line as the command is run.</p>
@@ -8843,10 +8916,6 @@ Available Virtual Media Options:
 
 <p>If you are not logged in yet, use this flag along with the user and URL flags to login. Use the provided iLO password corresponding to the username you gave to login.</p>
 
-<aside class="notice">
-The image will be ejected automatically on the second server reboot so that the server does not boot to the image twice.
-</aside>
-
 <ul>
 <li><strong>--logout</strong></li>
 </ul>
@@ -8862,7 +8931,7 @@ The image will be ejected automatically on the second server reboot so that the 
 <p>None</p>
 <h2 id='ilo-repository-commands'>iLO Repository Commands</h2>
 <aside class="notice">
-The iLO repository commands are designed for use with HPE Gen10 servers.
+The iLO repository commands are designed for use with HPE Gen10 and later servers.
 </aside>
 <h3 id='deletecomp-command'>Deletecomp Command</h3>
 <blockquote>
@@ -8882,7 +8951,7 @@ Deleted ilo5_137.bin
 </blockquote>
 
 <pre>
-iLOrest > <span style="color: #01a982; ">deletecomp 30d2d7fa b5a00edc</span>
+iLOrest > <span style="color: #01a982; ">deletecomp 30d2d7fa,b5a00edc</span>
 The operation completed successfully.
 Deleted 30d2d7fa
 The operation completed successfully.
@@ -9063,7 +9132,7 @@ Download complete
 </blockquote>
 
 <pre>
-iLOrest > <span style="color: #01a982; ">fwpkg U32_1.46_10_02_2018.fwpkg</span>
+iLOrest > <span style="color: #01a982; ">flashfwpkg U32_1.46_10_02_2018.fwpkg</span>
 Uploading firmware: U32_1.46_10_02_2018.signed.flash
 [200] The operation completed successfully.
 Component U32_1.46_10_02_2018.signed.flash uploaded successfully
@@ -9077,7 +9146,7 @@ Firmware has successfully been flashed and a reboot is required for this firmwar
 </blockquote>
 
 <pre>
-iLOrest > fwpkg ilo5_137.fwpkg <span style="color: #01a982; ">--ignorechecks</span>
+iLOrest > flashfwpkg ilo5_137.fwpkg <span style="color: #01a982; ">--ignorechecks</span>
 Uploading firmware: ilo5_137.bin
 [200] The operation completed successfully.
 Component ilo5_137.bin uploaded successfully
@@ -9138,6 +9207,8 @@ Some firmware can be flashed directly without a reboot, some may require a reboo
 
 <p>The component flashed will become a part of the system recovery set (srs).</p>
 
+<p>Note: update_srs option requires an account login with the system recovery set privilege.</p>
+
 <p class="fake_header">Login Parameters</p>
 
 <p>The following parameters can be included to login to a server in the same line as the command is run.</p>
@@ -9189,7 +9260,7 @@ basic_update:
 </pre>
 
 <blockquote>
-<p>To add an install set run the command with the <code>add</code> argument followed by the install set json file. If using sequence type json file (see below) the <code>--name</code> option must be included.</p>
+<p>To add an install set run the command with the <code>add</code> argument followed by the install set json file. While using sequence type json file its not necessary to include --name flag, in this scenario the iLO will provide default install set name.</p>
 </blockquote>
 
 <pre>
@@ -9224,7 +9295,6 @@ The operation completed successfully.
 <pre>
 LOrest > installset <span style="color: #01a982; ">--removeall</span>
 Deleting all install sets...
-Deleting install set: basic_update
 The operation completed successfully.
 </pre>
 
@@ -9319,6 +9389,8 @@ The operation completed successfully.
 </ul>
 
 <p>Remove all install sets.</p>
+
+<p>Note: Recovery install sets wont be removed</p>
 
 <ul>
 <li><strong>-j, --json</strong></li>
@@ -9462,8 +9534,13 @@ SizeBytes: 33556520
 <p>If you are not logged in yet, use this flag along with the user and URL flags to login. Use the provided iLO password corresponding to the username you gave to login.</p>
 
 <ul>
-<li><p><strong>--usercert User Certificate</strong></p></li>
-<li><p><strong>--logout</strong></p></li>
+<li><strong>--usercert</strong></li>
+</ul>
+
+<p>User Certificate for certificate login.</p>
+
+<ul>
+<li><strong>--logout</strong></li>
 </ul>
 
 <p>Optionally include the logout flag to log out of the server after this command is completed. Using this flag when not logged in will have no effect.</p>
@@ -9524,9 +9601,23 @@ The operation completed successfully.
 
 <p class="fake_header">Description</p>
 
-<p>Command to add, remove, or delete maintenance windows from the iLO repository.</p>
+<p>Command to add or delete maintenance windows from the iLO repository.</p>
 
 <p class="fake_header">Parameters</p>
+
+<ul>
+<li><strong>add TIME</strong></li>
+</ul>
+
+<p>To Add a maintenance window with a given time format</p>
+
+<p>Note: Time format is YEAR-MONTH-DAYTHOUR:MINUTE:SECOND</p>
+
+<ul>
+<li><strong>delete NAME</strong></li>
+</ul>
+
+<p>To Delete a maintenance window.</p>
 
 <ul>
 <li><strong>-h, --help</strong></li>
@@ -9789,7 +9880,7 @@ Creating task: "Update-740856 iLO 5"
 </pre>
 
 <blockquote>
-<p>To view the current update task queue runt the command with no arguments.</p>
+<p>To view the current update task queue, run the command with no arguments.</p>
 </blockquote>
 
 <pre>
@@ -9936,7 +10027,7 @@ Waiting for iLO UpdateService to finish processing the component
 The uploadcomp command requires iLO firmware version v1.48(a) or later. Earlier iLO Firmware versions will fail with a return code 103.<br>
 iLO firmware version v1.48(a) or later is required because the <b>uploadcomp</b> command depends on the Bunny Hop feature found in that version of the iLO firmware.<br>
 Before updating the iLO firmware, see <a href="https://support.hpe.com/hpesc/public/docDisplay?docId=emr_na-a00068199en_us" target="_blank">the customer advisory regarding iLO firmware upgrades</a>.
-To download the latest iLO Firmware, see the <a href="https://support.hpe.com/hpsc/swd/public/detail?swItemId=MTX_912b35cf18cd4b7ea530732822" target="_blank">Drivers &amp; Software page for the Online ROM Flash Firmware Package - HPE iLO 5</a>
+To download the latest iLO6 Firmware, see the <a href="https://support.hpe.com/connect/s/softwaredetails?language=en_US&softwareId=MTX_d3cad213c1df4acb9392b2f10a" target="_blank">Drivers &amp; Software page for the Online ROM Flash Firmware Package - HPE iLO 6</a>
 </aside></p>
 
 <p class="fake_header">Parameters</p>
@@ -9981,7 +10072,7 @@ To download the latest iLO Firmware, see the <a href="https://support.hpe.com/hp
 <li><strong>--update_repository</strong></li>
 </ul>
 
-<p>If true, uploads the component/binary on to the Repository. The default is set to True.</p>
+<p>Add this flag to skip uploading component/binary to the iLO Repository. If this flag is included with --update_srs, it will be ignored. Adding component to the repository is required to update the system reovery set.</p>
 
 <ul>
 <li><strong>--update_target</strong></li>
@@ -10031,8 +10122,8 @@ Note: --update_target also need to passed along with --update_srs for component 
 <p class="fake_header">Output</p>
 
 <p>None</p>
-<h2 id='smart-array-commands'>Smart Array Commands</h2>
-<p>The Smart Array commands are designed for use with HPE Gen10 servers.</p>
+<h2 id='storagecontroller-commands-previously-smartarray-command'>StorageController Commands (previously smartarray command)</h2>
+<p>The Storage Controller commands are designed for use with HPE Gen10 and later servers.</p>
 
 <aside class="notice">
 <ul>
@@ -10074,12 +10165,6 @@ One or more properties were changed an will not take effect until system is rese
 
 <p>Use this flag to select the corresponding controller.</p>
 
-<ul>
-<li><strong>--all</strong></li>
-</ul>
-
-<p>Use this flag to sanitize all physical drives on a controller.</p>
-
 <p class="fake_header">Login Parameters</p>
 
 <p>The following parameters can be included to login to a server in the same line as the command is run.</p>
@@ -10115,9 +10200,9 @@ One or more properties were changed an will not take effect until system is rese
 <p class="fake_header">Output</p>
 
 <p>None</p>
-<h3 id='createlogicaldrive-command'>Createlogicaldrive Command</h3>
+<h3 id='createvolume-command-previously-createlogicaldrive-command'>CreateVolume Command (previously Createlogicaldrive Command)</h3>
 <blockquote>
-<p>Createlogicaldrive example commands:</p>
+<p>Createvolume example commands:</p>
 
 <p>To create a quick logical drive run the command with the following arguments: The type of creation as quickdrive, the raid level, the number of drives to use, the type of drive to use, the drive interface type, and the drive location. Also include the <code>--controller</code> option selecting the controller the drive will be created on. See the options list for possible values of these and more.</p>
 </blockquote>
@@ -10137,7 +10222,7 @@ One or more properties were changed an will not take effect until system is rese
 iLOrest > login
 Discovering data...Done
 
-ilorest > <span style="color: #01a982; ">createlogicaldrive customdrive Raid5 1E:1:2 --controller=1 --name=ANewLogicalDrive --spare-drives=2 --capacityGiB=100 --legacy-boot=Primary --accelerator-type=ControllerCache --sparetye=Dedicated</span>
+ilorest > <span style="color: #01a982; ">createlogicaldrive customdrive Raid5 1E:1:2 --controller=1 --name=ANewVolume --spare-drives=2 --capacityGiB=100 --legacy-boot=Primary --accelerator-type=ControllerCache --sparetye=Dedicated</span>
 
 One or more properties were changed an will not take effect until system is reset.
 </pre>
@@ -10152,16 +10237,17 @@ Operation completed successfully
 </pre>
 
 <aside class="notice">
-The createlogicaldrive command requires a reboot before creating the logical drives. If the drives are not present after a full reboot, run the results command to check for errors in the configuration.
+For iLO6 onwards, there is no need to reboot after creating a volume.
+But for iLO5, it requires a reboot after creating the volumes. If the drives are not present after a full reboot, run the results command to check for errors in the configuration.
 </aside>
 
 <p class="fake_header">Syntax</p>
 
-<p>createlogicaldrive <em>[SUBCOMMAND]</em> <em>[Optional Parameters]</em></p>
+<p>createvolume <em>[SUBCOMMAND]</em> <em>[Optional Parameters]</em></p>
 
 <p class="fake_header">Description</p>
 
-<p>Creates a new logical drive on the selected controller.</p>
+<p>Creates a new volume on the selected controller.</p>
 
 <p class="fake_header">SUBCOMMAND</p>
 
@@ -10370,42 +10456,42 @@ The createlogicaldrive command requires a reboot before creating the logical dri
 <p class="fake_header">Output</p>
 
 <p>None</p>
-<h3 id='deletelogicaldrive-command'>Deletelogicaldrive Command</h3>
+<h3 id='deletevolume-command-previously-deletelogicaldrive-command'>Deletevolume Command (previously Deletelogicaldrive Command)</h3>
 <blockquote>
-<p>Deletelogicaldrive example commands:</p>
+<p>Deletevolume example commands:</p>
 
-<p>To delete multiple logical drives by drive location include the drive location of the drive you wish to delete. Also include the <code>--controller</code> option specifying the controller to use. You can specify multiple drives as well as a comma separated list.</p>
+<p>To delete multiple volumes by drive location include the drive location of the drive you wish to delete. Also include the <code>--controller</code> option specifying the controller to use. You can specify multiple drives as well as a comma separated list.</p>
 </blockquote>
 
 <aside class="notice">
-A Volume Unique Identifier must be available to delete a logical drive. Pending drives may not be deleted.
+A Volume Unique Identifier must be available to delete a volume. Pending drives may not be deleted.
 </aside>
 
 <pre>
-ilorest > <span style="color: #01a982; ">deletelogicaldrive --controller=1 1</span>
+ilorest > <span style="color: #01a982; ">deletevolume --controller=1 1</span>
 Are you sure you would like to continue deleting drive 004D56ABPEYHC0ARH951TK A39C? (y/n)
-Setting logical drive 004D56ABPEYHC0ARH951TK A39C for deletion
+Setting volume 004D56ABPEYHC0ARH951TK A39C for deletion
 One or more properties were changed and will not take effect until system is reset.
 </pre>
 
 <blockquote>
-<p>To delete all logical drives on a controller include the<code>--controller</code> option specifying the controller to perform the operation on and the <code>--all</code> option.</p>
+<p>To delete all volumes on a controller include the<code>--controller</code> option specifying the controller to perform the operation on and the <code>--all</code> option.</p>
 </blockquote>
 
 <pre>
 iLOrest > login
 Discovering data...Done
-ilorest > deletelogicaldrive --controller=1 <span style="color: #01a982; ">--all</span>
+ilorest > deletevolume --controller=1 <span style="color: #01a982; ">--all</span>
 [200] The operation completed successfully.
 </pre>
 
 <p class="fake_header">Syntax</p>
 
-<p>deletelogicaldrive <em>[Optional Parameters]</em></p>
+<p>deletevolume <em>[Optional Parameters]</em></p>
 
 <p class="fake_header">Description</p>
 
-<p>Deletes logical drives from the selected controller.</p>
+<p>Deletes volumes from the selected controller.</p>
 
 <p class="fake_header">Parameters</p>
 
@@ -10425,13 +10511,13 @@ ilorest > deletelogicaldrive --controller=1 <span style="color: #01a982; ">--all
 <li><strong>--all</strong></li>
 </ul>
 
-<p>Use this flag to delete all logical drives on a controller.</p>
+<p>Use this flag to delete all volumes on a controller.</p>
 
 <ul>
 <li><strong>--force</strong></li>
 </ul>
 
-<p>Use this flag to override the &quot;are you sure?&quot; text when deleting a logical drive.</p>
+<p>Use this flag to override the &quot;are you sure?&quot; text when deleting a volume.</p>
 
 <p class="fake_header">Login Parameters</p>
 
@@ -10483,7 +10569,7 @@ Sanitization will occur on the next system reboot.
 </pre>
 
 <blockquote>
-<p>To sanitize multiple physical drives pass the location as a comma separated list along with the <code>--controller</code> option to dpecify which controller to perform the operation on.</p>
+<p>To sanitize multiple physical drives pass the location as a comma separated list along with the <code>--controller</code> option to specify which controller to perform the operation on.</p>
 </blockquote>
 
 <pre>
@@ -10616,11 +10702,15 @@ One or more properties were changed and will not take effect until system is res
 
 <p>Including the help flag will display help for the command.</p>
 
-<p>-- <strong>--reset_type</strong></p>
+<ul>
+<li><strong>--reset_type</strong></li>
+</ul>
 
 <p>Either ResetAll or PreserveVolumes (Usable in iLO6/Gen11 servers)</p>
 
-<p>-- <strong>--storage_id</strong></p>
+<ul>
+<li><strong>--storage_id</strong></li>
+</ul>
 
 <p>Storage id like DE000010 (Usable in iLO6/Gen11 servers)</p>
 
@@ -10665,26 +10755,26 @@ One or more properties were changed and will not take effect until system is res
 <p class="fake_header">Output</p>
 
 <p>None</p>
-<h3 id='smartarray-command'>SmartArray Command</h3>
+<h3 id='storagecontroller-command-previously-smartarray-command'>StorageController Command (previously Smartarray Command)</h3>
 <blockquote>
-<p>To list all available smart array controllers run the command without arguments.</p>
+<p>To list all available storage controllers run the command without arguments.</p>
 </blockquote>
 
 <pre>
-ilorest > <span style="color: #01a982; ">smartarray</span>
+ilorest > <span style="color: #01a982; ">storagecontroller</span>
 [1]&#58; Slot 0
 </pre>
 
 <blockquote>
-<p>To list all Existing Volume Unique Identifier&#39;s for logical drives for all controllers run the command including the <code>--logicaldrives</code> option. Drives which are pending will instead show &quot;Pending Drive&quot; for the Volume Unique Identifier (this will be available after the system has been rebooted and the drive has been successfully created.). The information is presented such that the controller slot number is noted first, followed by all associated logical drives to that controller.</p>
+<p>To list all Existing Volume Unique Identifier&#39;s for logical drives for all controllers run the command including the <code>--volumes</code> option. Drives which are pending will instead show &quot;Pending Drive&quot; for the Volume Unique Identifier (this will be available after the system has been rebooted and the drive has been successfully created.). The information is presented such that the controller slot number is noted first, followed by all associated volumes to that controller.</p>
 </blockquote>
 
 <pre>
 iLOrest > login
 Discovering data...Done
-ilorest > <span style="color: #01a982; ">smartarray --logicaldrives</span>
+ilorest > <span style="color: #01a982; ">storagecontroller --volumes</span>
 [1]&#58; Slot 0
-Logical Drives&#58;
+Volumes&#58;
 [1]&#58; 600508B1001C599DE361257397F69972
 [2]&#58; Pending drive
 [3]&#58; Pending drive
@@ -10697,7 +10787,7 @@ Logical Drives&#58;
 <pre>
 iLOrest > login
 Discovering data...Done
-ilorest > <span style="color: #01a982; ">smartarray --physicaldrives</span>
+ilorest > <span style="color: #01a982; ">storagecontroller --physicaldrives</span>
 [1]&#58; Slot 0
 Physical Drives&#58;
 [1]&#58; 1I:3:4
@@ -10709,11 +10799,11 @@ Physical Drives&#58;
 </pre>
 
 <blockquote>
-<p>To return a JSON formatted response including controller settings, as well as physical and logical drives information on the selected controller, include the <code>--controller</code> option followed by the number in brackets associated to the controller.</p>
+<p>To return a response including controller settings, as well as physical drives and volumes information on the selected controller, include the <code>--controller</code> option followed by the number in brackets associated to the controller.</p>
 </blockquote>
 
 <pre>
-ilorest > <span style="color: #01a982; ">smartarray --controller=0</span>
+ilorest > <span style="color: #01a982; ">storagecontroller --controller=0</span>
 Selected option(s): #StorageCollection.StorageCollection
 ------------------------------------------------
 Controller Info
@@ -10737,7 +10827,7 @@ ILOREST return code: 0
 </blockquote>
 
 <pre>
-ilorest > <span style="color: #01a982; ">smartarray --controller=0 --pdrive=1I:3:4 -j</span>
+ilorest > <span style="color: #01a982; ">storagecontroller --controller=0 --pdrive=1I:3:4 -j</span>
 {
   "Controller": "Slot=3 - HPE Smart Array SR308i-p Gen11",
   "BlockSizeBytes": 512,
@@ -10778,11 +10868,11 @@ ilorest > <span style="color: #01a982; ">smartarray --controller=0 --pdrive=1I:3
 </pre>
 
 <blockquote>
-<p>To return a JSON formatted response regarding the settings and attributes of the selected logical drive on the selected controller include the <code>--controller</code> option specifying the controller and the <code>--ldrive</code> option specifying the logical drive number in brackets.</p>
+<p>To return a JSON formatted response regarding the settings and attributes of the selected volume on the selected controller include the <code>--controller</code> option specifying the controller and the <code>--ldrive</code> option specifying the volume number in brackets.</p>
 </blockquote>
 
 <pre>
-iLOrest > <span style="color: #01a982; ">smartarray --controller=0 --ldrive=1 -j</span>
+iLOrest > <span style="color: #01a982; ">storagecontroller --controller=0 --ldrive=1 -j</span>
 {
   "Controller": "Slot=3 - HPE Smart Array SR308i-p Gen11",
   "Accelerator": "ControllerCache",
@@ -10822,11 +10912,37 @@ iLOrest > <span style="color: #01a982; ">smartarray --controller=0 --ldrive=1 -j
 
 <p>Including the help flag will display help for the command.</p>
 
+<p>Including the help flag will display help for the command.</p>
+
+<ul>
+<li><strong>--storageid=STORAGEID, --storage_id=STORAGEID</strong></li>
+</ul>
+
+<p>Use this flag to select the corresponding storage id.</p>
+
 <ul>
 <li><strong>--controller=CONTROLLER</strong></li>
 </ul>
 
 <p>Use this flag to select the corresponding controller.</p>
+
+<ul>
+<li><strong>--volumes</strong></li>
+</ul>
+
+<p>Use this flag to list the volumes.</p>
+
+<ul>
+<li><strong>--volume=VOLUMEID</strong></li>
+</ul>
+
+<p>Use this flag to print volume information specifying volume id.</p>
+
+<ul>
+<li><strong>-j, --json</strong></li>
+</ul>
+
+<p>Use this flag to output in JSON format.</p>
 
 <ul>
 <li><strong>--physicaldrives</strong></li>
@@ -10835,22 +10951,10 @@ iLOrest > <span style="color: #01a982; ">smartarray --controller=0 --ldrive=1 -j
 <p>Use this flag to return the physical drives for the controller selected.</p>
 
 <ul>
-<li><strong>--logicaldrives</strong></li>
-</ul>
-
-<p>Use this flag to return the logical drives for the controller selected.</p>
-
-<ul>
 <li><strong>--pdrive=PDRIVE_LOCATION</strong></li>
 </ul>
 
 <p>Use this flag to select the corresponding physical disk.</p>
-
-<ul>
-<li><strong>--ldrive=LDRIVE</strong></li>
-</ul>
-
-<p>Use this flag to select the corresponding logical disk.</p>
 
 <p class="fake_header">Login Parameters</p>
 
@@ -10888,7 +10992,7 @@ iLOrest > <span style="color: #01a982; ">smartarray --controller=0 --ldrive=1 -j
 
 <p>None</p>
 <h2 id='smart-nic-commands'>Smart NIC Commands</h2>
-<p>The Smart NIC commands are designed for use with HPE Gen10 servers.</p>
+<p>The Smart NIC commands are designed for use with HPE Gen10 and later servers.</p>
 
 <aside class="notice">
 <ul>
@@ -11538,6 +11642,32 @@ The account was removed successfully.
 <p>Including the help flag will display help for the command.</p>
 
 <ul>
+<li><strong>--response</strong></li>
+</ul>
+
+<p>Use this flag to return the iLO response body.</p>
+
+<ul>
+<li><strong>--getheaders</strong></li>
+</ul>
+
+<p>Use this flag to return the iLO response headers.</p>
+
+<ul>
+<li><strong>--headers=HEADERS</strong></li>
+</ul>
+
+<p>Use this flag to add extra headers to the request.</p>
+
+<p>Usage: --headers=HEADER:VALUE,HEADER:VALUE</p>
+
+<ul>
+<li><strong>--silent</strong></li>
+</ul>
+
+<p>Use this flag to silence responses.</p>
+
+<ul>
 <li><strong>--service</strong></li>
 </ul>
 
@@ -11628,9 +11758,6 @@ Results written out to 'system.json'.
 </blockquote>
 
 <pre>
-iLOrest > rawget /redfish/v1/systems/1 -f system.json
-[200] The operation completed successfully.
-Results written out to 'system.json'.
 iLOrest > rawget /redfish/v1/systems/
 [200] The operation completed successfully.
 {
@@ -11821,7 +11948,7 @@ iLOrest > <span style="color: #01a982; ">rawhead /redfish/v1/Systems/1/</span>
 
 <p>Use this command to perform an HTTP RESTful HEAD command. Run to retrieve header data from the passed in path.</p>
 
-<p class="fake_header">Syntax</p>
+<p class="fake_header">Parameters</p>
 
 <ul>
 <li><strong>Path</strong></li>
@@ -11836,12 +11963,6 @@ iLOrest > <span style="color: #01a982; ">rawhead /redfish/v1/Systems/1/</span>
 <p>Including the help flag will display help for the command.</p>
 
 <ul>
-<li><strong>-f, --filename=Filename</strong></li>
-</ul>
-
-<p>Include the filename to perform the current operation.</p>
-
-<ul>
 <li><strong>--silent</strong></li>
 </ul>
 
@@ -11851,7 +11972,7 @@ iLOrest > <span style="color: #01a982; ">rawhead /redfish/v1/Systems/1/</span>
 <li><strong>-f FILENAME, --filename=FILENAME</strong></li>
 </ul>
 
-<p>Use the provided filename to perform operations.</p>
+<p>Use the filename to write the results into it.</p>
 
 <ul>
 <li><strong>--service</strong></li>
@@ -11909,7 +12030,7 @@ The operation completed successfully.
 </pre>
 
 <blockquote>
-<p>The following <strong>rawpatch.json</strong> file was used in the above example:</p>
+<p>JSON input filename example:</p>
 </blockquote>
 <div class="highlight"><pre class="highlight json tab-json"><code><span class="p">{</span><span class="w">
     </span><span class="nl">"/redfish/v1/systems/1"</span><span class="p">:</span><span class="w">
@@ -11930,7 +12051,7 @@ The operation completed successfully.
 <p class="fake_header">Parameters</p>
 
 <blockquote>
-<p>Filename parameter example:</p>
+<p>JSON input filename example:</p>
 </blockquote>
 <div class="highlight"><pre class="highlight json tab-json"><code><span class="p">{</span><span class="w">
     </span><span class="nl">"path"</span><span class="p">:{</span><span class="nl">"json"</span><span class="p">:</span><span class="s2">"body"</span><span class="p">},</span><span class="w">
@@ -11978,14 +12099,6 @@ An JSON file template is shown on the side.</p>
 <p>Usage: --headers=HEADER:VALUE,HEADER:VALUE</p>
 
 <ul>
-<li><strong>--biospassword=BIOSPASSWORD</strong></li>
-</ul>
-
-<p>Select this flag to input a BIOS password. Include this flag if second-level BIOS authentication is needed for the command to execute.</p>
-
-<aside class="notice">This flag is used only on iLO 4 systems and not required on iLO 5 systems.</aside>
-
-<ul>
 <li><strong>--service</strong></li>
 </ul>
 
@@ -12019,6 +12132,14 @@ An JSON file template is shown on the side.</p>
 
 <p>Optionally include the logout flag to log out of the server after this command is completed. Using this flag when not logged in will have no effect.</p>
 
+<ul>
+<li><strong>--biospassword=BIOSPASSWORD</strong></li>
+</ul>
+
+<p>Select this flag to input a BIOS password. Include this flag if second-level BIOS authentication is needed for the command to execute.</p>
+
+<aside class="notice">This flag is used only on iLO 4 systems and not required on iLO 5 systems.</aside>
+
 <p class="fake_header">Input</p>
 
 <p>File</p>
@@ -12045,7 +12166,7 @@ The operation completed successfully.
 </pre>
 
 <blockquote>
-<p>The following <strong>rawpost.json</strong> file is used in the example above:</p>
+<p>JSON input filename example:</p>
 </blockquote>
 <div class="highlight"><pre class="highlight json tab-json"><code><span class="p">{</span><span class="w">
     </span><span class="nl">"/redfish/v1/Systems/1/Actions/ComputerSystem.Reset/"</span><span class="p">:</span><span class="w">
@@ -12169,7 +12290,7 @@ One or more properties were changed and will not take effect until system is res
 </pre>
 
 <blockquote>
-<p>This example uses the following <strong>put.json</strong> file:</p>
+<p>JSON input filename example:</p>
 </blockquote>
 <div class="highlight"><pre class="highlight json tab-json"><code><span class="p">{</span><span class="w">
     </span><span class="nl">"/redfish/v1/systems/1/bios/Settings/"</span><span class="p">:</span><span class="w">
@@ -12240,14 +12361,6 @@ An JSON file template is shown on the side.</p>
 <p>Use this flag to silence responses.</p>
 
 <ul>
-<li><strong>--biospassword=BIOSPASSWORD</strong></li>
-</ul>
-
-<p>Select this flag to input a BIOS password. Include this flag if second-level BIOS authentication is needed for the command to execute.</p>
-
-<aside class="notice">This flag is used only on iLO 4 systems and not required on iLO 5 systems.</aside>
-
-<ul>
 <li><strong>--service</strong></li>
 </ul>
 
@@ -12280,6 +12393,14 @@ An JSON file template is shown on the side.</p>
 </ul>
 
 <p>Optionally include the logout flag to log out of the server after this command is completed. Using this flag when not logged in will have no effect.</p>
+
+<ul>
+<li><strong>--biospassword=BIOSPASSWORD</strong></li>
+</ul>
+
+<p>Select this flag to input a BIOS password. Include this flag if second-level BIOS authentication is needed for the command to execute.</p>
+
+<aside class="notice">This flag is used only on iLO 4 systems and not required on iLO 5 systems.</aside>
 
 <p class="fake_header">Input</p>
 
@@ -12360,7 +12481,7 @@ EthernetInterface.v1_4_1(/redfish/v1/Managers/1/EthernetInterfaces/2/) (Currentl
 
 <p>If there is more than one instance of a type on the system, when you select it, the <code>filter</code> option can be used to narrow down the results. With this narrowed result, you can set specific instance properties, list specific instance properties, or get specific instance properties.</p>
 
-<aside class="notice"> The filter option can be used in the get, list, and set commands.</aside>
+<aside class="notice"> The filter option can be used in the get, list, set, serverlogs and save commands.</aside>
 <h2 id='path-option'>Path Option</h2>
 <blockquote>
 <p>To start type collection from a specific path include the <code>--path</code> option followed by the path to start from. This can limit or add new types depending on the path specified.</p>
@@ -12421,7 +12542,7 @@ HpeESKM.v2_0_0
 
 <p>The path option can set a different URI as the starting point for type discovery. The default path is <code>/redfish/v1/</code>. This option is useful if you wish to view specific types, which are not available by default or if you wish to lower the time it takes to login. It is not recommended to use this flag on systems with a resource directory.</p>
 <h1 id='use-case-examples-and-macro-commands'>Use Case Examples and Macro Commands</h1>
-<p>This section outlines ready to use example commands, as well as some general use scenarios for obtaining and configuring iLO 4 (iLO 4 2.00+) and iLO 5 systems through Redfish. Legacy modes are supported for older HPRest iLO 4 systems.</p>
+<p>This section outlines ready to use example commands, as well as some general use scenarios for obtaining and configuring iLO 4 (iLO 4 2.00+) and iLO 5/6 systems through Redfish. Legacy modes are supported for older HPRest iLO 4 systems.</p>
 <h2 id='quick-reference-table-available-scripts-for-linux-and-windows'>Quick Reference Table: Available scripts for Linux and Windows</h2>
 <table><thead>
 <tr>
@@ -12435,11 +12556,11 @@ HpeESKM.v2_0_0
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Add_Federation_Group.sh" target="_blank">Add_Federation_Group.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Add_Federation_Group.bat" target="_blank">Add_Federation_Group.bat</a></td>
-<td>Adds a Federation group membership and grant associated privileges on iLO4 and iLO5.</td>
+<td>Adds a Federation group membership and grant associated privileges on iLO.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/add_sso_rec.sh" target="_blank">add_sso_rec.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/add_sso_rec.bat" target="_blank">add_sso_rec.bat</a></td>
-<td>Adds an HPE SIM Single Sign-On (SSO) server record to the end of the database on iLO4 or iLO5.</td>
+<td>Adds an HPE SIM Single Sign-On (SSO) server record to the end of the database on iLO.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Add_User.sh" target="_blank">Add_User.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Add_User.bat" target="_blank">Add_User.bat</a></td>
@@ -12455,11 +12576,7 @@ HpeESKM.v2_0_0
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Cert_Request.sh" target="_blank">Cert_Request.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Cert_Request.bat" target="_blank">Cert_Request.bat</a></td>
-<td>Gets a certificate signing request from iLO4 and iLO5.</td>
-</tr>
-<tr>
-<td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Change_Password.sh" target="_blank">Change_Password.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Change_Password.bat" target="_blank">Change_Password.bat</a></td>
-<td>Change a user&#39;s password in the database of local users on iLO4 and iLO5.</td>
+<td>Gets a certificate signing request from iLO.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Clear_AHS_Data.sh" target="_blank">Clear_AHS_Data.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Clear_AHS_Data.bat" target="_blank">Clear_AHS_Data.bat</a></td>
@@ -12467,11 +12584,11 @@ HpeESKM.v2_0_0
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Clear_EventLog.sh" target="_blank">Clear_EventLog.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Clear_EventLog.bat" target="_blank">Clear_EventLog.bat</a></td>
-<td>Clears the event log on iLO4 and iLO5.</td>
+<td>Clears the event log on iLO.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Clear_IML.sh" target="_blank">Clear_IML.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Clear_IML.bat" target="_blank">Clear_IML.bat</a></td>
-<td>Clears the server IML log from iLO4 and iLO5.</td>
+<td>Clears the server IML log from iLO.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Computer_Lock_Config.sh" target="_blank">Computer_Lock_Config.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Computer_Lock_Config.bat" target="_blank">Computer_Lock_Config.bat</a></td>
@@ -12479,7 +12596,7 @@ HpeESKM.v2_0_0
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Delete_Federation_Group.sh" target="_blank">Delete_Federation_Group.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Delete_Federation_Group.bat" target="_blank">Delete_Federation_Group.bat</a></td>
-<td>Deletes a Federation group membership on iLO4 and iLO5.</td>
+<td>Deletes a Federation group membership on iLO.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/delete_sso_rec.sh" target="_blank">delete_sso_rec.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/delete_sso_rec.bat" target="_blank">delete_sso_rec.bat</a></td>
@@ -12487,7 +12604,7 @@ HpeESKM.v2_0_0
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Delete_User.sh" target="_blank">Delete_User.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Delete_User.bat" target="_blank">Delete_User.bat</a></td>
-<td>Deletes a user from the database of local users on iLO4 and iLO5.</td>
+<td>Deletes a user from the database of local users on iLO.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Eject_Virtual_Media.sh" target="_blank">Eject_Virtual_Media.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Eject_Virtual_Media.bat" target="_blank">Eject_Virtual_Media.bat</a></td>
@@ -12495,7 +12612,7 @@ HpeESKM.v2_0_0
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/ERS_DC_SetWebProxy.sh" target="_blank">ERS_DC_SetWebProxy.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/ERS_DC_SetWebProxy.bat" target="_blank">ERS_DC_SetWebProxy.bat</a></td>
-<td>Starts director test on  iLO4 and iLO5.</td>
+<td>Starts director test on  iLO.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/ERS_Get_Settings.sh" target="_blank">ERS_Get_Settings.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/ERS_Get_Settings.bat" target="_blank">ERS_Get_Settings.bat</a></td>
@@ -12752,10 +12869,6 @@ HpeESKM.v2_0_0
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/RBSU_POST_IP.sh" target="_blank">RBSU_POST_IP.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/RBSU_POST_IP.bat" target="_blank">RBSU_POST_IP.bat</a></td>
 <td>Configures the management processor RBSU to display the IP address during POST</td>
-</tr>
-<tr>
-<td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Reset_RIB.sh" target="_blank">Reset_RIB.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Reset_RIB.bat" target="_blank">Reset_RIB.bat</a></td>
-<td>Resets (reboots) the iLO.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Reset_Server.sh" target="_blank">Reset_Server.sh</a><br><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Reset_Server.bat" target="_blank">Reset_Server.bat</a></td>
@@ -14039,20 +14152,6 @@ Logging session out.
 </tbody></table>
 <h2 id='virtual-media'>Virtual Media</h2>
 <p>iLO provides a method to boot from virtualized media by providing a remote URL. This can include bootable virtualized USB, Floppy disk, CD/DVD ISO media.</p>
-<h3 id='mount-virtual-media'>Mount Virtual Media</h3>
-<p>Mount Virtual Media (To Be Updated)</p>
-
-<table><thead>
-<tr>
-<th><strong>Linux</strong></th>
-<th><strong>Windows</strong></th>
-</tr>
-</thead><tbody>
-<tr>
-<td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Linux/Mount_Virtual_Media.sh" target="_blank">Mount_Virtual_Media.sh</a></td>
-<td><a href="https://github.com/HewlettPackard/python-redfish-utility/blob/master/examples/Windows/Mount_Virtual_Media.bat" target="_blank">Mount_Virtual_Media.bat</a></td>
-</tr>
-</tbody></table>
 <h3 id='eject-virtual-media'>Eject Virtual Media</h3>
 <pre>
 >./Eject_Virtual_Media.bat 100.100.100.101 administrator password
@@ -14751,14 +14850,6 @@ The operation completed successfully.
 <td><a href="http://www.hpe.com/info/restfulapi">www.hpe.com/info/restfulapi</a></td>
 </tr>
 <tr>
-<td>HPE ProLiant Gen9 Server Management</td>
-<td><a href="http://www.hpe.com/servers/proliantgen9/docs">www.hpe.com/servers/proliantgen9/docs</a></td>
-</tr>
-<tr>
-<td>HPE Intelligent Provisioning</td>
-<td><a href="http://www.hpe.com/info/intelligentprovisioning/docs">www.hpe.com/info/intelligentprovisioning/docs</a></td>
-</tr>
-<tr>
 <td>UEFI System Utilities</td>
 <td><a href="http://www.hpe.com/info/ProLiantUEFI/docs">www.hpe.com/info/ProLiantUEFI/docs</a></td>
 </tr>
@@ -14771,37 +14862,21 @@ The operation completed successfully.
 <td><a href="http://www.hpe.com/servers/spp">www.hpe.com/servers/spp</a></td>
 </tr>
 <tr>
-<td>HPE iLO 5 User Guide</td>
-<td><a href="https://hewlettpackard.github.io/ilo-rest-api-docs/ilo5/">hewlettpackard.github.io/ilo-rest-api-docs/ilo5</a></td>
+<td>HPE iLO 6 User Guide</td>
+<td><a href="https://hewlettpackard.github.io/ilo-rest-api-docs/ilo6/">hewlettpackard.github.io/ilo-rest-api-docs/ilo6</a></td>
 </tr>
 <tr>
 <td>HPE iLO University videos</td>
 <td><a href="http://www.hpe.com/info/ilo/videos">www.hpe.com/info/ilo/videos</a></td>
 </tr>
-<tr>
-<td>HPE Systems Insight Manager</td>
-<td><a href="http://www.hpe.com/info/hpsim">www.hpe.com/info/hpsim</a></td>
-</tr>
-<tr>
-<td>U.S. Authorized Resellers</td>
-<td><a href="http://www.hpe.com/support/service_locator">www.hpe.com/support/service_locator</a></td>
-</tr>
 </tbody></table>
 <h3 id='documents'>Documents</h3>
 <ul>
 <li><a href="https://support.hpe.com/hpsc/doc/public/display?docId=a00061427en_us">Transition to the RESTful Interface Tool (iLORest)</a></li>
-<li><a href="http://h22208.www2.hpe.com/eginfolib/servers/docs/HPRestfultool/iLo4/data_model_reference.html">iLO RESTful API Data Model Reference (iLO 4)</a></li>
-<li><a href="http://h20564.www2.hpe.com/hpsc/doc/public/display?docId=c03334058">HPE iLO 4 Scripting and Command Line Guide</a></li>
-<li><a href="http://h20565.www2.hpe.com/hpsc/doc/public/display?docId=emr_na-c03334036&amp;lang=en-us&amp;cc=us">HPE iLO 4 Release Notes</a></li>
-<li><a href="http://h20564.www2.hpe.com/hpsc/doc/public/display?docId=c00191707">HPE ROM-Based Setup Utility User Guide</a></li>
-<li><a href="https://support.hpe.com/hpesc/public/docDisplay?docId=a00016407en_us">HPE UEFI System Utilities User Guide</a></li>
-<li><a href="https://support.hpe.com/hpesc/public/docDisplay?docId=c04419967">HPE Intelligent Provisioning User Guide for HPE ProLiant Gen9 Servers</a></li>
-<li><a href="https://support.hpe.com/hpesc/public/docDisplay?docLocale=en_US&amp;docId=emr_na-a00047893en_us">Scripting Toolkit for Linux User Guide</a></li>
-<li><a href="https://support.hpe.com/hpesc/public/docDisplay?docId=a00017070en_us">Scripting Toolkit for Windows User Guide</a></li>
-<li><a href="http://h20564.www2.hpe.com/hpsc/doc/public/display?docId=c05059565">Smart Update Manager User Guide</a></li>
-<li><a href="http://h20564.www2.hpe.com/hpsc/doc/public/display?docId=c03190790">Service Pack for ProLiant User Guide</a></li>
-<li><a href="http://h20628.www2.hpe.com/km-ext/kmcsdirect/emr_na-c00705292-47.pdf">HPE BladeSystem Onboard Administrator User Guide</a></li>
-<li><a href="http://h20564.www2.hpe.com/hpsc/doc/public/display?docId=c04149067">HPE iLO Federation User Guide</a></li>
+<li><a href="https://support.hpe.com/hpesc/public/docDisplay?docId=c00191707">HPE ROM-Based Setup Utility User Guide</a></li>
+<li><a href="https://www.hpe.com/psnow/doc/a00040432en_us">HPE Intelligent Provisioning User Guide for HPE ProLiant Gen10 Servers</a></li>
+<li><a href="https://support.hpe.com/hpesc/public/docDisplay?docId=c03190790">Service Pack for ProLiant User Guide</a></li>
+<li><a href="https://support.hpe.com/hpesc/public/docDisplay?docId=c04149067">HPE iLO Federation User Guide</a></li>
 </ul>
 <h2 id='remote-support'>Remote Support</h2>
 <p>Remote support is available with supported devices as part of your warranty or contractual support agreement. It provides intelligent event diagnosis, and automatic, secure submission of hardware event notifications to Hewlett Packard Enterprise, which will initiate a fast and accurate resolution based on your product&apos;s service level. Hewlett Packard Enterprise strongly recommends that you register your device for remote support.</p>
@@ -14810,7 +14885,7 @@ The operation completed successfully.
 
 <p><a href="http://www.hpe.com/info/insightremotesupport/docs">www.hpe.com/info/insightremotesupport/docs</a></p>
 <h2 id='documentation-feedback'>Documentation feedback</h2>
-<p>Hewlett Packard Enterprise is committed to providing documentation that meets your needs. To help us improve the documentation, send any errors, suggestions, or comments to <strong>Documentation Feedback</strong>, <a href="mailto:docsfeedback@hpe.com">docsfeedback@hpe.com</a>. When submitting your feedback, include the document title, part number, edition, and publication date located on the front cover of the document. For online help content, include the product name, product version, help edition, and publication date located on the legal notices page.</p>
+<p>Hewlett Packard Enterprise is committed to providing documentation that meets your needs. To help us improve the documentation, send any errors, suggestions, or comments to <strong>Documentation Feedback</strong>, <a href="mailto:ilorest-team@hpe.com">ilorest-team@hpe.com</a>. When submitting your feedback, include the document title, part number, edition, and publication date located on the front cover of the document. For online help content, include the product name, product version, help edition, and publication date located on the legal notices page.</p>
 <h1 id='known-issues'>Known Issues</h1>
 <p>The following are known issues present in the current release of ilorest. If available, a link to the relevant CA has been included:</p>
 
@@ -14823,10 +14898,10 @@ The operation completed successfully.
 </tr>
 </thead><tbody>
 <tr>
-<td>--ilossa option in serverclone command is not yet supported.</td>
+<td>--ilossa option in serverclone command is not supported for iLO5 and supported for only iLO6 onwards.</td>
 <td>NA</td>
-<td>Smartarray cloning is not yet supported by serverclone command.</td>
-<td>Smartarray has to be created using createlogicaldrive.</td>
+<td>StorageController cloning is not supported by serverclone command for iLO5.</td>
+<td>Volumes has to be created using createvolume.</td>
 </tr>
 <tr>
 <td>Chif login error out in SLES 12 SP4.</td>
@@ -14851,18 +14926,6 @@ The operation completed successfully.
 <td>NA</td>
 <td>Serverclone save, create a directory grp, serverclone load to old config and directory group is not erased.</td>
 <td>Directory Groups need to be manually created/erased.</td>
-</tr>
-<tr>
-<td>smartnic --id 2 --reset may not work</td>
-<td>NA</td>
-<td>This may happen due to post request not sent to iLO</td>
-<td>Use rawpost command to reset the smartnic.</td>
-</tr>
-<tr>
-<td>smartnic --id 2 --bootprogress and --logs may not work without -j option</td>
-<td>NA</td>
-<td>This may happen due to an error in code</td>
-<td>Always use -j option if --bootprogress and --logs are used.</td>
 </tr>
 </tbody></table>
 <h1 id='error-codes'>Error Codes</h1>
@@ -15239,7 +15302,7 @@ The operation completed successfully.
 <tr>
 <td>71</td>
 <td>RIS_ILO_CHIF_PACKET_EXCHANGE_ERROR</td>
-<td>A packet exchage error occurred during chif communication.</td>
+<td>A packet exchange error occurred during chif communication.</td>
 <td>Try running with the &quot;-d&quot; option. Report this issue for further review.</td>
 </tr>
 <tr>
@@ -15287,7 +15350,7 @@ The operation completed successfully.
 <tr>
 <td>81</td>
 <td>ENCRYPTION_ERROR</td>
-<td>An error occured during encryption.</td>
+<td>An error occurred during encryption.</td>
 <td>Check file encodings.</td>
 </tr>
 <tr>
