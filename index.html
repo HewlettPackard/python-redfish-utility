@@ -312,6 +312,9 @@
             <a href="#change-log" class="toc-h1 toc-link" data-title="Change Log">Change Log</a>
               <ul class="toc-list-h2">
                   <li>
+                    <a href="#version-4-3-0-0" class="toc-h2 toc-link" data-title="Version 4.3.0.0">Version 4.3.0.0</a>
+                  </li>
+                  <li>
                     <a href="#version-4-2-0-0" class="toc-h2 toc-link" data-title="Version 4.2.0.0">Version 4.2.0.0</a>
                   </li>
                   <li>
@@ -1042,7 +1045,26 @@ you can create scripts to automate tasks.</p>
 <li><strong>HPE iLO Repository</strong></li>
 <li><strong>Smart Array support</strong></li>
 </ul>
-<h1 id='change-log'>Change Log</h1><h2 id='version-4-2-0-0'>Version 4.2.0.0</h2>
+<h1 id='change-log'>Change Log</h1><h2 id='version-4-3-0-0'>Version 4.3.0.0</h2>
+<p><strong>Fixes:</strong></p>
+
+<ul>
+<li>Fixed an issue where BIOS Settings not saved using ilorest save and load commands</li>
+<li>Firmware Flashing via local Chif timeout increased from 300 to 1800 seconds to facilitate multiple UBM3 backplane firmware flash.</li>
+<li>Fixed an issue with &#39;deletevolume&#39; command to ask for confirmation when deleting all volumes using &#39;--all&#39; option.</li>
+<li>Fixed an issue with &#39;virtualdrive&#39; command where the exception did not trigger to eject/unmount media.</li>
+<li>Fixed an issue where No error message displayed when Invalid/Non-existing drive or controller is passed while creating logicaldrive using QuickDrive.</li>
+<li>Fixed an issue where server does not reboot when virtual media is added along with reboot parameter</li>
+<li>Fixed an issues with help options of some of the commands.</li>
+</ul>
+
+<p><strong>Enhancements:</strong></p>
+
+<ul>
+<li>Added new code for iLO6 MR controller to get allowables values capabilities section during creation of volumes.</li>
+<li>Device Discovery check is added in &#39;flashfwpkg&#39; for PLDM component firmware flash.</li>
+</ul>
+<h2 id='version-4-2-0-0'>Version 4.2.0.0</h2>
 <p><strong>Fixes:</strong></p>
 
 <ul>
@@ -1084,7 +1106,7 @@ you can create scripts to automate tasks.</p>
 <p><strong>Fixes:</strong></p>
 
 <ul>
-<li>Fixed several customer issues reported in github. </li>
+<li>Fixed several customer issues reported in github.</li>
 <li>Upgraded openssl to 1.0.2zf</li>
 </ul>
 
@@ -1119,7 +1141,7 @@ you can create scripts to automate tasks.</p>
 
 <ul>
 <li>Changed computeopsmanager command to computeopsmanagement</li>
-<li>Fixed an issue in ipprofiles command to push HVT profile to Intelligent Provisioning page.  Added new option -t/--sleeptime to specify the wait time to enter Intelligent Provisioning page. Default is set to 320s(4 min).</li>
+<li>Fixed an issue in ipprofiles command to push HVT profile to Intelligent Provisioning page. Added new option -t/--sleeptime to specify the wait time to enter Intelligent Provisioning page. Default is set to 320s(4 min).</li>
 <li>Fixed an InvalidFileInputError exception when deleting ipprofiles.</li>
 <li>Fixed an issue where login command did not prompt for password when just username is given.</li>
 <li>Fixed an issue where ethernet command did not display data completely.</li>
@@ -1133,22 +1155,22 @@ you can create scripts to automate tasks.</p>
 <li>Added new option -t/--sleeptime to specify the wait time to enter Intelligent Provisioning page with default value to (4 min).</li>
 </ul>
 <h2 id='version-3-5-0'>Version 3.5.0</h2>
-<p><strong>Fixes:</strong>   </p>
+<p><strong>Fixes:</strong></p>
 
 <ul>
-<li>Fixed issues serverclone command w.r.t automatic cloning of password.<br></li>
-<li>Fixed incorrect json outputs for installset and serverinfo commands to help in automation scripts.<br></li>
-<li>Fixed issues in ipprofiles command to aid in Intelligent Provisioning Job execution.<br></li>
-<li>Fixed issues in iscsiconfig --list command.<br></li>
-<li>Fixed an issue in directory show command to correctly show iLO Object Distinguished Name.<br></li>
-<li>Fixed an issue in securitystatus command with credentials security.<br></li>
+<li>Fixed issues serverclone command w.r.t automatic cloning of password.</li>
+<li>Fixed incorrect json outputs for installset and serverinfo commands to help in automation scripts.</li>
+<li>Fixed issues in ipprofiles command to aid in Intelligent Provisioning Job execution.</li>
+<li>Fixed issues in iscsiconfig --list command.</li>
+<li>Fixed an issue in directory show command to correctly show iLO Object Distinguished Name.</li>
+<li>Fixed an issue in securitystatus command with credentials security.</li>
 </ul>
 
-<p><strong>Feature Enhancements:</strong>   </p>
+<p><strong>Feature Enhancements:</strong></p>
 
 <ul>
 <li>Added support to manage ComputeOpsManagement which abstracts and orchestrates infrastructure and compute workflows.</li>
-<li>Added support to enable/disable enhanced download capability to ethernet command.<br></li>
+<li>Added support to enable/disable enhanced download capability to ethernet command.</li>
 </ul>
 <h2 id='version-3-3-0'>Version 3.3.0</h2>
 <p><strong>Fixes:</strong></p>
@@ -1169,10 +1191,10 @@ you can create scripts to automate tasks.</p>
 <li>Added Virtual NIC login option along with Chif for local login.</li>
 <li>Added Certificate login options using user-based certificates in iLO.</li>
 <li>Added enable_vnic and disable_vnic options in ethernet command.</li>
-<li>Added NVMe drive type for smartarray commands </li>
+<li>Added NVMe drive type for smartarray commands</li>
 <li>New error code RIS_ILO_CHIF_ACCESS_DENIED_ERROR(66) is returned if iLO denies Chif Access.</li>
 <li>New error codes RIS_CREATE_AND_PREPARE_CHANNEL_ERROR(67) or RIS_ILO_CHIF_PACKET_EXCHANGE_ERROR(71) is returned if there is any Chif Channel errors.</li>
-<li>New error code RIS_ILO_CHIF_NO_DRIVER_ERROR(69) is returned if Chif driver not found. </li>
+<li>New error code RIS_ILO_CHIF_NO_DRIVER_ERROR(69) is returned if Chif driver not found.</li>
 </ul>
 <h2 id='version-3-2-2'>Version 3.2.2</h2>
 <p><strong>Fixes:</strong></p>
@@ -1180,7 +1202,7 @@ you can create scripts to automate tasks.</p>
 <ul>
 <li>Help command missing issue.</li>
 <li>Command outputs in Json format when used with -j or --json option.</li>
-<li>Key Error issue when saving Bios using save command. </li>
+<li>Key Error issue when saving Bios using save command.</li>
 <li>Multiple keys get/set related issues w.r.t. FcPorts.</li>
 <li>Console error issue when –logdir option used.</li>
 <li>Multiple help text related issues.</li>
@@ -1190,7 +1212,7 @@ you can create scripts to automate tasks.</p>
 
 <ul>
 <li>New Error code 84 (ILO_RIS_CORRUPTION_ERROR) is returned if RIS is found to corrupted.</li>
-<li>New Error code 46 (USERNAME_PASSWORD_REQUIRED_ERROR) is returned if username and password not passed when iLO is in High Security Mode<br></li>
+<li>New Error code 46 (USERNAME_PASSWORD_REQUIRED_ERROR) is returned if username and password not passed when iLO is in High Security Mode</li>
 <li>Partition Mounting Error return text enhanced to reflect actual error.</li>
 </ul>
 <h2 id='version-3-2-1'>Version 3.2.1</h2>
@@ -1215,7 +1237,7 @@ you can create scripts to automate tasks.</p>
 <li>Miscellaneous bug fixes in rawpatch, get, set and flashfwpkg commands.</li>
 </ul>
 <h2 id='version-3-1-1'>Version 3.1.1</h2>
-<p><strong>What&#39;s New:</strong>  </p>
+<p><strong>What&#39;s New:</strong></p>
 
 <ul>
 <li>Provided an option to input session_key for the REDfishClient class.</li>
@@ -1224,7 +1246,7 @@ you can create scripts to automate tasks.</p>
 <li>BIOS and the poweron passwords can now be set without any password.</li>
 </ul>
 
-<p><strong>Fixes:</strong>  </p>
+<p><strong>Fixes:</strong></p>
 
 <ul>
 <li>AHS data failing to download sometimes.</li>
@@ -1244,7 +1266,7 @@ you can create scripts to automate tasks.</p>
 <li>Optional argument change:
 
 <ul>
-<li>silentcopy  (--auto) -&gt; automatic copy (--autocopy)</li>
+<li>silentcopy (--auto) -&gt; automatic copy (--autocopy)</li>
 </ul></li>
 <li>iLO Federation Groups
 
