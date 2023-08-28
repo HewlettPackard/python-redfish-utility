@@ -6,7 +6,20 @@
     <meta content="IE=edge,chrome=1" http-equiv="X-UA-Compatible">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>RESTful Interface Tool 3.2.2 User Guide</title>
-
+    <style>
+	.header_banner{
+		 position: fixed;
+		top: 0;
+		width: 100%;
+		left: 0px;
+		z-index: 30;
+		background: #FFEFD2;
+		color: #6F6F6F;
+		font-size: 20px;
+    font-weight: bold;
+    padding: 10px 20px;
+	}
+	</style>
     <style media="screen">
       .highlight table td { padding: 5px; }
 .highlight table pre { margin: 0; }
@@ -289,13 +302,17 @@
   </head>
 
   <body class="index" data-languages="[&quot;shell&quot;]">
+  <div id="myHeader" class="header_banner">
+  <img src="images/status-warning-d6efac96.svg">
+  <p style="display:inline">The Restful Interface Tool(iLOrest) Documentation on Slate is deprecated and the latest documentation is available on Redocly platform. For a seamless documentation experience, see the iLOrest User Guide documentation on the Hewlett Packard Enterprise website (<a style="color: blue; text-decoration: underline;" href="https://servermanagementportal.ext.hpe.com/docs/redfishclients/ilorest-userguide/">https://servermanagementportal.ext.hpe.com/docs/redfishclients/ilorest-userguide/</a>).</p>
+</div>
     <a href="#" id="nav-button">
       <span>
         NAV
         <img src="images/navbar-cad8cdcb.png" alt="" />
       </span>
     </a>
-    <div class="toc-wrapper">
+    <div class="toc-wrapper" style="top:80px">
       <img src="images/logo-9db0f6b7.png" class="logo" alt="" />
         <div class="lang-selector">
               <a href="#" data-language-name="shell">Shell</a>
@@ -361,15 +378,19 @@
                           <li>
                             <a href="#starting-the-restful-interface-tool" class="toc-h3 toc-link" data-title="Starting the RESTful Interface Tool">Starting the RESTful Interface Tool</a>
                               <ul class="toc-list-h4">
+
                                   <li>
                                     <a href="#windows" class="toc-h4 toc-link" data-title="Windows">Windows</a>
                                   </li>
+
                                   <li>
                                     <a href="#linux-and-ubuntu" class="toc-h4 toc-link" data-title="Linux and Ubuntu">Linux and Ubuntu</a>
                                   </li>
+
                                   <li>
                                     <a href="#mac" class="toc-h4 toc-link" data-title="MAC">MAC</a>
                                   </li>
+
                                   <li>
                                     <a href="#vmware-esxi" class="toc-h4 toc-link" data-title="Vmware ESXi">Vmware ESXi</a>
                                   </li>
@@ -388,6 +409,7 @@
                           <li>
                             <a href="#interactive-mode" class="toc-h3 toc-link" data-title="Interactive Mode">Interactive Mode</a>
                               <ul class="toc-list-h4">
+
                                   <li>
                                     <a href="#tab-complete" class="toc-h4 toc-link" data-title="Tab complete">Tab complete</a>
                                   </li>
@@ -505,12 +527,15 @@
                           <li>
                             <a href="#certificate-command" class="toc-h3 toc-link" data-title="Certificate Command">Certificate Command</a>
                               <ul class="toc-list-h4">
+
                                   <li>
                                     <a href="#import-arguments" class="toc-h4 toc-link" data-title="Import Arguments">Import Arguments</a>
                                   </li>
+
                                   <li>
                                     <a href="#export-arguments" class="toc-h4 toc-link" data-title="Export Arguments">Export Arguments</a>
                                   </li>
+
                                   <li>
                                     <a href="#getcsr-arguments" class="toc-h4 toc-link" data-title="getcsr Arguments">getcsr Arguments</a>
                                   </li>
@@ -534,6 +559,7 @@
                           <li>
                             <a href="#ethernet-command" class="toc-h3 toc-link" data-title="Ethernet command">Ethernet command</a>
                               <ul class="toc-list-h4">
+
                                   <li>
                                     <a href="#optional-parameters" class="toc-h4 toc-link" data-title="Optional parameters">Optional parameters</a>
                                   </li>
@@ -1025,7 +1051,7 @@
             <li>Copyright &copy; 2016-2023</li>
         </ul>
     </div>
-    <div class="page-wrapper">
+    <div class="page-wrapper" style="top: 80px;">
       <div class="dark-box"></div>
       <div class="content">
         <h1 id='overview'>Overview</h1>
@@ -3479,7 +3505,7 @@ All servers have been successfully configured.
 <p>Optionally supply a filename to a multi-processing file to load concurrently on multiple servers.</p>
 
 <ul>
-<li><strong>-o OUTDIRECTORY, --outputdirectory=OUTDIRECTORY</strong></li>
+<li><strong>--outputdirectory=OUTDIRECTORY</strong></li>
 </ul>
 
 <p>Use the provided directory to output data for a multiple server configuration.</p>
@@ -8398,7 +8424,7 @@ Severity=OK
 <p>Use the provided filename to obtain server information.</p>
 
 <ul>
-<li><strong>-o OUTDIRECTORY, --outputdirectory=OUTDIRECTORY</strong></li>
+<li><strong>--outputdirectory=OUTDIRECTORY</strong></li>
 </ul>
 
 <p>Use the provided directory to output data for multiple server downloads.</p>
