@@ -86,9 +86,7 @@ class MapperRenderers(object):
             if not interleave_sets:
                 continue
             for mem_set in interleave_sets:
-                if PmemHelpers.compare_id(
-                    data_id, mem_set.get("Memory").get("@odata.id")
-                ):
+                if PmemHelpers.compare_id(data_id, mem_set.get("Memory").get("@odata.id")):
                     if len(interleave_sets) > 1:
                         return "Yes"
                     return "No"
@@ -168,9 +166,7 @@ class MapperRenderers(object):
         locations = []
         for interleave_set in interleave_sets:
             for pmem in memory_members:
-                if PmemHelpers.compare_id(
-                    interleave_set.get("Memory").get("@odata.id"), pmem.get("@odata.id")
-                ):
+                if PmemHelpers.compare_id(interleave_set.get("Memory").get("@odata.id"), pmem.get("@odata.id")):
                     location = Mapper.get_single_attribute(
                         pmem, "Location", MappingTable.device.value, output_as_json=True
                     )
@@ -206,16 +202,12 @@ class MapperRenderers(object):
         memory_chunk_size = Mapper.get_single_attribute(
             task, "MemoryChunkSize", MappingTable.tasks.value, output_as_json=True
         )
-        memory_chunk_size = memory_chunk_size.get("MemoryChunkSize", {}).get(
-            "Value", None
-        )
+        memory_chunk_size = memory_chunk_size.get("MemoryChunkSize", {}).get("Value", None)
         if memory_chunk_size is not None:
             size = memory_chunk_size
         else:
             memory_members = kwargs.get("resources", {}).get("memory", [])
-            interleave_sets = (
-                task.get("Payload").get("JsonBody").get("InterleaveSets", [])
-            )
+            interleave_sets = task.get("Payload").get("JsonBody").get("InterleaveSets", [])
             selected_members = []
             for interleave_set in interleave_sets:
                 for pmem in memory_members:
@@ -239,9 +231,9 @@ class MapperRenderers(object):
                 MappingTable.tasks.value,
                 output_as_json=True,
             )
-            memory_chunk_size_percentage = memory_chunk_size_percentage.get(
-                "MemoryChunkSizePercentage", {}
-            ).get("Value", None)
+            memory_chunk_size_percentage = memory_chunk_size_percentage.get("MemoryChunkSizePercentage", {}).get(
+                "Value", None
+            )
             if memory_chunk_size_percentage is not None:
                 size = total_capacity * memory_chunk_size_percentage / 100
         # returning value in MiB
@@ -264,9 +256,7 @@ class MapperRenderers(object):
         selected_members = []
         for interleave_set in interleave_sets:
             for pmem in memory_members:
-                if PmemHelpers.compare_id(
-                    interleave_set.get("Memory").get("@odata.id"), pmem.get("@odata.id")
-                ):
+                if PmemHelpers.compare_id(interleave_set.get("Memory").get("@odata.id"), pmem.get("@odata.id")):
                     selected_members.append(pmem)
         # finding total capacity
         total_capacity = Mapper.get_single_attribute(
@@ -281,9 +271,7 @@ class MapperRenderers(object):
         memory_chunk_size = Mapper.get_single_attribute(
             task, "MemoryChunkSize", MappingTable.tasks.value, output_as_json=True
         )
-        memory_chunk_size = memory_chunk_size.get("MemoryChunkSize", {}).get(
-            "Value", None
-        )
+        memory_chunk_size = memory_chunk_size.get("MemoryChunkSize", {}).get("Value", None)
         if memory_chunk_size is not None:
             size = memory_chunk_size
             volatile_size = total_capacity - size
@@ -295,9 +283,9 @@ class MapperRenderers(object):
                 MappingTable.tasks.value,
                 output_as_json=True,
             )
-            memory_chunk_size_percentage = memory_chunk_size_percentage.get(
-                "MemoryChunkSizePercentage", {}
-            ).get("Value", None)
+            memory_chunk_size_percentage = memory_chunk_size_percentage.get("MemoryChunkSizePercentage", {}).get(
+                "Value", None
+            )
             if memory_chunk_size_percentage is not None:
                 size = total_capacity * memory_chunk_size_percentage / 100
                 volatile_size = total_capacity - size
@@ -321,9 +309,7 @@ class MapperRenderers(object):
         selected_members = []
         for interleave_set in interleave_sets:
             for pmem in memory_members:
-                if PmemHelpers.compare_id(
-                    interleave_set.get("Memory").get("@odata.id"), pmem.get("@odata.id")
-                ):
+                if PmemHelpers.compare_id(interleave_set.get("Memory").get("@odata.id"), pmem.get("@odata.id")):
                     selected_members.append(pmem)
         # finding total capacity
         total_capacity = Mapper.get_single_attribute(

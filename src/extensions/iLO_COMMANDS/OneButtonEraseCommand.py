@@ -16,10 +16,7 @@
 
 # -*- coding: utf-8 -*-
 """ Factory Defaults Command for rdmc """
-import sys
 import time
-
-from argparse import ArgumentParser, SUPPRESS
 from collections import OrderedDict
 
 import colorama
@@ -27,21 +24,19 @@ from six.moves import input
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        IncompatibleiLOVersionError,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        IncompatibleiLOVersionError,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
+        IncompatibleiLOVersionError,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        IncompatibleiLOVersionError,
-        Encryption,
+        ReturnCodes,
     )
 
 CURSOR_UP_ONE = "\x1b[1A"
@@ -96,9 +91,7 @@ class OneButtonEraseCommand:
         results = self.rdmc.app.select(selector=select)
 
         if self.rdmc.app.getiloversion() < 5.140:
-            raise IncompatibleiLOVersionError(
-                "One Button Erase is only available on iLO 5 1.40 " "and greater."
-            )
+            raise IncompatibleiLOVersionError("One Button Erase is only available on iLO 5 1.40 " "and greater.")
         try:
             results = results[0].dict
         except:
@@ -108,7 +101,6 @@ class OneButtonEraseCommand:
             results["Oem"]["Hpe"]["SystemROMAndiLOEraseStatus"] == "Idle"
             and results["Oem"]["Hpe"]["UserDataEraseStatus"] == "Idle"
         ):
-
             post_path = None
             body_dict = {"SystemROMAndiLOErase": True, "UserDataErase": True}
             for item in results["Oem"]["Hpe"]["Actions"]:
@@ -140,9 +132,7 @@ class OneButtonEraseCommand:
                 self.rdmc.ui.printer("Canceling One Button Erase.\n")
                 return ReturnCodes.SUCCESS
         else:
-            self.rdmc.ui.warn(
-                "System is already undergoing a One Button Erase process...\n"
-            )
+            self.rdmc.ui.warn("System is already undergoing a One Button Erase process...\n")
         if not options.nomonitor:
             self.monitor_erase(results["@odata.id"])
 
@@ -172,9 +162,7 @@ class OneButtonEraseCommand:
         colorama.init()
 
         self.rdmc.ui.printer("\tOne Button Erase Status\n")
-        self.rdmc.ui.printer(
-            "==========================================================\n"
-        )
+        self.rdmc.ui.printer("==========================================================\n")
         results = self.rdmc.app.get_handler(path, service=True, silent=True)
         counter = 0
         eraselines = 0
@@ -193,17 +181,16 @@ class OneButtonEraseCommand:
                 counter += 1
             if all(
                 [
-                    print_data[key].lower()
-                    in ["completedwithsuccess", "completedwitherrors", "failed"]
+                    print_data[key].lower() in ["completedwithsuccess", "completedwitherrors", "failed"]
                     for key in list(print_data.keys())
-                    if not key.lower()
-                    in ["elapsederasetimeinminutes", "estimatederasetimeinminutes"]
+                    if not key.lower() in ["elapsederasetimeinminutes", "estimatederasetimeinminutes"]
                 ]
             ):
                 break
             eraselines = len(list(print_data.keys()))
             time.sleep(0.5)
         colorama.deinit()
+        options = {}
         self.cmdbase.logout_routine(self, options)
 
     def gather_data(self, resdict):
@@ -237,9 +224,7 @@ class OneButtonEraseCommand:
                     try:
                         resdict[key]
                     except KeyError:
-                        retdata["SystemROMAndiLOEraseStatus"] = resdict[
-                            "SystemROMAndiLOEraseStatus"
-                        ]
+                        retdata["SystemROMAndiLOEraseStatus"] = resdict["SystemROMAndiLOEraseStatus"]
                 elif key == "UserDataEraseComponentStatus":
                     try:
                         if not resdict[key]:

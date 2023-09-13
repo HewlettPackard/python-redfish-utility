@@ -19,22 +19,21 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
         InfoMissingEntriesError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
         InfoMissingEntriesError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 
 try:
-    from rdmc_base_classes import HARDCODEDLIST
-except ImportError:
-    from ilorest.rdmc_base_classes import HARDCODEDLIST
-from argparse import ArgumentParser, SUPPRESS
+    from rdmc_helper import HARDCODEDLIST
+except:
+    from ilorest.rdmc_helper import HARDCODEDLIST
 
 
 class InfoCommand:
@@ -83,16 +82,11 @@ class InfoCommand:
 
         if args:
             for item in args:
-                if (
-                    self.rdmc.app.selector.lower().startswith("bios.")
-                    and "attributes" not in item.lower()
-                ):
+                if self.rdmc.app.selector.lower().startswith("bios.") and "attributes" not in item.lower():
                     if not (item.lower() in HARDCODEDLIST or "@odata" in item.lower()):
                         item = "Attributes/" + item
 
-                outdata = self.rdmc.app.info(
-                    props=item, dumpjson=options.json, latestschema=options.latestschema
-                )
+                outdata = self.rdmc.app.info(props=item, dumpjson=options.json, latestschema=options.latestschema)
 
                 if autotest:
                     return outdata
@@ -102,14 +96,10 @@ class InfoCommand:
                     self.rdmc.ui.printer(outdata)
 
                 if not outdata:
-                    raise InfoMissingEntriesError(
-                        "There are no valid " "entries for info in the current instance."
-                    )
+                    raise InfoMissingEntriesError("There are no valid " "entries for info in the current instance.")
                 else:
                     if len(args) > 1 and not item == args[-1]:
-                        self.rdmc.ui.printer(
-                            "\n************************************" "**************\n"
-                        )
+                        self.rdmc.ui.printer("\n************************************" "**************\n")
         else:
             results = set()
             instances = self.rdmc.app.select()
@@ -121,13 +111,7 @@ class InfoCommand:
                     and currdict.get("Attributes", None)
                     else currdict
                 )
-                results.update(
-                    [
-                        key
-                        for key in currdict
-                        if key not in HARDCODEDLIST and "@odata" not in key.lower()
-                    ]
-                )
+                results.update([key for key in currdict if key not in HARDCODEDLIST and "@odata" not in key.lower()])
 
             if results and autotest:
                 return results
@@ -137,8 +121,7 @@ class InfoCommand:
                     self.rdmc.ui.printer("%s\n" % item)
             else:
                 raise InfoMissingEntriesError(
-                    "No info items available for this selected type."
-                    " Try running with the --latestschema flag."
+                    "No info items available for this selected type." " Try running with the --latestschema flag."
                 )
 
         self.cmdbase.logout_routine(self, options)

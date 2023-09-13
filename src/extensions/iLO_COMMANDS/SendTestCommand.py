@@ -19,19 +19,17 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 
 
@@ -93,9 +91,7 @@ class SendTestCommand:
             select = self.rdmc.app.typepath.defs.managernetworkservicetype
             actionitem = "SendTestSyslog"
         else:
-            raise InvalidCommandLineError(
-                "sendtest command does not have " "parameter %s." % args[0]
-            )
+            raise InvalidCommandLineError("sendtest command does not have " "parameter %s." % args[0])
 
         results = self.rdmc.app.select(selector=select)
 
@@ -107,9 +103,7 @@ class SendTestCommand:
         if results:
             path = results.resp.request.path
         else:
-            raise NoContentsFoundForOperationError(
-                "%s not found.It may not " "be available on this system." % select
-            )
+            raise NoContentsFoundForOperationError("%s not found.It may not " "be available on this system." % select)
 
         bodydict = results.resp.dict
 
@@ -128,9 +122,7 @@ class SendTestCommand:
                         if self.rdmc.app.typepath.defs.isgen10:
                             actionitem = item.split("#")[-1]
 
-                        path = bodydict["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                            "Actions"
-                        ][item]["target"]
+                        path = bodydict["Oem"][self.rdmc.app.typepath.defs.oemhp]["Actions"][item]["target"]
                         break
 
             body = {"Action": actionitem}

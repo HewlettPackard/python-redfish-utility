@@ -19,15 +19,15 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 
 
@@ -38,8 +38,7 @@ class TypesCommand:
         self.ident = {
             "name": "types",
             "usage": None,
-            "description": "Run to display currently "
-            "available selectable types\n\tExample: types",
+            "description": "Run to display currently " "available selectable types\n\tExample: types",
             "summary": "Displays all selectable types within the currently logged in server.",
             "aliases": [],
             "auxcommands": [],
@@ -78,9 +77,7 @@ class TypesCommand:
             else:
                 return typeslist
         else:
-            raise InvalidCommandLineError(
-                "The 'types' command does not take any arguments."
-            )
+            raise InvalidCommandLineError("The 'types' command does not take any arguments.")
 
         self.cmdbase.logout_routine(self, options)
 

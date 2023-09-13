@@ -17,21 +17,18 @@
 # -*- coding: utf-8 -*-
 """ Factory Reset Controller Command for rdmc """
 
-from argparse import RawDescriptionHelpFormatter
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ReturnCodes,
     )
 
 
@@ -80,7 +77,9 @@ class FactoryResetControllerCommand:
         ilo_ver = self.rdmc.app.getiloversion()
         if ilo_ver >= 6.110:
             if not options.storageid:
-                raise InvalidCommandLineError("--storageid option is mandatory for iLO6 along with --controller option.\n")
+                raise InvalidCommandLineError(
+                    "--storageid option is mandatory for iLO6 along with --controller option.\n"
+                )
             if (
                 (options.controller is not None)
                 and (options.storageid is not None)
@@ -97,16 +96,13 @@ class FactoryResetControllerCommand:
                     for mem in path:
                         for val in mem.values():
                             if "DE" in val and options.storageid in val:
-                                getval = self.rdmc.app.get_handler(
-                                    val, silent=True, service=True
-                                ).dict
+                                getval = self.rdmc.app.get_handler(val, silent=True, service=True).dict
                                 if options.storageid:
                                     if getval["Id"] == options.storageid:
                                         st_content.append(getval)
                                     else:
                                         raise InvalidCommandLineError(
-                                            "Selected storage id not found in the current inventory "
-                                            "list."
+                                            "Selected storage id not found in the current inventory " "list."
                                         )
                                 else:
                                     st_content.append(getval)
@@ -132,35 +128,21 @@ class FactoryResetControllerCommand:
                 return ReturnCodes.SUCCESS
 
             elif (options.storageid is None) or (options.reset_type is None):
-                raise InvalidCommandLineError(
-                    "Invalid command\n" "--reset_type and --storageid is required"
-                )
+                raise InvalidCommandLineError("Invalid command\n" "--reset_type and --storageid is required")
 
         else:
             self.auxcommands["select"].selectfunction("SmartStorageConfig.")
             content = self.rdmc.app.getprops()
-            if (
-                options.controller
-                and options.reset_type is None
-                and options.storageid is None
-            ):
+            if options.controller and options.reset_type is None and options.storageid is None:
                 controllist = []
 
                 try:
                     if options.controller and options.controller.isdigit():
                         slotlocation = self.get_location_from_id(options.controller)
                         if slotlocation:
-                            slotcontrol = (
-                                slotlocation.lower().strip('"').split("slot")[-1].lstrip()
-                            )
+                            slotcontrol = slotlocation.lower().strip('"').split("slot")[-1].lstrip()
                             for control in content:
-                                if (
-                                    slotcontrol.lower()
-                                    == control["Location"]
-                                    .lower()
-                                    .split("slot")[-1]
-                                    .lstrip()
-                                ):
+                                if slotcontrol.lower() == control["Location"].lower().split("slot")[-1].lstrip():
                                     controllist.append(control)
                     # else:
                     #    self.parser.print_help()
@@ -168,28 +150,20 @@ class FactoryResetControllerCommand:
                     if not controllist:
                         raise InvalidCommandLineError("")
                 except InvalidCommandLineError:
-                    raise InvalidCommandLineError(
-                        "Selected controller not found in the current inventory " "list."
-                    )
+                    raise InvalidCommandLineError("Selected controller not found in the current inventory " "list.")
                 for controller in controllist:
                     contentsholder = {
                         "Actions": [{"Action": "FactoryReset"}],
                         "DataGuard": "Disabled",
                     }
                     self.rdmc.ui.printer(
-                        "FactoryReset path and payload: %s, %s\n"
-                        % (controller["@odata.id"], contentsholder)
+                        "FactoryReset path and payload: %s, %s\n" % (controller["@odata.id"], contentsholder)
                     )
                     self.rdmc.app.patch_handler(controller["@odata.id"], contentsholder)
 
-            elif (
-                options.controller
-                and (options.reset_type is not None)
-                or (options.storageid is not None)
-            ):
+            elif options.controller and (options.reset_type is not None) or (options.storageid is not None):
                 raise InvalidCommandLineError(
-                    "Invalid command\n"
-                    "--reset_type and --storageid is not supported in iLO5"
+                    "Invalid command\n" "--reset_type and --storageid is not supported in iLO5"
                 )
 
             for idx, val in enumerate(content):
@@ -230,8 +204,7 @@ class FactoryResetControllerCommand:
         customparser.add_argument(
             "--controller",
             dest="controller",
-            help="Use this flag to select the corresponding controller "
-            "using either the slot number or index.",
+            help="Use this flag to select the corresponding controller " "using either the slot number or index.",
             default=None,
         )
 

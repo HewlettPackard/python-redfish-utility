@@ -17,24 +17,24 @@
 # -*- coding: utf-8 -*-
 """ Install Set Command for rdmc """
 
-import os
 import json
+import os
 
 from six.moves import input
 
 try:
     from rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
         InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
         InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 
 
@@ -97,9 +97,7 @@ class MakeInstallSetCommand:
         self.loggedin = self.minstallsetvalidation()
 
         if self.loggedin and self.rdmc.app.typepath.defs.isgen9:
-            raise IncompatibleiLOVersionError(
-                "iLO Repository commands are " "only available on iLO 5."
-            )
+            raise IncompatibleiLOVersionError("iLO Repository commands are " "only available on iLO 5.")
 
         self.rdmc.ui.warn("This command will run in interactive mode.\n")
         if args:
@@ -124,9 +122,7 @@ class MakeInstallSetCommand:
         self.rdmc.ui.warn("Entering new shell, type quit to leave!\n")
         if self.loggedin:
             self.rdmc.ui.printer("Running in logged in mode.")
-            self.comps = self.rdmc.app.getcollectionmembers(
-                "/redfish/v1/UpdateService/ComponentRepository/"
-            )
+            self.comps = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/ComponentRepository/")
         else:
             self.rdmc.ui.printer("Running in basic guidance mode.")
         while True:
@@ -146,9 +142,7 @@ class MakeInstallSetCommand:
                         comps["UpdatableBy"] = updateby
                         break
                     else:
-                        line = input(
-                            "Enter " + reqdprops[count] + " for " + comps["Name"] + ": "
-                        )
+                        line = input("Enter " + reqdprops[count] + " for " + comps["Name"] + ": ")
                 if line.endswith(os.linesep):
                     line.rstrip(os.linesep)
                 if line == "quit":
@@ -159,15 +153,12 @@ class MakeInstallSetCommand:
                     comps["Name"] = line
                 else:
                     while True:
-                        validated = self.validatepropvalue(
-                            reqdprops[count], line, reqdprops
-                        )
+                        validated = self.validatepropvalue(reqdprops[count], line, reqdprops)
                         if not validated:
                             if line == "quit":
                                 break
                             line = input(
-                                "Input %s is not a valid property "
-                                "for %s. Try again: " % (line, reqdprops[count])
+                                "Input %s is not a valid property " "for %s. Try again: " % (line, reqdprops[count])
                             )
                         else:
                             comps[reqdprops[count]] = validated
@@ -180,22 +171,12 @@ class MakeInstallSetCommand:
                 totcount = totcount + 1
 
         if not totcount:
-            self.rdmc.ui.warn(
-                "No sequences created. Exiting without creating an installset.\n"
-            )
+            self.rdmc.ui.warn("No sequences created. Exiting without creating an installset.\n")
         else:
             while True:
                 isrecovery = input("Is this a recovery installset? ")
-                isrecovery = (
-                    True
-                    if str(isrecovery).lower() in ["true", "t", "yes", "y"]
-                    else isrecovery
-                )
-                isrecovery = (
-                    False
-                    if str(isrecovery).lower() in ["false", "f", "no", "n"]
-                    else isrecovery
-                )
+                isrecovery = True if str(isrecovery).lower() in ["true", "t", "yes", "y"] else isrecovery
+                isrecovery = False if str(isrecovery).lower() in ["false", "f", "no", "n"] else isrecovery
                 if not isinstance(isrecovery, bool):
                     self.rdmc.ui.warn("'Isrecovery' should be either true or false.\n")
                     continue
@@ -255,10 +236,7 @@ class MakeInstallSetCommand:
         elif propvalue == "Command":
             if givenvalue.lower() == "applyupdate":
                 if self.loggedin and not self.comps:
-                    self.rdmc.ui.printer(
-                        "All components on the system are already "
-                        "added to the installset.\n"
-                    )
+                    self.rdmc.ui.printer("All components on the system are already " "added to the installset.\n")
                 else:
                     reqdprops.append("Filename")
                     reqdprops.append("UpdatableBy")
@@ -278,18 +256,12 @@ class MakeInstallSetCommand:
 
     def checkfiles(self):
         count = 0
-        self.rdmc.ui.printer(
-            "Components currently in the repository that have not "
-            "been added to the installset:\n"
-        )
+        self.rdmc.ui.printer("Components currently in the repository that have not " "been added to the installset:\n")
         for comp in self.comps:
             count += 1
             self.rdmc.ui.printer("[%d] %s\n" % (count, comp["Name"]))
         while True:
-            userinput = input(
-                "Select the number of the component you want to add to "
-                "the install set: "
-            )
+            userinput = input("Select the number of the component you want to add to " "the install set: ")
             try:
                 userinput = int(userinput)
                 if userinput > count or userinput == 0:

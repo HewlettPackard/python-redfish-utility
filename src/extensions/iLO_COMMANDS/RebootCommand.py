@@ -17,27 +17,23 @@
 # -*- coding: utf-8 -*-
 """ Reboot Command for rdmc """
 
-import sys
 import time
 
-from argparse import ArgumentParser, SUPPRESS
 from six.moves import input
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 
 
@@ -102,9 +98,7 @@ class RebootCommand:
         if len(args) < 2:
             self.rebootvalidation(options)
         else:
-            raise InvalidCommandLineError(
-                "Invalid number of parameters." " Reboot takes a maximum of 1 parameter."
-            )
+            raise InvalidCommandLineError("Invalid number of parameters." " Reboot takes a maximum of 1 parameter.")
 
         if not args:
             self.rdmc.ui.warn(
@@ -177,9 +171,7 @@ class RebootCommand:
             count = 0
             while True:
                 count = count + 1
-                confirmation = input(
-                    "Rebooting system, type yes to confirm or no to abort:"
-                )
+                confirmation = input("Rebooting system, type yes to confirm or no to abort:")
                 if confirmation.lower() in ("no", "n") or count > 3:
                     self.rdmc.ui.printer("Aborting reboot.\n")
                     return ReturnCodes.SUCCESS
@@ -242,10 +234,7 @@ class RebootCommand:
                 "3 seconds...\n"
             )
         else:
-            raise InvalidCommandLineError(
-                "Invalid parameter: '%s'. Please run"
-                " 'help reboot' for parameters." % flag
-            )
+            raise InvalidCommandLineError("Invalid parameter: '%s'. Please run" " 'help reboot' for parameters." % flag)
 
     def rebootvalidation(self, options):
         """reboot method validation function

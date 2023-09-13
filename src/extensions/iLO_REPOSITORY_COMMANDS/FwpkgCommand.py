@@ -19,6 +19,7 @@
 
 import os
 import json
+from random import randint
 import shutil
 import zipfile
 import tempfile
@@ -30,11 +31,13 @@ from redfish.hpilo.risblobstore2 import BlobStore2
 
 try:
     from rdmc_helper import (
+        LOGGER,
+        LERR,
+        LOUT,
         IncompatibleiLOVersionError,
         ReturnCodes,
         Encryption,
         InvalidCommandLineErrorOPTS,
-        InvalidCommandLineError,
         InvalidFileInputError,
         UploadError,
         TaskQueueError,
@@ -42,6 +45,9 @@ try:
     )
 except ImportError:
     from ilorest.rdmc_helper import (
+        LOGGER,
+        LERR,
+        LOUT,
         IncompatibleiLOVersionError,
         ReturnCodes,
         Encryption,
@@ -102,29 +108,30 @@ class FwpkgCommand:
         self.fwpkgvalidation(options)
 
         if self.rdmc.app.typepath.defs.isgen9:
-            raise IncompatibleiLOVersionError(
-                "iLO Repository commands are only available on iLO 5."
-            )
+            LOGGER.error("iLO Repository commands are only available on iLO 5.")
+            raise IncompatibleiLOVersionError("iLO Repository commands are only available on iLO 5.")
 
-        if self.rdmc.app.getiloversion() <= 5.120 and options.fwpkg.lower().startswith(
-                "iegen10"
-        ):
+        if self.rdmc.app.getiloversion() <= 5.120 and options.fwpkg.lower().startswith("iegen10"):
             raise IncompatibleiLOVersionError(
-                "Please upgrade to iLO 5 1.20 or "
-                "greater to ensure correct flash of this firmware."
+                "Please upgrade to iLO 5 1.20 or greater to ensure correct flash of this firmware."
             )
         tempdir = ""
-        if not options.fwpkg.endswith(".fwpkg"):
-            InvalidFileInputError(
-                "Invalid file type. Please make sure the file "
-                "provided is a valid .fwpkg file type."
+        if (
+                not options.fwpkg.endswith(".fwpkg")
+                and not options.fwpkg.endswith(".fup")
+                and not options.fwpkg.endswith(".hpb")
+        ):
+            LOGGER.error("Invalid file type. Please make sure the file provided is a valid .fwpkg file type.")
+            raise InvalidFileInputError(
+                "Invalid file type. Please make sure the file provided is a valid .fwpkg file type."
             )
 
         try:
             components, tempdir, comptype, _ = self.preparefwpkg(self, options.fwpkg)
             if comptype == "D":
+                LOGGER.error("Component Type D, Unable to flash this fwpkg file.")
                 raise InvalidFileInputError("Unable to flash this fwpkg file.")
-            elif comptype == "C":
+            elif comptype in ["C", "BC"]:
                 try:
                     self.taskqueuecheck()
                 except TaskQueueError as excp:
@@ -137,17 +144,19 @@ class FwpkgCommand:
             if comptype == "A":
                 message = "Firmware has successfully been flashed.\n"
                 if "ilo" in options.fwpkg.lower():
-                    message += (
-                        "iLO will reboot to complete flashing. Session will be"
-                        " terminated.\n"
-                    )
-            elif comptype == "B":
+                    message += "iLO will reboot to complete flashing. Session will be" " terminated.\n"
+            elif comptype in ["B", "BC"]:
                 message = (
                     "Firmware has successfully been flashed and a reboot is required for "
                     "this firmware to take effect.\n"
                 )
-            elif comptype == "C":
+            elif comptype in ["C", "BC"]:
                 message = "This firmware is set to flash on reboot.\n"
+
+            if not self.auxcommands["uploadcomp"].wait_for_state_change():
+                # Failed to upload the component.
+                raise FirmwareUpdateError("Error while processing the component.")
+
             self.rdmc.ui.printer(message)
 
         except (FirmwareUpdateError, UploadError) as excp:
@@ -173,9 +182,7 @@ class FwpkgCommand:
             pass
 
         powerstate = results.resp.dict["PowerState"]
-        tasks = self.rdmc.app.getcollectionmembers(
-            "/redfish/v1/UpdateService/UpdateTaskQueue/"
-        )
+        tasks = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/UpdateTaskQueue/")
 
         for task in tasks:
             if task["State"] == "Exception":
@@ -185,11 +192,7 @@ class FwpkgCommand:
                     "iLOrest command: taskqueue --cleanqueue to clear"
                     " any errors before continuing."
                 )
-            if (
-                    task["UpdatableBy"] == "Uefi"
-                    and not powerstate == "Off"
-                    or task["Command"] == "Wait"
-            ):
+            if task["UpdatableBy"] == "Uefi" and not powerstate == "Off" or task["Command"] == "Wait":
                 raise TaskQueueError(
                     "Taskqueue item found that will "
                     "prevent firmware from flashing immediately. Please "
@@ -216,25 +219,36 @@ class FwpkgCommand:
         if "Uefi" in payload["UpdatableBy"] and "RuntimeAgent" in payload["UpdatableBy"]:
             ctype = "D"
         elif "Uefi" in payload["UpdatableBy"] and "Bmc" in payload["UpdatableBy"]:
-            getloc = self.rdmc.app.getidbytype("SoftwareInventoryCollection.")
-            for gloc in getloc:
-                if "FirmwareInventory" in gloc:
-                    data = self.rdmc.app.getcollectionmembers(gloc)
+            fw_url = "/redfish/v1/UpdateService/FirmwareInventory/" + "?$expand=."
+            data = self.rdmc.app.get_handler(fw_url, silent=True).dict["Members"]
+            da_flag = False
+            cc_flag = False
             if data is not None:
                 type_set = None
                 for fw in data:
                     for device in payload["Devices"]["Device"]:
                         if fw["Oem"]["Hpe"].get("Targets") is not None:
                             if device["Target"] in fw["Oem"]["Hpe"]["Targets"]:
-                                if fw["Updateable"] and ('PackageFormat' in payload and payload['PackageFormat'] == 'FWPKG-v2'):
-                                    ctype = "A"
-                                    type_set = True
-                                else:
-                                    ctype = "C"
-                                    type_set = True
+                                if "Slot=" in fw["Oem"]["Hpe"]["DeviceContext"]:
+                                    cc_flag = True
+                                elif "N/A" in fw["Oem"]["Hpe"]["DeviceContext"]:
+                                    da_flag = True
+                                elif "Slot=" not in fw["Oem"]["Hpe"]["DeviceContext"]:
+                                    da_flag = True
+                if cc_flag and da_flag:
+                    ctype = 'BC'
+                    type_set = True
+                elif cc_flag and not da_flag:
+                    ctype = 'B'
+                    type_set = True
+                elif not cc_flag and da_flag:
+                    ctype = 'C'
+                    type_set = True
                 if type_set is None:
+                    LOGGER.error("Component type is not identified, Please check if the particular H/W is present")
                     raise IncompatibleiLOVersionError(
-                        "Cannot flash the component on this server, check whether the component is fwpkg-v2 or check whether the server is iLO6 and FW is above 2.30\n"
+                        "Cannot flash the component on this server, check whether the component is fwpkg-v2 or "
+                        "check whether the server is iLO5 FW is above 2.30 or the particular drive HW is present\n"
                     )
         else:
             for device in payload["Devices"]["Device"]:
@@ -251,7 +265,7 @@ class FwpkgCommand:
                         break
                     else:
                         ctype = "D"
-
+        LOGGER.info("Component Type identified is {}".format(ctype))
         return ctype
 
     @staticmethod
@@ -269,41 +283,43 @@ class FwpkgCommand:
         payloaddata = None
         tempdir = tempfile.mkdtemp()
         pldmflag = False
+        if not pkgfile.endswith(".fup") and not pkgfile.endswith(".hpb"):
+            try:
+                zfile = zipfile.ZipFile(pkgfile)
+                zfile.extractall(tempdir)
+                zfile.close()
+            except Exception as excp:
+                raise InvalidFileInputError("Unable to unpack file. " + str(excp))
 
-        try:
-            zfile = zipfile.ZipFile(pkgfile)
-            zfile.extractall(tempdir)
-            zfile.close()
-        except Exception as excp:
-            raise InvalidFileInputError("Unable to unpack file. " + str(excp))
+            files = os.listdir(tempdir)
 
-        files = os.listdir(tempdir)
+            if "payload.json" in files:
+                with open(os.path.join(tempdir, "payload.json"), encoding="utf-8") as pfile:
+                    data = pfile.read()
+                payloaddata = json.loads(data)
+            else:
+                raise InvalidFileInputError("Unable to find payload.json in fwpkg file.")
 
-        if "payload.json" in files:
-            with open(os.path.join(tempdir, "payload.json"), encoding="utf-8") as pfile:
-                data = pfile.read()
-            payloaddata = json.loads(data)
+        if not pkgfile.endswith(".fup") and not pkgfile.endswith(".hpb"):
+            comptype = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata)
         else:
-            raise InvalidFileInputError("Unable to find payload.json in fwpkg file.")
+            comptype = "A"
 
-        comptype = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata)
-        if comptype == "C":
+        results = self.rdmc.app.getprops(selector="UpdateService.", props=["Oem/Hpe/Capabilities"])
+        if comptype in ["C", "BC"]:
             imagefiles = [self.auxcommands["flashfwpkg"].type_c_change(tempdir, pkgfile)]
         else:
-            results = self.rdmc.app.getprops(
-                selector="UpdateService.", props=["Oem/Hpe/Capabilities"]
-            )
-
-            for device in payloaddata["Devices"]["Device"]:
-                for firmwareimage in device["FirmwareImages"]:
-                    if firmwareimage['PLDMImage']:
-                        pldmflag = True
-                    if firmwareimage["FileName"] not in imagefiles:
-                        imagefiles.append(firmwareimage["FileName"])
+            if not pkgfile.endswith("fup") and not pkgfile.endswith(".hpb"):
+                for device in payloaddata["Devices"]["Device"]:
+                    for firmwareimage in device["FirmwareImages"]:
+                        if firmwareimage["PLDMImage"]:
+                            pldmflag = True
+                        if firmwareimage["FileName"] not in imagefiles:
+                            imagefiles.append(firmwareimage["FileName"])
 
         if (
                 "blobstore" in self.rdmc.app.redfishinst.base_url
-                and comptype in ["A", "B"]
+                and comptype in ["A", "B", "BC"]
                 and results
                 and "UpdateFWPKG" in results[0]["Oem"]["Hpe"]["Capabilities"]
         ):
@@ -318,7 +334,12 @@ class FwpkgCommand:
             if dll.isFwpkg20(fwpkg_buffer, 2048):
                 imagefiles = [pkgfile]
                 tempdir = ""
-        if self.rdmc.app.getiloversion() > 5.230 and 'PackageFormat' in payloaddata and payloaddata['PackageFormat'] == 'FWPKG-v2':
+        if pkgfile.endswith(".fup") or pkgfile.endswith(".hpb"):
+            imagefiles = [pkgfile]
+        elif (
+                self.rdmc.app.getiloversion() > 5.230
+                and payloaddata.get("PackageFormat") == "FWPKG-v2"
+        ):
             imagefiles = [pkgfile]
         return imagefiles, tempdir, comptype, pldmflag
 
@@ -369,9 +390,17 @@ class FwpkgCommand:
             if options.forceupload:
                 uploadcommand += " --forceupload"
             if comptype in ["A", "B"]:
+                LOGGER.info("Setting --update_target --update_repository options as it is A or B")
                 uploadcommand += " --update_target --update_repository"
+            elif comptype in ["BC"]:
+                LOGGER.info("Setting --update_target option as it is BC.")
+                uploadcommand += " --update_target"
             if options.update_srs:
+                LOGGER.info("Setting --update_srs to store as recovery set.")
                 uploadcommand += " --update_srs"
+            if options.tover:
+                LOGGER.info("Setting --tpmover if tpm enabled.")
+                uploadcommand += " --tpmover"
 
             self.rdmc.ui.printer("Uploading firmware: %s\n" % os.path.basename(component))
             try:
@@ -379,7 +408,7 @@ class FwpkgCommand:
                 if ret != ReturnCodes.SUCCESS:
                     raise UploadError
             except UploadError:
-                if comptype in ["A", "B"]:
+                if comptype in ["A", "B", "BC"]:
                     select = self.rdmc.app.typepath.defs.hpilofirmwareupdatetype
                     results = self.rdmc.app.select(selector=select)
 
@@ -393,17 +422,29 @@ class FwpkgCommand:
                         error = self.rdmc.app.get_handler(update_path, silent=True)
                         self.auxcommands["firmwareupdate"].printerrmsg(error)
                     else:
-                        raise FirmwareUpdateError(
-                            "Error occurred while updating the firmware."
-                        )
+                        raise FirmwareUpdateError("Error occurred while updating the firmware.")
                 else:
                     raise UploadError("Error uploading component.")
 
-            if comptype == "C":
-                self.rdmc.ui.warn(
-                    "Setting a taskqueue item to flash UEFI flashable firmware.\n"
-                )
-                self.auxcommands["taskqueue"].run(taskqueuecommand)
+            if comptype in ["C", "BC"]:
+                self.rdmc.ui.warn("Setting a taskqueue item to flash UEFI flashable firmware.\n")
+                path = "/redfish/v1/updateservice/updatetaskqueue"
+                newtask = {
+                    "Name": "Update-%s"
+                            % (
+                                str(randint(0, 1000000)),
+                            ),
+                    "Command": "ApplyUpdate",
+                    "Filename": os.path.basename(component),
+                    "UpdatableBy": ["Uefi"],
+                    "TPMOverride": options.tover,
+                }
+                res = self.rdmc.app.post_handler(path, newtask)
+
+                if res.status != 201:
+                    raise TaskQueueError("Not able create UEFI task.\n")
+                else:
+                    self.rdmc.ui.printer("Created UEFI Task for Component " + os.path.basename(component) + " successfully.\n")
 
     def fwpkgvalidation(self, options):
         """fwpkg validation function
@@ -429,24 +470,21 @@ class FwpkgCommand:
             "--forceupload",
             dest="forceupload",
             action="store_true",
-            help="Add this flag to force upload firmware with the same name "
-                 "already on the repository.",
+            help="Add this flag to force upload firmware with the same name already on the repository.",
             default=False,
         )
         customparser.add_argument(
             "--ignorechecks",
             dest="ignore",
             action="store_true",
-            help="Add this flag to ignore all checks to the taskqueue "
-                 "before attempting to process the .fwpkg file.",
+            help="Add this flag to ignore all checks to the taskqueue before attempting to process the .fwpkg file.",
             default=False,
         )
         customparser.add_argument(
             "--tpmover",
             dest="tover",
             action="store_true",
-            help="If set then the TPMOverrideFlag is passed in on the "
-                 "associated flash operations",
+            help="If set then the TPMOverrideFlag is passed in on the associated flash operations",
             default=False,
         )
         customparser.add_argument(

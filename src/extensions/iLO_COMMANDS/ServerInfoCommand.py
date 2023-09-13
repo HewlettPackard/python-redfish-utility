@@ -16,23 +16,24 @@
 # -*- coding: utf-8 -*-
 """ Server Info Command for rdmc """
 import re
+import sys
 from collections import OrderedDict
 
 import jsonpath_rw
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        UI,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        UI,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
+        UI,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        UI,
+        ReturnCodes,
     )
 
 
@@ -86,15 +87,16 @@ class ServerInfoCommand:
         info = self.gatherinfo(options)
 
         if not info:
-            raise InvalidCommandLineError(
-                "Please verify the commands entered " "and try again."
-            )
+            raise InvalidCommandLineError("Please verify the commands entered " "and try again.")
         if "proxy" in info and info["proxy"]:
             if "WebProxyConfiguration" in info["proxy"]["Oem"]["Hpe"]:
                 info["proxy"] = info["proxy"]["Oem"]["Hpe"]["WebProxyConfiguration"]
 
         if options.json:
-            self.build_json_out(info, options.showabsent)
+            if options.memory or options.processors and options.json and self.rdmc.app.typepath.defs.isgen9:
+                pass
+            else:
+                self.build_json_out(info, options.showabsent)
         else:
             self.prettyprintinfo(info, options.showabsent)
 
@@ -110,68 +112,67 @@ class ServerInfoCommand:
         """
         info = {}
         path = self.rdmc.app.typepath.defs.systempath
+        if path == "/rest/v1/Systems/1" or "/redfish/v1/Systems/1/":
+            path = "/redfish/v1/Systems/"
+        else:
+            pass
         if options.system:
             info["system"] = OrderedDict()
-            csysresults = self.rdmc.app.select(selector="ComputerSystemCollection")
-            csysresults = csysresults[0].dict
+            csysresults = self.rdmc.app.get_handler(path, service=True, silent=True).dict
+            # csysresults = self.rdmc.app.select(selector="ComputerSystemCollection")
+            # csysresults = csysresults[0].dict
             members = csysresults["Members"]
             for id in members:
                 for mem_id in id.values():
-                    if path == mem_id:
-                        csysresults = self.rdmc.app.get_handler(
-                            mem_id, service=True, silent=True
-                        ).dict
-            try:
-                csysresults = csysresults[0].dict
-            except:
-                pass
-            if csysresults:
-                info["system"]["Model"] = "%s %s" % (
-                    csysresults["Manufacturer"],
-                    csysresults["Model"],
-                )
-                info["system"]["Bios Version"] = csysresults["BiosVersion"]
-
-            biosresults = self.rdmc.app.select(
-                selector=self.rdmc.app.typepath.defs.biostype
-            )
-
-            try:
-                biosresults = biosresults[0].dict
-            except:
-                pass
-
-            if biosresults:
+                    if path in mem_id:
+                        csysresults = self.rdmc.app.get_handler(mem_id, service=True, silent=True).dict
                 try:
-                    info["system"]["Serial Number"] = biosresults["Attributes"][
-                        "SerialNumber"
-                    ]
+                    csysresults = csysresults[0].dict
                 except:
-                    if "SerialNumber" in biosresults:
-                        info["system"]["Serial Number"] = biosresults["SerialNumber"]
-            ethresults = None
-            getloc = self.rdmc.app.getidbytype("EthernetInterfaceCollection.")
-            if getloc:
-                for loc in getloc:
-                    if "/systems/1/" in loc.lower():
-                        ethresults = self.rdmc.app.getcollectionmembers(loc)
-                        break
-                if ethresults:
-                    niccount = 0
-                    info["system"]["ethernet"] = OrderedDict()
-                    for eth in ethresults:
-                        niccount += 1
-                        if eth["Name"] == "":
-                            if 'MACAddress' in eth:
-                                info["system"]["ethernet"][niccount] = eth["MACAddress"]
-                            else:
-                                info["system"]["ethernet"][niccount] = eth["PermanentMACAddress"]
-                        elif eth["Name"] != "":
-                            if 'MACAddress' in eth:
-                                info["system"]["ethernet"][eth["Name"]] = eth["MACAddress"]
-                            else:
-                                info["system"]["ethernet"][eth["Name"]] = eth["PermanentMACAddress"]
-                    info["system"]["NICCount"] = niccount
+                    pass
+                if csysresults:
+                    info["system"]["Model"] = "%s %s" % (
+                        csysresults["Manufacturer"],
+                        csysresults["Model"],
+                    )
+                    info["system"]["Bios Version"] = csysresults["BiosVersion"]
+
+                biosresults = self.rdmc.app.select(selector=self.rdmc.app.typepath.defs.biostype)
+
+                try:
+                    biosresults = biosresults[0].dict
+                except:
+                    pass
+
+                if biosresults:
+                    try:
+                        info["system"]["Serial Number"] = biosresults["Attributes"]["SerialNumber"]
+                    except:
+                        if "SerialNumber" in biosresults:
+                            info["system"]["Serial Number"] = biosresults["SerialNumber"]
+                ethresults = None
+                getloc = self.rdmc.app.getidbytype("EthernetInterfaceCollection.")
+                if getloc:
+                    for loc in getloc:
+                        if "/systems/1/" in loc.lower():
+                            ethresults = self.rdmc.app.getcollectionmembers(loc)
+                            break
+                    if ethresults:
+                        niccount = 0
+                        info["system"]["ethernet"] = OrderedDict()
+                        for eth in ethresults:
+                            niccount += 1
+                            if eth["Name"] == "":
+                                if "MACAddress" in eth:
+                                    info["system"]["ethernet"][niccount] = eth["MACAddress"]
+                                else:
+                                    info["system"]["ethernet"][niccount] = eth["PermanentMACAddress"]
+                            elif eth["Name"] != "":
+                                if "MACAddress" in eth:
+                                    info["system"]["ethernet"][eth["Name"]] = eth["MACAddress"]
+                                else:
+                                    info["system"]["ethernet"][eth["Name"]] = eth["PermanentMACAddress"]
+                        info["system"]["NICCount"] = niccount
         if options.thermals or options.fans:
             data = None
             if not self.rdmc.app.typepath.defs.isgen9:
@@ -192,6 +193,27 @@ class ServerInfoCommand:
                     info["fans"] = data.dict["Fans"]
         if options.memory:
             data = None
+            if self.rdmc.app.typepath.defs.isgen9:
+                mem_path = "/redfish/v1/Systems/1/Memory/" + "?$expand=."
+                getloc = self.rdmc.app.get_handler(mem_path, silent=True, service=True).dict
+                collectiondata = getloc["Oem"][self.rdmc.app.typepath.defs.oemhp]
+                if collectiondata and not options.json:
+                    sys.stdout.write("---------------------------------\n")
+                    sys.stdout.write("Memory/DIMM Board Information:\n")
+                    sys.stdout.write("---------------------------------\n")
+                    memory_status = "Advanced Memory Protection Status: %s \n" % collectiondata["AmpModeStatus"]
+                    sys.stdout.write(memory_status)
+                    sys.stdout.write("AmpModeActive: %s \n" % collectiondata["AmpModeActive"])
+                    sys.stdout.write("AmpModeSupported: %s \n" % collectiondata["AmpModeSupported"])
+                    sys.stdout.write("Type: %s \n" % collectiondata["Type"])
+                if collectiondata and options.json:
+                    tmp = dict()
+                    tmp["Memory"] = dict()
+                    tmp["Memory"]["Advanced Memory Protection Status"] = collectiondata["AmpModeStatus"]
+                    tmp["Memory"]["AmpModeActive"] = collectiondata["AmpModeActive"]
+                    tmp["Memory"]["AmpModeSupported"] = collectiondata["AmpModeSupported"]
+                    tmp["Memory"]["Type"] = collectiondata["Type"]
+                    UI().print_out_json(tmp)
             getloc = self.rdmc.app.getidbytype("MemoryCollection.")
             if getloc:
                 data = self.rdmc.app.getcollectionmembers(getloc[0], fullresp=True)[0]
@@ -213,7 +235,68 @@ class ServerInfoCommand:
             else:
                 # getloc = self.rdmc.app.getidbytype("ProcessorCollection.")
                 getloc = self.rdmc.app.getidbytype("Processor.")
-            if getloc:
+                tot_proc=[]
+                if getloc == "/rest/v1/Systems/1/Processors/1" or "/rest/v1/Systems/1/Processors/2":
+                    getloc = "/redfish/v1/Systems/1/Processors/"
+                    get_p = self.rdmc.app.get_handler(getloc, service=True, silent=True).dict["Members"]
+                    output=""
+                    if get_p and not options.json:
+                        sys.stdout.write("------------------------------------------------\n")
+                        sys.stdout.write("Processor:\n")
+                        sys.stdout.write("------------------------------------------------\n")
+                        for pp in get_p:
+                            dd = pp["@odata.id"]
+                            data = self.rdmc.app.get_handler(dd, service=True, silent=True).dict
+                            output += "Processor %s:\n" % data["Id"]
+                            output += "\tModel: %s\n" % data["Model"]
+                            output += "\tStep: %s\n" % data["ProcessorId"]["Step"]
+                            output += "\tSocket: %s\n" % data["Socket"]
+                            output += "\tMax Speed: %s MHz\n" % data["MaxSpeedMHz"]
+                            try:
+                                output += "\tSpeed: %s MHz\n" % data["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                    "RatedSpeedMHz"]
+                            except KeyError:
+                                pass
+                            output += "\tCores: %s\n" % data["TotalCores"]
+                            output += "\tThreads: %s\n" % data["TotalThreads"]
+                            try:
+                                for cache in data["Oem"][self.rdmc.app.typepath.defs.oemhp]["Cache"]:
+                                    output += "\t%s: %s KB\n" % (
+                                        cache["Name"],
+                                        cache["InstalledSizeKB"],
+                                    )
+                            except KeyError:
+                                pass
+                            try:
+                                output += "\tHealth: %s\n" % data["Status"]["Health"]
+                            except KeyError:
+                                pass
+                        self.rdmc.ui.printer(output, verbose_override=True)
+                    if get_p and options.json:
+                        for pp in get_p:
+                            dd = pp["@odata.id"]
+                            data = self.rdmc.app.get_handler(dd, service=True, silent=True).dict
+                            process = "Processor %s" % data["Id"]
+                            tmp = dict()
+                            tmp[process] = dict()
+                            tmp[process]["Processor"] = data["Id"]
+                            tmp[process]["Model"] = data["Model"]
+                            tmp[process]["Step"] = data["ProcessorId"]["Step"]
+                            tmp[process]["Socket"] = data["Socket"]
+                            tmp[process]["Max Speed"] = data["MaxSpeedMHz"]
+                            try:
+                                tmp[process].update(
+                                    {"Speed": "%s MHz" % data["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                        "RatedSpeedMHz"]}
+                                )
+                            except KeyError:
+                                pass
+                            tmp[process].update({"Cores": data["TotalCores"]})
+                            tmp[process].update({"Threads": data["TotalThreads"]})
+                            UI().print_out_json(tmp)
+                else:
+                    pass
+            if getloc and not self.rdmc.app.typepath.defs.isgen9:
                 data = self.rdmc.app.getcollectionmembers(getloc[0])
 
                 info["processor"] = data
@@ -290,68 +373,29 @@ class ServerInfoCommand:
             data = info["power"]
             if data is not None:
                 for control in data["PowerControl"]:
-                    power_cap = {
-                        "Total Power Capacity": "%s W" % control["PowerCapacityWatts"]
-                    }
-                    power_cap.update(
-                        {"Total Power Consumed": "%s W" % control["PowerConsumedWatts"]}
-                    )
-                    power_mertic = {
-                        "Average Power": "%s W"
-                        % control["PowerMetrics"]["AverageConsumedWatts"]
-                    }
+                    power_cap = {"Total Power Capacity": "%s W" % control["PowerCapacityWatts"]}
+                    power_cap.update({"Total Power Consumed": "%s W" % control["PowerConsumedWatts"]})
+                    power_mertic = {"Average Power": "%s W" % control["PowerMetrics"]["AverageConsumedWatts"]}
+                    power_mertic.update({"Max Consumed Power": "%s W" % control["PowerMetrics"]["MaxConsumedWatts"]})
                     power_mertic.update(
-                        {
-                            "Max Consumed Power": "%s W"
-                            % control["PowerMetrics"]["MaxConsumedWatts"]
-                        }
+                        {"Minimum Consumed Power": "%s W" % control["PowerMetrics"]["MinConsumedWatts"]}
                     )
-                    power_mertic.update(
-                        {
-                            "Minimum Consumed Power": "%s W"
-                            % control["PowerMetrics"]["MinConsumedWatts"]
-                        }
-                    )
-                    powercontent = (
-                        "Power Metrics on %s min. Intervals"
-                        % control["PowerMetrics"]["IntervalInMin"]
-                    )
+                    powercontent = "Power Metrics on %s min. Intervals" % control["PowerMetrics"]["IntervalInMin"]
                     test = {powercontent: power_mertic}
                     content = {"power": power_cap}
                     content["power"].update(test)
                 try:
                     for supply in data["PowerSupplies"]:
-                        power_supply = (
-                            "Power Supply %s"
-                            % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "BayNumber"
-                            ]
-                        )
-                        powersupply = {
-                            "Power Capacity": "%s W" % supply["PowerCapacityWatts"]
-                        }
+                        power_supply = "Power Supply %s" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["BayNumber"]
+                        powersupply = {"Power Capacity": "%s W" % supply["PowerCapacityWatts"]}
+                        powersupply.update({"Last Power Output": "%s W" % supply["LastPowerOutputWatts"]})
+                        powersupply.update({"Input Voltage": "%s V" % supply["LineInputVoltage"]})
+                        powersupply.update({"Input Voltage Type": supply["LineInputVoltageType"]})
                         powersupply.update(
-                            {"Last Power Output": "%s W" % supply["LastPowerOutputWatts"]}
+                            {"Hotplug Capable": supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"]}
                         )
                         powersupply.update(
-                            {"Input Voltage": "%s V" % supply["LineInputVoltage"]}
-                        )
-                        powersupply.update(
-                            {"Input Voltage Type": supply["LineInputVoltageType"]}
-                        )
-                        powersupply.update(
-                            {
-                                "Hotplug Capable": supply["Oem"][
-                                    self.rdmc.app.typepath.defs.oemhp
-                                ]["HotplugCapable"]
-                            }
-                        )
-                        powersupply.update(
-                            {
-                                "iPDU Capable": supply["Oem"][
-                                    self.rdmc.app.typepath.defs.oemhp
-                                ]["iPDUCapable"]
-                            }
+                            {"iPDU Capable": supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"]}
                         )
                         try:
                             powersupply.update({"Health": supply["Status"]["Health"]})
@@ -368,12 +412,8 @@ class ServerInfoCommand:
                         redund_name = redundancy["Name"]
                         redundancy_dict = {"Redundancy Mode": redundancy["Mode"]}
                         try:
-                            redundancy_dict.update(
-                                {"Redundancy Health": redundancy["Status"]["Health"]}
-                            )
-                            redundancy_dict.update(
-                                {"Redundancy State": redundancy["Status"]["State"]}
-                            )
+                            redundancy_dict.update({"Redundancy Health": redundancy["Status"]["Health"]})
+                            redundancy_dict.update({"Redundancy State": redundancy["Status"]["State"]})
                             content.update({redund_name: redundancy_dict})
                         except KeyError:
                             pass
@@ -381,24 +421,18 @@ class ServerInfoCommand:
                     pass
 
         if "firmware" in headers and info["firmware"]:
-            firmware_info = {}
+            firmware_info = []
             data = info["firmware"]
             if data is not None:
                 if not self.rdmc.app.typepath.defs.isgen10:
                     for key, fw in data.items():
                         for fw_gen9 in fw:
-                            firmware_info.update(
-                                {fw_gen9["Name"]: fw_gen9["VersionString"]}
-                            )
+                            fw_str = fw_gen9["Name"] + ": " + fw_gen9["VersionString"]
+                            firmware_info.append(fw_str)
                 else:
                     for fw in data:
-                        n = 2
-                        if fw['Name'] in firmware_info.keys():
-                            fw1 = fw['Name'] + str(n)
-                            firmware_info.update({fw1: fw["Version"]})
-                            n = n + 1
-                        else:
-                            firmware_info.update({fw["Name"]: fw["Version"]})
+                        fw_str = fw["Name"] + ": " + fw["Version"]
+                        firmware_info.append(fw_str)
             content.update({"firmware": firmware_info})
 
         if "software" in headers and info["software"]:
@@ -422,28 +456,13 @@ class ServerInfoCommand:
                 collectiondata = data["Oem"][self.rdmc.app.typepath.defs.oemhp]
                 output = "Memory/DIMM Board Information"
 
-                memory_status = (
-                    "Advanced Memory Protection Status: %s"
-                    % collectiondata["AmpModeStatus"]
-                )
+                memory_status = "Advanced Memory Protection Status: %s" % collectiondata["AmpModeStatus"]
                 memorylist = {}
                 for board in collectiondata["MemoryList"]:
                     board_detail = "Board CPU: %s" % board["BoardCpuNumber"]
-                    memory_info = {
-                        "Total Memory Size": "%s MiB" % board["BoardTotalMemorySize"]
-                    }
-                    memory_info.update(
-                        {
-                            "Board Memory Frequency": "%s MHz"
-                            % board["BoardOperationalFrequency"]
-                        }
-                    )
-                    memory_info.update(
-                        {
-                            "Board Memory Voltage": "%s MiB"
-                            % board["BoardOperationalVoltage"]
-                        }
-                    )
+                    memory_info = {"Total Memory Size": "%s MiB" % board["BoardTotalMemorySize"]}
+                    memory_info.update({"Board Memory Frequency": "%s MHz" % board["BoardOperationalFrequency"]})
+                    memory_info.update({"Board Memory Voltage": "%s MiB" % board["BoardOperationalVoltage"]})
                     memorylist.update({board_detail: memory_info})
                 memorystatus = {memory_status: memorylist}
                 memoryinfo = {output: memorystatus}
@@ -464,16 +483,8 @@ class ServerInfoCommand:
                         memoryconfig.update({"Memory Type": dimm["MemoryType"]})
                     memoryconfig.update({"Capacity": "%s MiB" % dimm["CapacityMiB"]})
                     try:
-                        memoryconfig.update(
-                            {"Speed": "%s MHz" % dimm["OperatingSpeedMhz"]}
-                        )
-                        memoryconfig.update(
-                            {
-                                "Status": dimm["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                    "DIMMStatus"
-                                ]
-                            }
-                        )
+                        memoryconfig.update({"Speed": "%s MHz" % dimm["OperatingSpeedMhz"]})
+                        memoryconfig.update({"Status": dimm["Oem"][self.rdmc.app.typepath.defs.oemhp]["DIMMStatus"]})
                         memoryconfig.update({"Health": dimm["Status"]["Health"]})
                     except KeyError:
                         pass
@@ -499,28 +510,12 @@ class ServerInfoCommand:
                         fan_name = "%s" % fan["Name"]
                     else:
                         fan_name = "%s" % fan["FanName"]
-                    fan_output.update(
-                        {
-                            "Location": fan["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "Location"
-                            ]
-                        }
-                    )
+                    fan_output.update({"Location": fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Location"]})
                     if "Reading" in fan:
                         fan_output.update({"Reading": "%s%%" % fan["Reading"]})
+                        fan_output.update({"Redundant": fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Redundant"]})
                         fan_output.update(
-                            {
-                                "Redundant": fan["Oem"][
-                                    self.rdmc.app.typepath.defs.oemhp
-                                ]["Redundant"]
-                            }
-                        )
-                        fan_output.update(
-                            {
-                                "Hot Pluggable": fan["Oem"][
-                                    self.rdmc.app.typepath.defs.oemhp
-                                ]["HotPluggable"]
-                            }
+                            {"Hot Pluggable": fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotPluggable"]}
                         )
                     try:
                         if "Health" in fan["Status"]:
@@ -547,18 +542,11 @@ class ServerInfoCommand:
                         thermal_info = {"Location": temp["PhysicalContext"]}
                     thermal_info.update({"Current Temp": "%s C" % temp["ReadingCelsius"]})
                     if "UpperThresholdCritical" in temp:
-                        thermal_info.update(
-                            {
-                                "Critical Threshold": "%s C"
-                                % temp["UpperThresholdCritical"]
-                            }
-                        )
+                        thermal_info.update({"Critical Threshold": "%s C" % temp["UpperThresholdCritical"]})
                     else:
                         thermal_info.update({"Critical Threshold": "-"})
                     if "UpperThresholdFatal" in temp:
-                        thermal_info.update(
-                            {"Fatal Threshold": "%s C" % temp["UpperThresholdFatal"]}
-                        )
+                        thermal_info.update({"Fatal Threshold": "%s C" % temp["UpperThresholdFatal"]})
                     else:
                         thermal_info.update({"Fatal Threshold": "-"})
                     try:
@@ -584,16 +572,12 @@ class ServerInfoCommand:
                         processor_date = {"Model": processor["Model"]}
                         processor_date.update({"Step": processor["ProcessorId"]["Step"]})
                         processor_date.update({"Socket": processor["Socket"]})
-                        processor_date.update(
-                            {"Max Speed": "%s MHz" % processor["MaxSpeedMHz"]}
-                        )
+                        processor_date.update({"Max Speed": "%s MHz" % processor["MaxSpeedMHz"]})
                         try:
                             processor_date.update(
                                 {
                                     "Speed": "%s MHz"
-                                    % processor["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                        "RatedSpeedMHz"
-                                    ]
+                                    % processor["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]
                                 }
                             )
                         except KeyError:
@@ -601,25 +585,17 @@ class ServerInfoCommand:
                         processor_date.update({"Cores": processor["TotalCores"]})
                         processor_date.update({"Threads": processor["TotalThreads"]})
                         try:
-                            for cache in processor["Oem"][
-                                self.rdmc.app.typepath.defs.oemhp
-                            ]["Cache"]:
-                                processor_date.update(
-                                    {cache["Name"]: "%s KB" % cache["InstalledSizeKB"]}
-                                )
+                            for cache in processor["Oem"][self.rdmc.app.typepath.defs.oemhp]["Cache"]:
+                                processor_date.update({cache["Name"]: "%s KB" % cache["InstalledSizeKB"]})
                         except KeyError:
                             pass
                         try:
-                            processor_date.update(
-                                {"Health": processor["Status"]["Health"]}
-                            )
+                            processor_date.update({"Health": processor["Status"]["Health"]})
                         except KeyError:
                             pass
                         if absent:
                             try:
-                                processor_date.update(
-                                    {"State": processor["Status"]["State"]}
-                                )
+                                processor_date.update({"State": processor["Status"]["State"]})
                             except KeyError:
                                 pass
                         processor_info.update({process: processor_date})
@@ -633,24 +609,15 @@ class ServerInfoCommand:
                     processor_date.update({"Max Speed": "%s MHz" % data["MaxSpeedMHz"]})
                     try:
                         processor_date.update(
-                            {
-                                "Speed": "%s MHz"
-                                % data["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                    "RatedSpeedMHz"
-                                ]
-                            }
+                            {"Speed": "%s MHz" % data["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]}
                         )
                     except KeyError:
                         pass
                     processor_date.update({"Cores": data["TotalCores"]})
                     processor_date.update({"Threads": data["TotalThreads"]})
                     try:
-                        for cache in data["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                            "Cache"
-                        ]:
-                            processor_date.update(
-                                {cache["Name"]: "%s KB" % cache["InstalledSizeKB"]}
-                            )
+                        for cache in data["Oem"][self.rdmc.app.typepath.defs.oemhp]["Cache"]:
+                            processor_date.update({cache["Name"]: "%s KB" % cache["InstalledSizeKB"]})
                     except KeyError:
                         pass
                     try:
@@ -785,18 +752,14 @@ class ServerInfoCommand:
                         try:
                             output += (
                                 "\tSpeed: %s MHz\n"
-                                % processor["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                    "RatedSpeedMHz"
-                                ]
+                                % processor["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]
                             )
                         except KeyError:
                             pass
                         output += "\tCores: %s\n" % processor["TotalCores"]
                         output += "\tThreads: %s\n" % processor["TotalThreads"]
                         try:
-                            for cache in processor["Oem"][
-                                self.rdmc.app.typepath.defs.oemhp
-                            ]["Cache"]:
+                            for cache in processor["Oem"][self.rdmc.app.typepath.defs.oemhp]["Cache"]:
                                 output += "\t%s: %s KB\n" % (
                                     cache["Name"],
                                     cache["InstalledSizeKB"],
@@ -821,20 +784,13 @@ class ServerInfoCommand:
                     output += "\tSocket: %s\n" % data["Socket"]
                     output += "\tMax Speed: %s MHz\n" % data["MaxSpeedMHz"]
                     try:
-                        output += (
-                            "\tSpeed: %s MHz\n"
-                            % data["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "RatedSpeedMHz"
-                            ]
-                        )
+                        output += "\tSpeed: %s MHz\n" % data["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]
                     except KeyError:
                         pass
                     output += "\tCores: %s\n" % data["TotalCores"]
                     output += "\tThreads: %s\n" % data["TotalThreads"]
                     try:
-                        for cache in data["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                            "Cache"
-                        ]:
+                        for cache in data["Oem"][self.rdmc.app.typepath.defs.oemhp]["Cache"]:
                             output += "\t%s: %s KB\n" % (
                                 cache["Name"],
                                 cache["InstalledSizeKB"],
@@ -859,23 +815,12 @@ class ServerInfoCommand:
                 output = "------------------------------------------------\n"
                 output += "Memory/DIMM Board Information:\n"
                 output += "------------------------------------------------\n"
-                output += (
-                    "Advanced Memory Protection Status: %s\n"
-                    % collectiondata["AmpModeStatus"]
-                )
+                output += "Advanced Memory Protection Status: %s\n" % collectiondata["AmpModeStatus"]
                 for board in collectiondata["MemoryList"]:
                     output += "Board CPU: %s \n" % board["BoardCpuNumber"]
-                    output += (
-                        "\tTotal Memory Size: %s MiB\n" % board["BoardTotalMemorySize"]
-                    )
-                    output += (
-                        "\tBoard Memory Frequency: %s MHz\n"
-                        % board["BoardOperationalFrequency"]
-                    )
-                    output += (
-                        "\tBoard Memory Voltage: %s MiB\n"
-                        % board["BoardOperationalVoltage"]
-                    )
+                    output += "\tTotal Memory Size: %s MiB\n" % board["BoardTotalMemorySize"]
+                    output += "\tBoard Memory Frequency: %s MHz\n" % board["BoardOperationalFrequency"]
+                    output += "\tBoard Memory Voltage: %s MiB\n" % board["BoardOperationalVoltage"]
                 output += "------------------------------------------------\n"
                 output += "Memory/DIMM Configuration:\n"
                 output += "------------------------------------------------\n"
@@ -892,10 +837,7 @@ class ServerInfoCommand:
                     try:
                         output += "Speed: %s MHz\n" % dimm["OperatingSpeedMhz"]
 
-                        output += (
-                            "Status: %s\n"
-                            % dimm["Oem"][self.rdmc.app.typepath.defs.oemhp]["DIMMStatus"]
-                        )
+                        output += "Status: %s\n" % dimm["Oem"][self.rdmc.app.typepath.defs.oemhp]["DIMMStatus"]
                         output += "Health: %s\n" % dimm["Status"]["Health"]
                     except KeyError:
                         pass
@@ -914,60 +856,27 @@ class ServerInfoCommand:
             output += "------------------------------------------------\n"
             if data is not None:
                 for control in data["PowerControl"]:
-                    output += (
-                        "Total Power Capacity: %s W\n" % control["PowerCapacityWatts"]
-                    )
-                    output += (
-                        "Total Power Consumed: %s W\n" % control["PowerConsumedWatts"]
-                    )
+                    output += "Total Power Capacity: %s W\n" % control["PowerCapacityWatts"]
+                    output += "Total Power Consumed: %s W\n" % control["PowerConsumedWatts"]
                     output += "\n"
-                    output += (
-                        "Power Metrics on %s min. Intervals:\n"
-                        % control["PowerMetrics"]["IntervalInMin"]
-                    )
-                    output += (
-                        "\tAverage Power: %s W\n"
-                        % control["PowerMetrics"]["AverageConsumedWatts"]
-                    )
-                    output += (
-                        "\tMax Consumed Power: %s W\n"
-                        % control["PowerMetrics"]["MaxConsumedWatts"]
-                    )
-                    output += (
-                        "\tMinimum Consumed Power: %s W\n"
-                        % control["PowerMetrics"]["MinConsumedWatts"]
-                    )
+                    output += "Power Metrics on %s min. Intervals:\n" % control["PowerMetrics"]["IntervalInMin"]
+                    output += "\tAverage Power: %s W\n" % control["PowerMetrics"]["AverageConsumedWatts"]
+                    output += "\tMax Consumed Power: %s W\n" % control["PowerMetrics"]["MaxConsumedWatts"]
+                    output += "\tMinimum Consumed Power: %s W\n" % control["PowerMetrics"]["MinConsumedWatts"]
                 try:
                     for supply in data["PowerSupplies"]:
                         output += "------------------------------------------------\n"
-                        output += (
-                            "Power Supply %s:\n"
-                            % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "BayNumber"
-                            ]
-                        )
+                        output += "Power Supply %s:\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["BayNumber"]
                         output += "------------------------------------------------\n"
 
                         output += "Power Capacity: %s W\n" % supply["PowerCapacityWatts"]
-                        output += (
-                            "Last Power Output: %s W\n" % supply["LastPowerOutputWatts"]
-                        )
+                        output += "Last Power Output: %s W\n" % supply["LastPowerOutputWatts"]
                         output += "Input Voltage: %s V\n" % supply["LineInputVoltage"]
+                        output += "Input Voltage Type: %s\n" % supply["LineInputVoltageType"]
                         output += (
-                            "Input Voltage Type: %s\n" % supply["LineInputVoltageType"]
+                            "Hotplug Capable: %s\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"]
                         )
-                        output += (
-                            "Hotplug Capable: %s\n"
-                            % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "HotplugCapable"
-                            ]
-                        )
-                        output += (
-                            "iPDU Capable: %s\n"
-                            % supply["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "iPDUCapable"
-                            ]
-                        )
+                        output += "iPDU Capable: %s\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"]
                         try:
                             output += "Health: %s\n" % supply["Status"]["Health"]
                         except KeyError:
@@ -983,12 +892,8 @@ class ServerInfoCommand:
                         output += "------------------------------------------------\n"
                         output += "Redundancy Mode: %s\n" % redundancy["Mode"]
                         try:
-                            output += (
-                                "Redundancy Health: %s\n" % redundancy["Status"]["Health"]
-                            )
-                            output += (
-                                "Redundancy State: %s\n" % redundancy["Status"]["State"]
-                            )
+                            output += "Redundancy Health: %s\n" % redundancy["Status"]["Health"]
+                            output += "Redundancy State: %s\n" % redundancy["Status"]["State"]
                         except KeyError:
                             pass
                 except KeyError:
@@ -1005,21 +910,12 @@ class ServerInfoCommand:
                         output += "%s:\n" % fan["Name"]
                     else:
                         output += "%s:\n" % fan["FanName"]
-                    output += (
-                        "\tLocation: %s\n"
-                        % fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Location"]
-                    )
+                    output += "\tLocation: %s\n" % fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Location"]
                     if "Reading" in fan:
                         output += "\tReading: %s%%\n" % fan["Reading"]
+                        output += "\tRedundant: %s\n" % fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Redundant"]
                         output += (
-                            "\tRedundant: %s\n"
-                            % fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Redundant"]
-                        )
-                        output += (
-                            "\tHot Pluggable: %s\n"
-                            % fan["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "HotPluggable"
-                            ]
+                            "\tHot Pluggable: %s\n" % fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotPluggable"]
                         )
                     try:
                         if "Health" in fan["Status"]:
@@ -1045,16 +941,11 @@ class ServerInfoCommand:
                         output += "\tLocation: %s\n" % temp["PhysicalContext"]
                     output += "\tCurrent Temp: %s C\n" % temp["ReadingCelsius"]
                     if "UpperThresholdCritical" in temp:
-                        output += (
-                            "\tCritical Threshold: %s C\n"
-                            % temp["UpperThresholdCritical"]
-                        )
+                        output += "\tCritical Threshold: %s C\n" % temp["UpperThresholdCritical"]
                     else:
                         output += "\tCritical Threshold: -\n"
                     if "UpperThresholdFatal" in temp:
-                        output += (
-                            "\tFatal Threshold: %s C\n" % temp["UpperThresholdFatal"]
-                        )
+                        output += "\tFatal Threshold: %s C\n" % temp["UpperThresholdFatal"]
                     else:
                         output += "\tFatal Threshold: -\n"
                     try:

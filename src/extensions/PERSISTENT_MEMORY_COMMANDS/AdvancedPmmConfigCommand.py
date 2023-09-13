@@ -23,12 +23,12 @@ from copy import deepcopy
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        LOGGER,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        LOGGER,
         NoChangesFoundOrMadeError,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -55,9 +55,7 @@ class _ParseOptionsList(Action):
         try:
             setattr(namespace, self.dest, next(iter(values)).split(","))
         except:
-            raise InvalidCommandLineError(
-                "Values in a list must be separated by a comma."
-            )
+            raise InvalidCommandLineError("Values in a list must be separated by a comma.")
 
 
 class AdvancedPmmConfigCommand:
@@ -69,8 +67,7 @@ class AdvancedPmmConfigCommand:
         self.ident = {
             "name": "provisionpmm",
             "usage": None,
-            "description": "Applies specified configuration to PMM.\n"
-            "\texample: provisionpmm -m 50 -i On -pid 1,2",
+            "description": "Applies specified configuration to PMM.\n" "\texample: provisionpmm -m 50 -i On -pid 1,2",
             "summary": "Applies specified configuration to PMM.",
             "aliases": ["provisionpmm"],
             "auxcommands": [
@@ -123,37 +120,14 @@ class AdvancedPmmConfigCommand:
         extra arguments are specified with flags.
         """
         error_message = (
-            "Chosen flag is invalid. Use the '-m | --memory-mode'"
-            " flag to specify the size in percentage."
+            "Chosen flag is invalid. Use the '-m | --memory-mode'" " flag to specify the size in percentage."
         )
-        some_flag = (
-            options.memorymode or options.interleave or options.proc or options.force
-        )
+        some_flag = options.memorymode or options.interleave or options.proc or options.force
 
-        case_a = (
-            options.force
-            and not options.memorymode
-            and not options.interleave
-            and not options.proc
-        )
-        case_b = (
-            options.interleave
-            and not options.memorymode
-            and not options.force
-            and not options.proc
-        )
-        case_c = (
-            options.proc
-            and not options.memorymode
-            and not options.force
-            and not options.interleave
-        )
-        case_d = (
-            options.memorymode
-            and not options.proc
-            and not options.interleave
-            and not options.force
-        )
+        case_a = options.force and not options.memorymode and not options.interleave and not options.proc
+        case_b = options.interleave and not options.memorymode and not options.force and not options.proc
+        case_c = options.proc and not options.memorymode and not options.force and not options.interleave
+        case_d = options.memorymode and not options.proc and not options.interleave and not options.force
 
         if case_a or case_b or case_c:
             raise InvalidCommandLineError(error_message)
@@ -166,13 +140,9 @@ class AdvancedPmmConfigCommand:
         :param options: options specified by the user with the 'provisionpmm' command
         :type options: instance of OptionParser class
         """
-        some_flag = (
-            options.memorymode or options.interleave or options.proc or options.force
-        )
+        some_flag = options.memorymode or options.interleave or options.proc or options.force
         if not some_flag:
-            raise InvalidCommandLineError(
-                "No flag specified.\n\nUsage: " + self.ident["usage"]
-            )
+            raise InvalidCommandLineError("No flag specified.\n\nUsage: " + self.ident["usage"])
 
         # If the memory mode option value is not valid.
         resp = self._rest_helpers.retrieve_model(self.rdmc)
@@ -180,14 +150,10 @@ class AdvancedPmmConfigCommand:
 
         if "Gen10 Plus" in model:
             if not (options.memorymode == 0 or options.memorymode == 100):
-                raise InvalidCommandLineError(
-                    "Specify the correct value (0 or 100)" " to configure PMM"
-                )
+                raise InvalidCommandLineError("Specify the correct value (0 or 100)" " to configure PMM")
         else:
             if options.memorymode < 0 or options.memorymode > 100:
-                raise InvalidCommandLineError(
-                    "Specify the correct value (1-100)" " to configure PMM"
-                )
+                raise InvalidCommandLineError("Specify the correct value (1-100)" " to configure PMM")
         if options.interleave:
             if options.interleave.lower() not in ["on", "off"]:
                 raise InvalidCommandLineError(
@@ -206,9 +172,7 @@ class AdvancedPmmConfigCommand:
         # If not 100% memorymode, -i flag is mandatory to interleave memroy regions.
         if 0 <= options.memorymode < 100 and not options.interleave:
             raise InvalidCommandLineError(
-                "Use '-i | --pmem-interleave' flag to"
-                " specify the interleave state of persistent"
-                " memory regions"
+                "Use '-i | --pmem-interleave' flag to" " specify the interleave state of persistent" " memory regions"
             )
         if options.proc:
             for proc_id in options.proc:
@@ -265,8 +229,7 @@ class AdvancedPmmConfigCommand:
             "--force",
             action="store_true",
             dest="force",
-            help="Allow the user to force the configuration "
-            "by automatically accepting any prompts.",
+            help="Allow the user to force the configuration " "by automatically accepting any prompts.",
             default=False,
         )
 
@@ -324,9 +287,7 @@ class AdvancedPmmConfigCommand:
                 data_id = chunk.get("@odata.id")
                 resp = self._rest_helpers.delete_resource(data_id)
                 if not resp:
-                    raise NoChangesFoundOrMadeError(
-                        "Error occurred while deleting " "existing configuration"
-                    )
+                    raise NoChangesFoundOrMadeError("Error occurred while deleting " "existing configuration")
         return None
 
     @staticmethod
@@ -356,15 +317,11 @@ class AdvancedPmmConfigCommand:
         if invalid_proc_list:
             if len(invalid_proc_list) == 1:
                 raise NoChangesFoundOrMadeError(
-                    "Specified processor number {proc_list} is invalid".format(
-                        proc_list=invalid_proc_list[0]
-                    )
+                    "Specified processor number {proc_list} is invalid".format(proc_list=invalid_proc_list[0])
                 )
             else:
                 raise NoChangesFoundOrMadeError(
-                    "Specified processor numbers {proc_list} are invalid".format(
-                        proc_list=",".join(invalid_proc_list)
-                    )
+                    "Specified processor numbers {proc_list} are invalid".format(proc_list=",".join(invalid_proc_list))
                 )
 
         return input_proc_list
@@ -383,9 +340,7 @@ class AdvancedPmmConfigCommand:
             proc_id = member["Id"]
             if not proc_list or (proc_id in proc_list):
                 data_id = member.get("MemoryChunks").get("@odata.id")
-                all_chunks += [
-                    chunk for chunk in memory_chunks if data_id in chunk.get("@odata.id")
-                ]
+                all_chunks += [chunk for chunk in memory_chunks if data_id in chunk.get("@odata.id")]
 
         return all_chunks
 
@@ -409,17 +364,11 @@ class AdvancedPmmConfigCommand:
         if config_data["pmeminterleave"] == "on" or config_data["size"] == 100:
             # If persistent memory regions are interleaved or if it's 100% MemoryMode,
             # choose the list with maximum entries.
-            interleave_sets = [
-                max(interleavable_memory_sets, key=lambda x: len(x["MemorySet"]))
-            ]
+            interleave_sets = [max(interleavable_memory_sets, key=lambda x: len(x["MemorySet"]))]
         else:
             # If persistent memory regions are not interleaved,
             # choose all the lists with exactly one entry.
-            interleave_sets = [
-                il_set
-                for il_set in interleavable_memory_sets
-                if len(il_set["MemorySet"]) == 1
-            ]
+            interleave_sets = [il_set for il_set in interleavable_memory_sets if len(il_set["MemorySet"]) == 1]
 
         # Using in-place update to change the interleave sets format.
         # Replace 'MemorySet' with 'Memory' for each MemorySet in interleave_sets.
@@ -467,12 +416,8 @@ class AdvancedPmmConfigCommand:
         }
         # Check for given processor id list is valid or not.
         if options.proc:
-            config_data["proc"] = self.get_valid_processor_list(
-                config_data["proc"], domain_members
-            )
-            memory_chunks = self.filter_memory_chunks(
-                memory_chunks, domain_members, config_data["proc"]
-            )
+            config_data["proc"] = self.get_valid_processor_list(config_data["proc"], domain_members)
+            memory_chunks = self.filter_memory_chunks(memory_chunks, domain_members, config_data["proc"])
 
         # In case of 100% Volatile, Interleaving memory regions is not applicable.
         if (
@@ -481,8 +426,7 @@ class AdvancedPmmConfigCommand:
             and config_data["pmeminterleave"].lower() == "on"
         ):
             raise InvalidCommandLineError(
-                "Selected configuration is invalid. "
-                "Interleaving not supported in 100% volatile."
+                "Selected configuration is invalid. " "Interleaving not supported in 100% volatile."
             )
 
         if options.force:
@@ -499,15 +443,11 @@ class AdvancedPmmConfigCommand:
                 for body in data:
                     resp = self._rest_helpers.post_resource(path, body)
                 if resp is None:
-                    raise NoChangesFoundOrMadeError(
-                        "Error occurred while applying configuration"
-                    )
+                    raise NoChangesFoundOrMadeError("Error occurred while applying configuration")
 
         # Display warning
         self.rdmc.ui.printer("\nConfiguration changes require reboot to take effect.\n")
 
         # Display pending configuration
-        self.auxcommands["showpmmpendingconfig"].show_pending_config(
-            type("MyOptions", (object,), dict(json=False))
-        )
+        self.auxcommands["showpmmpendingconfig"].show_pending_config(type("MyOptions", (object,), dict(json=False)))
         return None

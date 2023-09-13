@@ -53,9 +53,7 @@ class RestHelpers(object):
         """
         Retrieve Memory Domain Resources and All Chunks
         """
-        mem_domain_resources = self.get_resource(
-            "/redfish/v1/systems/1/MemoryDomains?$expand=."
-        )
+        mem_domain_resources = self.get_resource("/redfish/v1/systems/1/MemoryDomains?$expand=.")
         domain_members = []
         all_chunks = []
         if mem_domain_resources:
@@ -64,9 +62,7 @@ class RestHelpers(object):
                 return domain_members
             chunk_id_list = list()
             for member in domain_members:
-                chunk_id_list.append(
-                    member.get("MemoryChunks").get("@odata.id") + "?$expand=."
-                )
+                chunk_id_list.append(member.get("MemoryChunks").get("@odata.id") + "?$expand=.")
             if chunk_id_list:
                 chunks = self.concurrent_get(chunk_id_list)
             else:

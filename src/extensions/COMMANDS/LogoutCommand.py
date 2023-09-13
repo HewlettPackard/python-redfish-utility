@@ -17,13 +17,10 @@
 # -*- coding: utf-8 -*-
 """ Logout Command for RDMC """
 
-import sys
-
-from argparse import ArgumentParser, SUPPRESS
 try:
-    from rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS
+    from rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 except ImportError:
-    from ilorest.rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS
+    from ilorest.rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 
 
 class LogoutCommand:
@@ -33,8 +30,7 @@ class LogoutCommand:
         self.ident = {
             "name": "logout",
             "usage": None,
-            "description": "Run to end the current session and disconnect"
-            " from the server\n\tExample: logout",
+            "description": "Run to end the current session and disconnect" " from the server\n\tExample: logout",
             "summary": "Ends the current session and disconnects from the server.",
             "aliases": [],
             "auxcommands": [],

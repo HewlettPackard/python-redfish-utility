@@ -20,14 +20,9 @@
 import ast
 import copy
 import fnmatch
-from argparse import SUPPRESS, ArgumentParser
 from functools import reduce
 
 import six
-try:
-    from rdmc import RdmcCommand
-except:
-    from ilorest.rdmc import RdmcCommand
 
 try:
     from rdmc_helper import (
@@ -143,16 +138,12 @@ class BootOrderCommand:
 
         self.rdmc.ui.printer("bootpath is : {0}\n\n".format(bootpath))
 
-        bootsources = self.rdmc.app.get_handler(bootpath, service=True, silent=True).dict[
-            "BootSources"
-        ]
+        bootsources = self.rdmc.app.get_handler(bootpath, service=True, silent=True).dict["BootSources"]
 
         bootoverride = None
         self.auxcommands["select"].selectfunction("HpeBios.")
         try:
-            bootmode = self.auxcommands["get"].getworkerfunction(
-                "BootMode", options, results=True, uselist=True
-            )
+            bootmode = self.auxcommands["get"].getworkerfunction("BootMode", options, results=True, uselist=True)
         except:
             bootmode = dict()
             bootmode["BootMode"] = "Uefi"
@@ -186,9 +177,7 @@ class BootOrderCommand:
             uselist=True,
         )
 
-        currentsettings = self.rdmc.app.get_handler(
-            self.rdmc.app.typepath.defs.systempath, service=True, silent=True
-        )
+        currentsettings = self.rdmc.app.get_handler(self.rdmc.app.typepath.defs.systempath, service=True, silent=True)
 
         if bootmode and bootmode.get("BootMode", None) == "Uefi":
             if self.rdmc.app.typepath.defs.isgen9:
@@ -213,23 +202,15 @@ class BootOrderCommand:
 
                     for setting in uefionetimebootsettings:
                         for source in bootsources:
-                            if "UEFIDevicePath" in source and source[
-                                "UEFIDevicePath"
-                            ].endswith(setting):
+                            if "UEFIDevicePath" in source and source["UEFIDevicePath"].endswith(setting):
                                 finaluefi.append(source["StructuredBootString"])
                                 continue
 
-                uefionetimebootsettings = {
-                    "Boot": {"UefiTargetBootSourceOverrideSupported": finaluefi}
-                }
+                uefionetimebootsettings = {"Boot": {"UefiTargetBootSourceOverrideSupported": finaluefi}}
         else:
             uefionetimebootsettings = None
 
-        if (
-            options.onetimeboot is None
-            and options.continuousboot is None
-            and not options.disablebootflag
-        ):
+        if options.onetimeboot is None and options.continuousboot is None and not options.disablebootflag:
             self.auxcommands["select"].selectfunction("HpeServerBootSettings.")
             bootsettings = self.auxcommands["get"].getworkerfunction(
                 "PersistentBootConfigOrder", options, results=True, uselist=True
@@ -259,10 +240,7 @@ class BootOrderCommand:
                 removallist = copy.deepcopy(currentlist)
 
                 if len(bootlist) > len(currentlist):
-                    raise InvalidCommandLineError(
-                        "Number of entries is "
-                        "greater than the current boot order length."
-                    )
+                    raise InvalidCommandLineError("Number of entries is greater than the current boot order length.")
                 else:
                     newlist = "["
 
@@ -309,17 +287,10 @@ class BootOrderCommand:
                     currlist = [n.strip() for n in templist]
                 remlist = copy.deepcopy(currlist)
                 if len(args) > len(currlist):
-                    raise InvalidCommandLineError(
-                        "Number of entries is "
-                        "greater than the current boot order length."
-                    )
+                    raise InvalidCommandLineError("Number of entries is " "greater than the current boot order length.")
                 newlist = []
                 for arg in args:
-                    argmatch = [
-                        val
-                        for val in remlist
-                        if fnmatch.fnmatch(val.lower(), arg.lower())
-                    ]
+                    argmatch = [val for val in remlist if fnmatch.fnmatch(val.lower(), arg.lower())]
                     if not argmatch and not options.ime:
                         raise InvalidCommandLineError(
                             "Invalid entry passed: "
@@ -342,12 +313,12 @@ class BootOrderCommand:
                     strlist += " --commit"
                 self.auxcommands["set"].run("PersistentBootConfigOrder=" + strlist)
         else:
-            if not options.onetimeboot is None:
+            if options.onetimeboot is not None:
                 entry = options.onetimeboot
 
                 if not bootstatus["Boot"]["BootSourceOverrideEnabled"] == "Once":
                     bootoverride = " Boot/BootSourceOverrideEnabled=Once"
-            elif not options.continuousboot is None:
+            elif options.continuousboot is not None:
                 entry = options.continuousboot
 
                 if not bootstatus["Boot"]["BootSourceOverrideEnabled"] == "Continuous":
@@ -355,34 +326,22 @@ class BootOrderCommand:
             else:
                 entry = "JacksBootOption"
                 if not bootstatus["Boot"]["BootSourceOverrideEnabled"] == "Disabled":
-                    if (
-                        currentsettings.dict["Boot"]["BootSourceOverrideEnabled"]
-                        == "Disabled"
-                    ):
-                        bootoverride = (
-                            "Boot/BootSourceOverrideTarget=None"
-                            " Boot/BootSourceOverrideEnabled=Disabled"
-                        )
+                    if currentsettings.dict["Boot"]["BootSourceOverrideEnabled"] == "Disabled":
+                        bootoverride = "Boot/BootSourceOverrideTarget=None" " Boot/BootSourceOverrideEnabled=Disabled"
                     else:
                         bootoverride = "Boot/BootSourceOverrideTarget=None"
 
             newlist = ""
 
             if entry.lower() in (
-                item.lower()
-                for item in onetimebootsettings["Boot"][
-                    self.rdmc.app.typepath.defs.bootoverridetargettype
-                ]
+                item.lower() for item in onetimebootsettings["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype]
             ):
-
                 if entry and isinstance(entry, six.string_types):
                     entry = entry.upper()
 
                 entry = self.searchcasestring(
                     entry,
-                    onetimebootsettings["Boot"][
-                        self.rdmc.app.typepath.defs.bootoverridetargettype
-                    ],
+                    onetimebootsettings["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype],
                 )
 
                 if not entry == targetstatus["Boot"]["BootSourceOverrideTarget"]:
@@ -402,39 +361,25 @@ class BootOrderCommand:
                 if newlist:
                     self.auxcommands["set"].run(newlist)
                 else:
-                    raise InvalidOrNothingChangedSettingsError(
-                        "Entry is the current boot setting."
-                    )
+                    raise InvalidOrNothingChangedSettingsError("Entry is the current boot setting.")
             elif (
                 uefionetimebootsettings
-                and uefionetimebootsettings["Boot"][
-                    "UefiTargetBootSourceOverrideSupported"
-                ]
-                and entry
-                in (
-                    item
-                    for item in uefionetimebootsettings["Boot"][
-                        "UefiTargetBootSourceOverrideSupported"
-                    ]
-                )
+                and uefionetimebootsettings["Boot"]["UefiTargetBootSourceOverrideSupported"]
+                and entry in (item for item in uefionetimebootsettings["Boot"]["UefiTargetBootSourceOverrideSupported"])
             ):
                 if entry and isinstance(entry, six.string_types):
                     entry = entry.upper()
 
                 entry = self.searchcasestring(
                     entry,
-                    uefionetimebootsettings["Boot"][
-                        "UefiTargetBootSourceOverrideSupported"
-                    ],
+                    uefionetimebootsettings["Boot"]["UefiTargetBootSourceOverrideSupported"],
                 )
                 try:
                     # gen10
                     allowable_vals = next(
                         iter(
                             self.auxcommands["get"].getworkerfunction(
-                                [
-                                    "Boot/UefiTargetBootSourceOverride@Redfish.AllowableValues"
-                                ],
+                                ["Boot/UefiTargetBootSourceOverride@Redfish.AllowableValues"],
                                 options,
                                 results=True,
                                 uselist=True,
@@ -445,9 +390,7 @@ class BootOrderCommand:
                     for source in bootsources:
                         if source["StructuredBootString"].upper() == entry.upper():
                             for val in allowable_vals:
-                                if "UEFIDevicePath" in source and source[
-                                    "UEFIDevicePath"
-                                ].endswith(val):
+                                if "UEFIDevicePath" in source and source["UEFIDevicePath"].endswith(val):
                                     entry = val
                                     break
                 except KeyError:
@@ -460,10 +403,7 @@ class BootOrderCommand:
 
                 if bootoverride:
                     if self.rdmc.app.typepath.defs.isgen9 and newlist:
-                        if (
-                            not bootoverride.split("=")[-1]
-                            == bootstatus["Boot"]["BootSourceOverrideEnabled"]
-                        ):
+                        if not bootoverride.split("=")[-1] == bootstatus["Boot"]["BootSourceOverrideEnabled"]:
                             # Preemptively set UefiTargetBootSourceOverride so iLO 4 doesn't complain
                             self.rdmc.app.patch_handler(
                                 self.rdmc.app.typepath.defs.systempath,
@@ -471,9 +411,7 @@ class BootOrderCommand:
                                 silent=True,
                                 service=True,
                             )
-                            self.rdmc.app.select(
-                                selector=self.rdmc.app.selector, path_refresh=True
-                            )
+                            self.rdmc.app.select(selector=self.rdmc.app.selector, path_refresh=True)
                             newlist = ""
                             newlist += bootoverride
                     else:
@@ -493,11 +431,8 @@ class BootOrderCommand:
                         else:
                             raise
                 else:
-                    raise InvalidOrNothingChangedSettingsError(
-                        "Entry is the " "current boot setting.\n"
-                    )
+                    raise InvalidOrNothingChangedSettingsError("Entry is the " "current boot setting.\n")
             elif options.disablebootflag:
-
                 if bootoverride:
                     newlist += bootoverride
 
@@ -509,9 +444,7 @@ class BootOrderCommand:
                 if newlist:
                     self.auxcommands["set"].run(newlist)
                 else:
-                    raise InvalidOrNothingChangedSettingsError(
-                        "Entry is the " "current boot setting.\n"
-                    )
+                    raise InvalidOrNothingChangedSettingsError("Entry is the " "current boot setting.\n")
             else:
                 raise InvalidCommandLineError(
                     "Invalid entry passed for one"
@@ -545,10 +478,7 @@ class BootOrderCommand:
         actionlist = ["defaultkeys", "deletekeys", "deletepk"]
 
         if not securebootoption.lower() in actionlist:
-            raise InvalidCommandLineError(
-                "%s is not a valid option for "
-                "the securebootkeys flag." % securebootoption
-            )
+            raise InvalidCommandLineError("%s is not a valid option for " "the securebootkeys flag." % securebootoption)
 
         if securebootoption == actionlist[0]:
             action = "ResetAllKeysToDefault"
@@ -578,14 +508,10 @@ class BootOrderCommand:
             self.rdmc.app.post_handler(path, body)
         except:
             if securebootoption == actionlist[0]:
-                self.auxcommands["select"].selectfunction(
-                    self.rdmc.app.typepath.defs.hpsecureboot
-                )
+                self.auxcommands["select"].selectfunction(self.rdmc.app.typepath.defs.hpsecureboot)
                 self.auxcommands["set"].run("ResetToDefaultKeys=True --commit")
             elif securebootoption == actionlist[1]:
-                self.auxcommands["select"].selectfunction(
-                    self.rdmc.app.typepath.defs.hpsecureboot
-                )
+                self.auxcommands["select"].selectfunction(self.rdmc.app.typepath.defs.hpsecureboot)
                 self.auxcommands["set"].run("ResetAllKeys=True --commit")
             else:
                 self.rdmc.ui.warn("DeletePK option is not available on Gen9.\n")
@@ -614,13 +540,9 @@ class BootOrderCommand:
         :type bootsources: list.
         """
         if content is None:
-            raise BootOrderMissingEntriesError(
-                "No entries found in " "current boot order.\n\n"
-            )
+            raise BootOrderMissingEntriesError("No entries found in " "current boot order.\n\n")
         else:
-            self.print_boot_helper(
-                content, "\nCurrent Persistent Boot " "Order:", bootsources=bootsources
-            )
+            self.print_boot_helper(content, "\nCurrent Persistent Boot " "Order:", bootsources=bootsources)
 
         bootstatusval = bootstatus["Boot"]["BootSourceOverrideEnabled"]
         boottoval = targetstatus["Boot"]["BootSourceOverrideTarget"]
@@ -630,20 +552,15 @@ class BootOrderCommand:
             self.rdmc.ui.printer("Current one time boot: {0}\n\n".format(boottoval))
 
         if onetimecontent is None:
-            raise BootOrderMissingEntriesError(
-                "No entries found for one time boot options.\n\n"
-            )
+            raise BootOrderMissingEntriesError("No entries found for one time boot options.\n\n")
         else:
-            self.print_boot_helper(
-                onetimecontent["Boot"], "Continuous and one time boot options:"
-            )
+            self.print_boot_helper(onetimecontent["Boot"], "Continuous and one time boot options:")
 
         if bootmode and any([bootmode.get(boot, None) == "Uefi" for boot in bootmode]):
             if uefionetimecontent is None:
                 self.rdmc.ui.printer("Continuous and one time boot uefi options:\n")
                 self.rdmc.ui.printer(
-                    "No entries found for one-time UEFI options or boot source mode "
-                    "is not set to UEFI."
+                    "No entries found for one-time UEFI options or boot source mode " "is not set to UEFI."
                 )
             else:
                 self.print_boot_helper(
@@ -694,13 +611,9 @@ class BootOrderCommand:
                                 break
 
                         if not bootstring:
-                            self.rdmc.ui.printer(
-                                "\t" * indent + str(count) + ". " + str(item)
-                            )
+                            self.rdmc.ui.printer("\t" * indent + str(count) + ". " + str(item))
                     except:
-                        self.rdmc.ui.printer(
-                            "\t" * indent + str(count) + ". " + str(item)
-                        )
+                        self.rdmc.ui.printer("\t" * indent + str(count) + ". " + str(item))
 
                     count += 1
                     # else:
@@ -737,31 +650,9 @@ class BootOrderCommand:
         :type parser: ArgumentParser/OptionParser
         """
 
-        group = parser.add_argument_group()
-
-        parser.add_argument(
-            "-j",
-            "--json",
-            dest="json",
-            action="store_true",
-            help="Optionally include this flag if you wish to change the"
-            " displayed output to JSON format. Preserving the JSON data"
-            " structure makes the information easier to parse.",
-            default=False,
-        )
-
-    @staticmethod
-    def options_argument_group(parser):
-        """Additional argument
-
-        :param parser: The parser to add the removeprivs option group to
-        :type parser: ArgumentParser/OptionParser
-        """
-
-        group = parser.add_argument_group(
+        parser.add_argument_group(
             "GLOBAL OPTION:",
-            "Option(s) are available "
-            "for all arguments within the scope of this command.",
+            "Option(s) are available " "for all arguments within the scope of this command.",
         )
 
         parser.add_argument(

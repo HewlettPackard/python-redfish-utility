@@ -20,12 +20,12 @@ from __future__ import absolute_import
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        LOGGER,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        NoContentsFoundForOperationError,
         NoChangesFoundOrMadeError,
-        LOGGER,
+        NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -36,6 +36,7 @@ except ImportError:
         NoChangesFoundOrMadeError,
         LOGGER,
     )
+
 from .lib.RestHelpers import RestHelpers
 
 
@@ -46,8 +47,7 @@ class ClearPendingConfigCommand:
         self.ident = {
             "name": "clearpmmpendingconfig",
             "usage": None,
-            "description": "Clear pmm pending config tasks\n"
-            "\texample: clearpmmpendingconfig",
+            "description": "Clear pmm pending config tasks\n" "\texample: clearpmmpendingconfig",
             "summary": "Clear pending config tasks",
             "aliases": [],
             "auxcommands": [],
@@ -65,9 +65,7 @@ class ClearPendingConfigCommand:
         tasks = RestHelpers(rdmcObject=self.rdmc).retrieve_task_members()
         if tasks:
             # Filtering out Memory Chunk Tasks
-            memory_chunk_tasks = RestHelpers(rdmcObject=self.rdmc).filter_task_members(
-                tasks
-            )
+            memory_chunk_tasks = RestHelpers(rdmcObject=self.rdmc).filter_task_members(tasks)
             if memory_chunk_tasks:
                 return memory_chunk_tasks
         self.rdmc.ui.printer("No pending configuration tasks found.\n\n")
@@ -91,9 +89,7 @@ class ClearPendingConfigCommand:
                 if verbose:
                     self.rdmc.ui.printer("Deleted Task #{}".format(task_id) + "\n")
             else:
-                raise NoChangesFoundOrMadeError(
-                    "Error occured while deleting " "task #{}".format(task_id)
-                )
+                raise NoChangesFoundOrMadeError("Error occured while deleting " "task #{}".format(task_id))
         return None
 
     def run(self, line, help_disp=False):
@@ -115,9 +111,7 @@ class ClearPendingConfigCommand:
             else:
                 raise InvalidCommandLineError("Failed to parse options")
         if args:
-            raise InvalidCommandLineError(
-                "Chosen flag doesn't expect additional arguments"
-            )
+            raise InvalidCommandLineError("Chosen flag doesn't expect additional arguments")
         # Raise exception if server is in POST
         if RestHelpers(rdmcObject=self.rdmc).in_post():
             raise NoContentsFoundForOperationError(

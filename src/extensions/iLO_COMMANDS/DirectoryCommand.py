@@ -17,39 +17,29 @@
 # -*- coding: utf-8 -*-
 """ Directory Command for rdmc """
 
-import sys
 import re
-import getpass
+import sys
+from argparse import Action, RawDescriptionHelpFormatter
 
-from argparse import (
-    ArgumentParser,
-    SUPPRESS,
-    REMAINDER,
-    Action,
-    RawDescriptionHelpFormatter,
-)
-
-from redfish.ris.rmc_helper import IloResponseError, IdTokenError
+from redfish.ris.rmc_helper import IdTokenError, IloResponseError
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
         IncompatibleiLOVersionError,
+        InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
         ResourceExists,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
         IncompatibleiLOVersionError,
+        InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
         ResourceExists,
-        Encryption,
+        ReturnCodes,
     )
 
 __subparsers__ = ["ldap", "kerberos", "test"]
@@ -101,9 +91,7 @@ class _DirectoryParse(Action):
                             try:
                                 if priv and int(priv) > 12:
                                     try:
-                                        parser.error(
-                                            "Invalid privilege number added %s." % priv
-                                        )
+                                        parser.error("Invalid privilege number added %s." % priv)
                                     except SystemExit:
                                         raise InvalidCommandLineErrorOPTS("")
                             except ValueError:
@@ -114,20 +102,18 @@ class _DirectoryParse(Action):
                     namespace.roles["add"].append(role)
                 else:
                     try:
-                        parser.error(
-                            "Supply roles to add in form <local role>:<remote group>"
-                        )
+                        parser.error("Supply roles to add in form <local role>:<remote group>")
                     except SystemExit:
                         raise InvalidCommandLineErrorOPTS("")
         elif option_strings == "--addsearch":
             setattr(namespace, self.dest, {"add": []})
-            for search in next(iter(values)).split(","):
+            for search in next(iter(values)).split(";"):
                 if search:
                     namespace.search["add"].append(search)
 
         elif option_strings == "--removesearch":
             setattr(namespace, self.dest, {"remove": []})
-            for search in next(iter(values)).split(","):
+            for search in next(iter(values)).split(";"):
                 if search:
                     namespace.search["remove"].append(search)
 
@@ -185,19 +171,13 @@ class DirectoryCommand:
         self.directoryvalidation(options)
 
         if self.rdmc.app.getiloversion() < 5.140:
-            raise IncompatibleiLOVersionError(
-                "Directory settings are only available on " "iLO 5 1.40 or greater."
-            )
+            raise IncompatibleiLOVersionError("Directory settings are only available on " "iLO 5 1.40 or greater.")
         results = None
         if options.command.lower() == "ldap" or (
-            (True if options.ldap_kerberos == "ldap" else False)
-            if hasattr(options, "ldap_kerberos")
-            else False
+            (True if options.ldap_kerberos == "ldap" else False) if hasattr(options, "ldap_kerberos") else False
         ):
             try:
-                results = self.rdmc.app.select(
-                    selector="AccountService.", path_refresh=True
-                )[0].dict
+                results = self.rdmc.app.select(selector="AccountService.", path_refresh=True)[0].dict
                 path = results[self.rdmc.app.typepath.defs.hrefstring]
                 oem = results["Oem"][self.rdmc.app.typepath.defs.oemhp]
                 local_auth = results["LocalAccountAuth"]
@@ -210,14 +190,10 @@ class DirectoryCommand:
                 raise NoContentsFoundForOperationError("Unable to gather LDAP settings.")
 
         elif options.command.lower() == "kerberos" or (
-            (True if options.ldap_kerberos == "kerberos" else False)
-            if hasattr(options, "ldap_kerberos")
-            else False
+            (True if options.ldap_kerberos == "kerberos" else False) if hasattr(options, "ldap_kerberos") else False
         ):
             try:
-                results = self.rdmc.app.select(
-                    selector="AccountService.", path_refresh=True
-                )[0].dict
+                results = self.rdmc.app.select(selector="AccountService.", path_refresh=True)[0].dict
                 path = results[self.rdmc.app.typepath.defs.hrefstring]
                 oem = results["Oem"][self.rdmc.app.typepath.defs.oemhp]
                 local_auth = results["LocalAccountAuth"]
@@ -227,9 +203,7 @@ class DirectoryCommand:
                     results.update(rolemap)
                 name = "ActiveDirectory"
             except (KeyError, IndexError):
-                raise NoContentsFoundForOperationError(
-                    "Unable to gather Kerberos settings."
-                )
+                raise NoContentsFoundForOperationError("Unable to gather Kerberos settings.")
 
         if results:
             keytab = None
@@ -247,15 +221,7 @@ class DirectoryCommand:
             if hasattr(options, "authmode"):
                 if options.authmode:
                     payload.update(
-                        {
-                            "Oem": {
-                                "Hpe": {
-                                    "DirectorySettings": {
-                                        "LdapAuthenticationMode": options.authmode
-                                    }
-                                }
-                            }
-                        }
+                        {"Oem": {"Hpe": {"DirectorySettings": {"LdapAuthenticationMode": options.authmode}}}}
                     )
 
             if not payload and not keytab:
@@ -272,13 +238,9 @@ class DirectoryCommand:
                 try:
                     if hasattr(options, "localauth"):
                         if options.localauth:
-                            payload["LocalAccountAuth"] = (
-                                "Enabled" if options.localauth else "Disabled"
-                            )
+                            payload["LocalAccountAuth"] = "Enabled" if options.localauth else "Disabled"
                     elif local_auth:
-                        payload["LocalAccountAuth"] = (
-                            "Enabled" if local_auth else "Disabled"
-                        )
+                        payload["LocalAccountAuth"] = "Enabled" if local_auth else "Disabled"
                 except (NameError, AttributeError):
                     payload["LocalAccountAuth"] = "Disabled"
                 try:
@@ -294,12 +256,8 @@ class DirectoryCommand:
                                 privs = [int(priv) for priv in privs if priv]
 
                                 if 10 in privs:
-                                    user_privs = self.auxcommands[
-                                        "iloaccounts"
-                                    ].getsesprivs()
-                                    if "SystemRecoveryConfigPriv" not in list(
-                                        user_privs.keys()
-                                    ):
+                                    user_privs = self.auxcommands["iloaccounts"].getsesprivs()
+                                    if "SystemRecoveryConfigPriv" not in list(user_privs.keys()):
                                         raise IdTokenError(
                                             "The currently logged in account "
                                             "must have the System Recovery Config privilege to "
@@ -344,16 +302,11 @@ class DirectoryCommand:
         """
         self.rdmc.ui.printer("Updating privileges of created role maps...\n")
         try:
-            results = self.rdmc.app.select(selector="AccountService.", path_refresh=True)[
-                0
-            ].dict
-            roles = self.rdmc.app.getcollectionmembers(
-                self.rdmc.app.getidbytype("RoleCollection.")[0]
-            )
+            results = self.rdmc.app.select(selector="AccountService.", path_refresh=True)[0].dict
+            roles = self.rdmc.app.getcollectionmembers(self.rdmc.app.getidbytype("RoleCollection.")[0])
         except (KeyError, IndexError):
             raise NoContentsFoundForOperationError(
-                "Unable to gather Role settings. Roles may not "
-                "be updated to match privileges requested."
+                "Unable to gather Role settings. Roles may not " "be updated to match privileges requested."
             )
         for rolemap in results["LDAP"]["RemoteRoleMapping"]:
             for role in roles:
@@ -371,9 +324,7 @@ class DirectoryCommand:
                         self.rdmc.app.patch_handler(role["@odata.id"], privs)
                         self.rdmc.ui.printer("Updated privileges for %s\n" % update_role)
                     except IloResponseError as excp:
-                        self.rdmc.ui.error(
-                            "Unable to update privileges for %s\n" % update_role, excp
-                        )
+                        self.rdmc.ui.error("Unable to update privileges for %s\n" % update_role, excp)
                     break
 
     def directory_helper(self, settings, options):
@@ -405,11 +356,11 @@ class DirectoryCommand:
                 if options.realm == '""' or options.realm == "''":
                     options.realm = ""
                 serviceaddress = serviceaddress + "@" + options.realm
-        if not serviceaddress is None:
+        if serviceaddress is not None:
             payload["ServiceAddresses"] = [serviceaddress]
 
         if hasattr(options, "enable"):
-            if not options.enable is None:
+            if options.enable is not None:
                 payload["ServiceEnabled"] = options.enable
 
         if hasattr(options, "ldap_username") and hasattr(options, "ldap_password"):
@@ -425,9 +376,7 @@ class DirectoryCommand:
 
         if hasattr(options, "roles"):
             if options.roles:
-                payload["RemoteRoleMapping"] = self.role_helper(
-                    options.roles, settings["RemoteRoleMapping"]
-                )
+                payload["RemoteRoleMapping"] = self.role_helper(options.roles, settings["RemoteRoleMapping"])
 
         if hasattr(options, "search"):
             if options.search:
@@ -452,9 +401,7 @@ class DirectoryCommand:
         :param json: Bool to print in json format or not.
         :type json: bool.
         """
-        results = self.rdmc.app.select(selector="HpeDirectoryTest.", path_refresh=True)[
-            0
-        ].dict
+        results = self.rdmc.app.select(selector="HpeDirectoryTest.", path_refresh=True)[0].dict
         if options.start_stop_view.lower() == "start":
             path = None
             for item in results["Actions"]:
@@ -464,8 +411,7 @@ class DirectoryCommand:
             if not path:
                 raise NoContentsFoundForOperationError("Unable to start directory test.")
             self.rdmc.ui.printer(
-                "Starting the directory test. Monitor results with "
-                'command: "directory test viewresults".\n'
+                "Starting the directory test. Monitor results with " 'command: "directory test viewresults".\n'
             )
             self.rdmc.app.post_handler(path, {})
         elif options.start_stop_view.lower() == "stop":
@@ -506,11 +452,7 @@ class DirectoryCommand:
         if name.lower() == "activedirectory":
             address_settings = oem_settings["KerberosSettings"]
             port = address_settings["KDCServerPort"]
-            realm = (
-                address_settings["KerberosRealm"]
-                if address_settings["KerberosRealm"]
-                else "Not Set"
-            )
+            realm = address_settings["KerberosRealm"] if address_settings["KerberosRealm"] else "Not Set"
             content.update({"Port": port, "Realm": realm})
 
         else:
@@ -521,9 +463,7 @@ class DirectoryCommand:
             addsearch = []
             try:
                 count = 1
-                for search in settings["LDAPService"]["SearchSettings"][
-                    "BaseDistinguishedNames"
-                ]:
+                for search in settings["LDAPService"]["SearchSettings"]["BaseDistinguishedNames"]:
                     # search = (count, search)
                     search = "Search %s: %s" % (count, search)
                     addsearch.append(search)
@@ -562,21 +502,15 @@ class DirectoryCommand:
         :type name: str.
         """
 
-        self.rdmc.ui.printer(
-            "%s settings:\n" % ("Kerberos" if name == "ActiveDirectory" else name)
-        )
+        self.rdmc.ui.printer("%s settings:\n" % ("Kerberos" if name == "ActiveDirectory" else name))
         self.rdmc.ui.printer("--------------------------------\n")
         self.rdmc.ui.printer("Enabled: %s\n" % str(settings["ServiceEnabled"]))
 
         serviceaddress = settings["ServiceAddresses"][0]
 
-        self.rdmc.ui.printer(
-            "Service Address: %s\n" % (serviceaddress if serviceaddress else "Not Set")
-        )
+        self.rdmc.ui.printer("Service Address: %s\n" % (serviceaddress if serviceaddress else "Not Set"))
         username = settings["Authentication"]["Username"]
-        self.rdmc.ui.printer(
-            "Distinguished Name: %s\n" % (username if username else "Not Set")
-        )
+        self.rdmc.ui.printer("Distinguished Name: %s\n" % (username if username else "Not Set"))
 
         self.rdmc.ui.printer("Local Account Authorization: %s\n" % local_auth_setting)
 
@@ -585,26 +519,17 @@ class DirectoryCommand:
             self.rdmc.ui.printer("Port: %s\n" % address_settings["KDCServerPort"])
 
             self.rdmc.ui.printer(
-                "Realm: %s\n"
-                % (
-                    address_settings["KerberosRealm"]
-                    if address_settings["KerberosRealm"]
-                    else "Not Set"
-                )
+                "Realm: %s\n" % (address_settings["KerberosRealm"] if address_settings["KerberosRealm"] else "Not Set")
             )
         else:
             address_settings = oem_settings["DirectorySettings"]
             self.rdmc.ui.printer("Port: %s\n" % address_settings["LdapServerPort"])
-            self.rdmc.ui.printer(
-                "Authentication Mode: %s\n" % address_settings["LdapAuthenticationMode"]
-            )
+            self.rdmc.ui.printer("Authentication Mode: %s\n" % address_settings["LdapAuthenticationMode"])
 
             try:
                 self.rdmc.ui.printer("Search Settings:\n")
                 count = 1
-                for search in settings["LDAPService"]["SearchSettings"][
-                    "BaseDistinguishedNames"
-                ]:
+                for search in settings["LDAPService"]["SearchSettings"]["BaseDistinguishedNames"]:
                     self.rdmc.ui.printer("\tSearch %s: %s\n" % (count, search))
                     count += 1
             except KeyError:
@@ -641,9 +566,7 @@ class DirectoryCommand:
                         curr_roles = final_roles
 
                 else:
-                    raise ResourceExists(
-                        'Group DN "%s" already exists.' % role[1].split(":")[0]
-                    )
+                    raise ResourceExists('Group DN "%s" already exists.' % role[1].split(":")[0])
         if "remove" in new_roles:
             removed = False
             for role in new_roles["remove"]:
@@ -660,9 +583,7 @@ class DirectoryCommand:
                             removed = True
                             break
                 if not removed:
-                    raise InvalidCommandLineError(
-                        "Unable to find local role %s to delete" % role
-                    )
+                    raise InvalidCommandLineError("Unable to find local role %s to delete" % role)
         return final_roles
 
     def duplicate_group(self, group_dn, curr_roles):
@@ -696,9 +617,7 @@ class DirectoryCommand:
                     for key, value in final_searches.items():
                         for v in value:
                             if search.lower() == v.lower():
-                                raise ResourceExists(
-                                    'Search Setting "%s" already exists.\n' % search
-                                )
+                                raise ResourceExists('Search Setting "%s" already exists.\n' % search)
 
                     final_searches["BaseDistinguishedNames"].append(search)
             else:
@@ -713,9 +632,7 @@ class DirectoryCommand:
                 if search in curr_searches["BaseDistinguishedNames"]:
                     to_remove.append(search)
                 else:
-                    raise InvalidCommandLineError(
-                        "Unable to find search %s to delete" % search
-                    )
+                    raise InvalidCommandLineError("Unable to find search %s to delete" % search)
             for item in to_remove:
                 final_searches["BaseDistinguishedNames"].remove(item)
 
@@ -787,21 +704,18 @@ class DirectoryCommand:
         ldap_parser = subcommand_parser.add_parser(
             __subparsers__[0],
             help=ldap_help,
-            description=ldap_help
-            + "\n\n\tSimply show LDAP configuration:\n\t\tdirectory ldap\n\n"
+            description=ldap_help + "\n\n\tSimply show LDAP configuration:\n\t\tdirectory ldap\n\n"
             "To modify the LDAP username, password, service address, search strings or "
             "enable/disable LDAP.\n\t\tdirectory ldap <username> <password> "
             "--serviceaddress x.x.y.z --addsearch string1, string2 --enable.\n\n\tTo add role "
             'mapping.\n\t\tdirectory ldap <username> <password> --addrolemap "LocalRole1:"'
             '"RemoteGroup3,LocalRole2:RemoteGroup4:SID.\n\n\tTo remove role mapping.\n\t\t'
-            "directory ldap <username> <password> --removerolemap LocalRole1, LocalRole2."
-            + privilege_help,
+            "directory ldap <username> <password> --removerolemap LocalRole1, LocalRole2." + privilege_help,
             formatter_class=RawDescriptionHelpFormatter,
         )
         ldap_parser.add_argument(
             "ldap_username",
-            help="The LDAP username used in verifying AD (optional outside of '--enable' and"
-            "'--disable')",
+            help="The LDAP username used in verifying AD (optional outside of '--enable' and" "'--disable')",
             metavar="USERNAME",
             nargs="?",
             type=str,
@@ -809,8 +723,7 @@ class DirectoryCommand:
         )
         ldap_parser.add_argument(
             "ldap_password",
-            help="The LDAP password used in verifying AD (optional outside of '--enable' and"
-            "'--disable')",
+            help="The LDAP password used in verifying AD (optional outside of '--enable' and" "'--disable')",
             metavar="PASSWORD",
             nargs="?",
             type=str,
@@ -832,8 +745,7 @@ class DirectoryCommand:
             dest="search",
             nargs="*",
             action=_DirectoryParse,
-            help="Optionally add this flag to add or remove search strings for "
-            "generic LDAP services.",
+            help="Optionally add this flag to add or remove search strings for " "generic LDAP services.",
             type=str,
             default={},
         )
@@ -872,8 +784,7 @@ class DirectoryCommand:
             nargs="*",
             type=str,
             action=_DirectoryParse,
-            help="Optionally include this flag if you wish to enable or disable authentication "
-            "for local accounts.",
+            help="Optionally include this flag if you wish to enable or disable authentication " "for local accounts.",
             default=None,
         )
         ldap_parser.add_argument(
@@ -889,14 +800,11 @@ class DirectoryCommand:
 
         self.options_argument_group(ldap_parser)
 
-        kerberos_help = (
-            "Show, add or modify properties pertaining to AD Kerberos Configuration."
-        )
+        kerberos_help = "Show, add or modify properties pertaining to AD Kerberos Configuration."
         kerberos_parser = subcommand_parser.add_parser(
             __subparsers__[1],
             help=kerberos_help,
-            description=kerberos_help
-            + "\n\nExamples:\n\nShow Kerberos specific AD/LDAP configuration "
+            description=kerberos_help + "\n\nExamples:\n\nShow Kerberos specific AD/LDAP configuration "
             "settings.\n\tdirectory kerberos\n\nShow current AD Kerberos configuration."
             "\n\tdirectory kerberos\n\nAlter kerberos service address, AD realm and Port.\n\t"
             "directory kerberos --serviceaddress x.x.y.z --port 8888 --realm adrealm1",
@@ -948,8 +856,7 @@ class DirectoryCommand:
         directory_test_parser = subcommand_parser.add_parser(
             __subparsers__[2],
             help=directory_test_help,
-            description=directory_test_help
-            + "\n\nExamples:\n\nStart a directory test:\n\tdirectory test "
+            description=directory_test_help + "\n\nExamples:\n\nStart a directory test:\n\tdirectory test "
             "start\n\nStop a directory test:\n\tdirectory test stop\n\nView results of the last "
             "directory test:\n\tdirectory test viewresults",
             formatter_class=RawDescriptionHelpFormatter,

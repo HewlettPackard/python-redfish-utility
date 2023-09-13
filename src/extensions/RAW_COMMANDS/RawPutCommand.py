@@ -17,31 +17,26 @@
 # -*- coding: utf-8 -*-
 """ RawPut Command for rdmc """
 
+import json
 import re
 import sys
-import json
-
 from collections import OrderedDict
-
-from argparse import ArgumentParser
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        InvalidFileInputError,
         InvalidFileFormattingError,
-        Encryption,
+        InvalidFileInputError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        InvalidFileInputError,
         InvalidFileFormattingError,
-        Encryption,
+        InvalidFileInputError,
+        ReturnCodes,
     )
 
 
@@ -87,12 +82,11 @@ class RawPutCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        url = None
         headers = {}
         results = []
 
         if hasattr(options, "sessionid") and options.sessionid:
-            url = self.sessionvalidation(options)
+            self.sessionvalidation(options)
         else:
             self.putvalidation(options)
 
@@ -103,13 +97,10 @@ class RawPutCommand:
                 contentsholder = json.loads(_if.read(), object_pairs_hook=OrderedDict)
         except IOError:
             raise InvalidFileInputError(
-                "File '%s' doesn't exist. "
-                "Please create file by running 'save' command." % options.path
+                "File '%s' doesn't exist. " "Please create file by running 'save' command." % options.path
             )
-        except (ValueError):
-            raise InvalidFileFormattingError(
-                "Input file '%s' was not " "formatted properly." % options.path
-            )
+        except ValueError:
+            raise InvalidFileFormattingError("Input file '%s' was not " "formatted properly." % options.path)
 
         if options.headers:
             extraheaders = options.headers.split(",")
@@ -146,9 +137,7 @@ class RawPutCommand:
                     )
                 )
         else:
-            raise InvalidFileFormattingError(
-                "Input file '%s' was not " "formatted properly." % options.path
-            )
+            raise InvalidFileFormattingError("Input file '%s' was not " "formatted properly." % options.path)
 
         returnresponse = False
 
@@ -193,7 +182,7 @@ class RawPutCommand:
         else:
             if getattr(self.rdmc.app.redfishinst, "base_url", False):
                 url = self.rdmc.app.redfishinst.base_url
-        if url and not "https://" in url:
+        if url and "https://" not in url:
             url = "https://" + url
 
         return url

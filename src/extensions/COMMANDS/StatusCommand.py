@@ -17,22 +17,14 @@
 # -*- coding: utf-8 -*-
 """ Status Command for RDMC """
 
+from functools import reduce
+
 from redfish.ris.utils import merge_dict
 
 try:
-    from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
-        Encryption,
-        NoCurrentSessionEstablished,
-    )
+    from rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 except ImportError:
-    from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
-        Encryption,
-        NoCurrentSessionEstablished,
-    )
+    from ilorest.rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 
 
 class StatusCommand:
@@ -45,8 +37,7 @@ class StatusCommand:
             "description": "Run to display all pending changes within"
             " the currently\n\tselected type that need to be"
             " committed\n\texample: status",
-            "summary": "Displays all pending changes within a selected type"
-            " that need to be committed.",
+            "summary": "Displays all pending changes within a selected type" " that need to be committed.",
             "aliases": [],
             "auxcommands": ["SelectCommand"],
         }
@@ -142,17 +133,9 @@ class StatusCommand:
                             continue
                     try:
                         if isinstance(content[0]["value"], int):
-                            self.rdmc.ui.printer(
-                                "\t%s=%s" % (content[0]["path"][1:], content[0]["value"])
-                            )
-                        elif (
-                            not isinstance(content[0]["value"], bool)
-                            and not len(content[0]["value"]) == 0
-                        ):
-                            if (
-                                content[0]["value"][0] == '"'
-                                and content[0]["value"][-1] == '"'
-                            ):
+                            self.rdmc.ui.printer("\t%s=%s" % (content[0]["path"][1:], content[0]["value"]))
+                        elif not isinstance(content[0]["value"], bool) and not len(content[0]["value"]) == 0:
+                            if content[0]["value"][0] == '"' and content[0]["value"][-1] == '"':
                                 self.rdmc.ui.printer(
                                     "\t%s=%s"
                                     % (
@@ -161,10 +144,7 @@ class StatusCommand:
                                     )
                                 )
                             else:
-                                self.rdmc.ui.printer(
-                                    "\t%s=%s"
-                                    % (content[0]["path"][1:], content[0]["value"])
-                                )
+                                self.rdmc.ui.printer("\t%s=%s" % (content[0]["path"][1:], content[0]["value"]))
                         else:
                             output = content[0]["value"]
 
@@ -172,27 +152,19 @@ class StatusCommand:
                                 if len(output) == 0:
                                     output = '""'
 
-                            self.rdmc.ui.printer(
-                                "\t%s=%s" % (content[0]["path"][1:], output)
-                            )
+                            self.rdmc.ui.printer("\t%s=%s" % (content[0]["path"][1:], output))
                     except:
                         if isinstance(content["value"], int):
-                            self.rdmc.ui.printer(
-                                "\t%s=%s" % (content["path"][1:], content["value"])
-                            )
+                            self.rdmc.ui.printer("\t%s=%s" % (content["path"][1:], content["value"]))
                         elif (
                             content["value"]
                             and not isinstance(content["value"], bool)
                             and not len(content["value"]) == 0
                         ):
                             if content["value"][0] == '"' and content["value"][-1] == '"':
-                                self.rdmc.ui.printer(
-                                    "\t%s=%s" % (content["path"][1:], content["value"])
-                                )
+                                self.rdmc.ui.printer("\t%s=%s" % (content["path"][1:], content["value"]))
                             else:
-                                self.rdmc.ui.printer(
-                                    "\t%s=%s" % (content["path"][1:], content["value"])
-                                )
+                                self.rdmc.ui.printer("\t%s=%s" % (content["path"][1:], content["value"]))
                         else:
                             output = content["value"]
 
@@ -200,9 +172,7 @@ class StatusCommand:
                                 if len(output) == 0:
                                     output = '""'
 
-                            self.rdmc.ui.printer(
-                                "\t%s=%s" % (content["path"][1:], output)
-                            )
+                            self.rdmc.ui.printer("\t%s=%s" % (content["path"][1:], output))
                     self.rdmc.ui.printer("\n")
             if moveoperation:
                 self.rdmc.ui.printer("\t%s=List Manipulation\n" % moveoperation)

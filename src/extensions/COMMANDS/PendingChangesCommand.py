@@ -21,25 +21,23 @@ import copy
 import json
 import sys
 
-from argparse import ArgumentParser, SUPPRESS
-
 import jsondiff
 
 try:
-    from rdmc_base_classes import HARDCODEDLIST
-except ImportError:
-    from ilorest.rdmc_base_classes import HARDCODEDLIST
+    from rdmc_helper import HARDCODEDLIST
+except:
+    from ilorest.rdmc_helper import HARDCODEDLIST
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 
 
@@ -94,17 +92,13 @@ class PendingChangesCommand:
         ignoreuri = [str("hpsut*")]
         ignorekeys.extend(HARDCODEDLIST)
 
-        resourcedir = self.rdmc.app.get_handler(
-            self.rdmc.app.monolith._resourcedir, service=True, silent=True
-        )
+        resourcedir = self.rdmc.app.get_handler(self.rdmc.app.monolith._resourcedir, service=True, silent=True)
 
         for resource in resourcedir.dict["Instances"]:
             if (resource["@odata.id"].split("/").__len__() - 1) > 4:
                 splitstr = resource["@odata.id"].split("/")[5]
             for element in ignoreuri:
-                if "/settings" in resource["@odata.id"] and not self.wildcard_str_match(
-                    element, splitstr
-                ):
+                if "/settings" in resource["@odata.id"] and not self.wildcard_str_match(element, splitstr):
                     settingsuri.append(resource["@odata.id"])
 
         self.rdmc.ui.printer("Current Pending Changes:\n")
@@ -119,9 +113,7 @@ class PendingChangesCommand:
             typestring = self.rdmc.app.monolith.typepath.defs.typestring
             currenttype = ".".join(base.dict[typestring].split("#")[-1].split(".")[:-1])
 
-            differences = json.loads(
-                jsondiff.diff(base.dict, settings.dict, syntax="symmetric", dump=True)
-            )
+            differences = json.loads(jsondiff.diff(base.dict, settings.dict, syntax="symmetric", dump=True))
 
             diffprint = self.recursdict(differences, ignorekeys)
 
@@ -146,14 +138,10 @@ class PendingChangesCommand:
             return True
         if len(first) > 1 and first[0] == "*" and not second:
             return False
-        if (len(first) > 1 and first[0] == "?") or (
-            first and second and first[0] == second[0]
-        ):
+        if (len(first) > 1 and first[0] == "?") or (first and second and first[0] == second[0]):
             return self.wildcard_str_match(first[1:], second[1:])
         if first and first[0] == "*":
-            return self.wildcard_str_match(first[1:], second) or self.wildcard_str_match(
-                first, second[1:]
-            )
+            return self.wildcard_str_match(first[1:], second) or self.wildcard_str_match(first, second[1:])
 
         return False
 
@@ -187,9 +175,7 @@ class PendingChangesCommand:
                 diffprint[item] = self.recursdict(diff[item], ignorekeys)
 
             elif isinstance(diff[item], list):
-                diffprint.update(
-                    {item: {"Current": diff[item][0], "Pending": diff[item][1]}}
-                )
+                diffprint.update({item: {"Current": diff[item][0], "Pending": diff[item][1]}})
             else:
                 continue
 

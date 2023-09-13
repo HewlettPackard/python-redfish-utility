@@ -19,7 +19,7 @@
 
 import json
 import re
-from argparse import SUPPRESS, ArgumentParser
+import time
 
 import redfish.ris
 
@@ -104,25 +104,22 @@ class IscsiConfigCommand:
         self.iscsiconfigurationvalidation(options)
 
         if self.rdmc.app.typepath.defs.isgen10:
-            iscsipath = self.gencompatpaths(
-                selector="HpeiSCSISoftwareInitiator.", rel=False
-            )
-            iscsisettingspath = iscsipath + "settings"
+            iscsipath = self.gencompatpaths(selector="HpeiSCSISoftwareInitiator.", rel=False)
+            if "/settings" not in iscsipath:
+                iscsisettingspath = iscsipath + "settings"
+            else:
+                iscsisettingspath = iscsipath
             bootpath = self.gencompatpaths(selector="HpeServerBootSettings.")
             bootpath = bootpath.replace("/settings", "")
         else:
             # TODO: update gencompats to handle the nesting of these links within the gen 9 version.
             if self.rdmc.app.typepath.defs.biospath[-1] == "/":
                 iscsipath = self.rdmc.app.typepath.defs.biospath + "iScsi/"
-                iscsisettingspath = (
-                    self.rdmc.app.typepath.defs.biospath + "iScsi/settings/"
-                )
+                iscsisettingspath = self.rdmc.app.typepath.defs.biospath + "iScsi/settings/"
                 bootpath = self.rdmc.app.typepath.defs.biospath + "Boot/"
             else:
                 iscsipath = self.rdmc.app.typepath.defs.biospath + "/iScsi"
-                iscsisettingspath = (
-                    self.rdmc.app.typepath.defs.biospath + "/iScsi/settings"
-                )
+                iscsisettingspath = self.rdmc.app.typepath.defs.biospath + "/iScsi/settings"
                 bootpath = self.rdmc.app.typepath.defs.biospath + "/Boot"
 
         if options.list:
@@ -140,8 +137,7 @@ class IscsiConfigCommand:
                 self.iscsiconfigurationvalidation(options)
             else:
                 raise InvalidCommandLineError(
-                    "Invalid number of parameters. "
-                    "Iscsi configuration takes a maximum of 1 parameter."
+                    "Invalid number of parameters. " "Iscsi configuration takes a maximum of 1 parameter."
                 )
 
         if options.reboot:
@@ -187,15 +183,12 @@ class IscsiConfigCommand:
         devicealloc = list()
         self.auxcommands["select"].selectfunction("HpeBiosMapping.")
         pcisettingsmap = self.auxcommands["get"].getworkerfunction(
-                    "BiosPciSettingsMappings", options, results=True, uselist=True
-                )
+            "BiosPciSettingsMappings", options, results=True, uselist=True
+        )
 
         for item in pcisettingsmap["BiosPciSettingsMappings"]:
             if "Associations" in item:
-                if (
-                    "EmbNicEnable" in item["Associations"]
-                    or "EmbNicConfig" in item["Associations"]
-                ):
+                if "EmbNicEnable" in item["Associations"] or "EmbNicConfig" in item["Associations"]:
                     _ = [devicealloc.append(x) for x in item["Subinstances"]]
 
                 if (
@@ -206,28 +199,18 @@ class IscsiConfigCommand:
                     _ = [devicealloc.append(x) for x in item["Subinstances"]]
 
         foundlocation = False
-        iscsibootsources = self.rawdatahandler(
-            action="GET", silent=True, jsonflag=True, path=iscsisettingspath
-        )
+        iscsibootsources = self.rawdatahandler(action="GET", silent=True, jsonflag=True, path=iscsisettingspath)
         count = 0
-        attemptinstancenumber = self.bootattemptcounter(
-            iscsibootsources[self.rdmc.app.typepath.defs.iscsisource]
-        )
+        attemptinstancenumber = self.bootattemptcounter(iscsibootsources[self.rdmc.app.typepath.defs.iscsisource])
         if self.rdmc.app.typepath.defs.isgen10:
             newpcilist = []
             self.auxcommands["select"].selectfunction("HpeServerPciDeviceCollection")
             pcideviceslist = next(
-                iter(
-                    self.auxcommands["get"].getworkerfunction(
-                        "Members", options, results=True, uselist=False
-                    )
-                ),
+                iter(self.auxcommands["get"].getworkerfunction("Members", options, results=True, uselist=False)),
                 None,
             )
             for device in pcideviceslist["Members"]:
-                newpcilist.append(
-                    self.rdmc.app.get_handler(device["@odata.id"], silent=True).dict
-                )
+                newpcilist.append(self.rdmc.app.get_handler(device["@odata.id"], silent=True).dict)
             pcideviceslist = newpcilist
         else:
             self.auxcommands["select"].selectfunction(["Collection."])
@@ -244,25 +227,17 @@ class IscsiConfigCommand:
                 None,
             )["Items"]
 
-        disabledlist = self.pcidevicehelper(
-            devicealloc, iscsipath, bootpath, pcideviceslist
-        )
+        self.pcidevicehelper(devicealloc, iscsipath, bootpath, pcideviceslist)
 
         devicealloc_final = self.make_final_list(devicealloc, pcideviceslist)
 
         for item in iscsibootsources[self.rdmc.app.typepath.defs.iscsisource]:
             try:
                 if not item[self.rdmc.app.typepath.defs.iscsiattemptinstance]:
-                    nicsourcedata = devicealloc_final[int(options.add) - 1][
-                        "Associations"
-                    ]
+                    nicsourcedata = devicealloc_final[int(options.add) - 1]["Associations"]
 
-                    iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count][
-                        "iSCSINicSource"
-                    ] = (
-                        nicsourcedata[1]
-                        if isinstance(nicsourcedata[0], dict)
-                        else nicsourcedata[0]
+                    iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count]["iSCSINicSource"] = (
+                        nicsourcedata[1] if isinstance(nicsourcedata[0], dict) else nicsourcedata[0]
                     )
 
                     iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count][
@@ -274,9 +249,7 @@ class IscsiConfigCommand:
                     foundlocation = True
                     break
             except Exception:
-                raise NicMissingOrConfigurationError(
-                    "Invalid input value for configuring NIC."
-                )
+                raise NicMissingOrConfigurationError("Invalid input value for configuring NIC.")
             count += 1
 
         if foundlocation:
@@ -286,9 +259,7 @@ class IscsiConfigCommand:
                 optionalpassword=options.biospassword,
             )
         else:
-            raise NicMissingOrConfigurationError(
-                "Failed to add NIC. All NICs" " have already been configured."
-            )
+            raise NicMissingOrConfigurationError("Failed to add NIC. All NICs" " have already been configured.")
 
     def make_final_list(self, devicealloc, pcideviceslist):
         final_devicealloc = []
@@ -314,9 +285,7 @@ class IscsiConfigCommand:
                 count.append(int(item[self.rdmc.app.typepath.defs.iscsiattemptinstance]))
 
         if size == len(count):
-            raise NicMissingOrConfigurationError(
-                "Failed to add NIC. All " "NICs have already been configured."
-            )
+            raise NicMissingOrConfigurationError("Failed to add NIC. All " "NICs have already been configured.")
 
         count.sort(key=None, reverse=False)
 
@@ -355,29 +324,21 @@ class IscsiConfigCommand:
         self.validateinput(options=options, deleteoption=True)
 
         foundlocation = False
-        iscsibootsources = self.rawdatahandler(
-            action="GET", silent=True, jsonflag=False, path=iscsisettingspath
-        )
+        iscsibootsources = self.rawdatahandler(action="GET", silent=True, jsonflag=False, path=iscsisettingspath)
         holdetag = iscsibootsources.getheader("etag")
         iscsibootsources = json.loads(iscsibootsources.read)
 
         try:
             count = 0
             for item in iscsibootsources[self.rdmc.app.typepath.defs.iscsisource]:
-                if item[self.rdmc.app.typepath.defs.iscsiattemptinstance] == int(
-                    options.delete
-                ):
-                    iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][
-                        count
-                    ] = patch[count]
+                if item[self.rdmc.app.typepath.defs.iscsiattemptinstance] == int(options.delete):
+                    iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count] = patch[count]
                     foundlocation = True
 
                 count += 1
         except Exception:
             raise NicMissingOrConfigurationError(
-                "The NIC targeted for delete"
-                " does not exist. The request for "
-                "delete could not be completed."
+                "The NIC targeted for delete" " does not exist. The request for " "delete could not be completed."
             )
 
         if foundlocation:
@@ -389,9 +350,7 @@ class IscsiConfigCommand:
             )
             self.rdmc.app.get_handler(iscsisettingspath, silent=True)
         else:
-            raise NicMissingOrConfigurationError(
-                "The given attempt instance does not exist."
-            )
+            raise NicMissingOrConfigurationError("The given attempt instance does not exist.")
 
     def listoptionhelper(self, options, iscsipath, iscsisettingspath, bootpath):
         """Helper function to list options for iscsi
@@ -407,16 +366,13 @@ class IscsiConfigCommand:
         """
         self.auxcommands["select"].selectfunction("HpeBiosMapping.")
         pcisettingsmap = self.auxcommands["get"].getworkerfunction(
-                    "BiosPciSettingsMappings", options, results=True, uselist=True
-                )
+            "BiosPciSettingsMappings", options, results=True, uselist=True
+        )
 
         devicealloc = list()
         for item in pcisettingsmap["BiosPciSettingsMappings"]:
             if "Associations" in item:
-                if (
-                    "EmbNicEnable" in item["Associations"]
-                    or "EmbNicConfig" in item["Associations"]
-                ):
+                if "EmbNicEnable" in item["Associations"] or "EmbNicConfig" in item["Associations"]:
                     _ = [devicealloc.append(x) for x in item["Subinstances"]]
 
                 if (
@@ -431,18 +387,12 @@ class IscsiConfigCommand:
 
             self.auxcommands["select"].selectfunction("HpeServerPciDeviceCollection")
             pcideviceslist = next(
-                iter(
-                    self.auxcommands["get"].getworkerfunction(
-                        "Members", options, results=True, uselist=False
-                    )
-                ),
+                iter(self.auxcommands["get"].getworkerfunction("Members", options, results=True, uselist=False)),
                 None,
             )
 
             for device in pcideviceslist["Members"]:
-                newpcilist.append(
-                    self.rdmc.app.get_handler(device["@odata.id"], silent=True).dict
-                )
+                newpcilist.append(self.rdmc.app.get_handler(device["@odata.id"], silent=True).dict)
 
             pcideviceslist = newpcilist
         else:
@@ -459,70 +409,68 @@ class IscsiConfigCommand:
                 ),
                 None,
             )["Items"]
-
-        self.auxcommands["select"].selectfunction("HpiSCSISoftwareInitiator.")
-        iscsibootsources = self.rawdatahandler(
-            action="GET", silent=True, jsonflag=True, path=iscsisettingspath
-        )
+        i = 0
+        iscsibootsources = ""
+        while i < 4:
+            self.auxcommands["select"].selectfunction("HpiSCSISoftwareInitiator.")
+            iscsibootsources = self.rawdatahandler(action="GET", silent=True, jsonflag=True, path=iscsisettingspath)
+            if not ("error" in iscsibootsources):
+                break
+            time.sleep(10)
+            i = i + 1
+            self.rdmc.ui.printer("Retrying ...\n\n")
         structeredlist = list()
 
         self.pcidevicehelper(devicealloc, iscsipath, bootpath, pcideviceslist)
-
-        for item in iscsibootsources[self.rdmc.app.typepath.defs.iscsisource]:
-            if item["iSCSINicSource"]:
-                for device in devicealloc:
-                    listval = 1 if isinstance(device["Associations"][0], dict) else 0
-                    # self.rdmc.ui.printer("Compare1 '%s: %s'\n" % (item["iSCSINicSource"], device["Associations"][listval]))
-                    if item["iSCSINicSource"] == device["Associations"][listval]:
-                        for pcidevice in pcideviceslist:
-                            # self.rdmc.ui.printer("Compare2 '%s: %s'\n" % (device["CorrelatableID"],pcidevice["UEFIDevicePath"]))
-                            # self.rdmc.ui.printer("Modified '%s'\n" % (str(pcidevice["UEFIDevicePath"])[: -2] + str('1)')))
-                            if device["CorrelatableID"] == pcidevice["UEFIDevicePath"]:
-                                # self.rdmc.ui.printer("Match!!")
-                                inputstring = (
-                                    pcidevice["DeviceType"]
-                                    + " "
-                                    + str(pcidevice["DeviceInstance"])
-                                    + " Port "
-                                    + str(pcidevice["DeviceSubInstance"])
-                                    + " : "
-                                    + pcidevice.get("Name", "")
-                                )
-                                structeredlist.append(
-                                    {
-                                        inputstring: {
-                                            str(
-                                                "Attempt "
-                                                + str(
-                                                    item[
-                                                        self.rdmc.app.typepath.defs.iscsiattemptinstance
-                                                    ]
-                                                )
-                                            ): item
+        if not ("error" in iscsibootsources):
+            for item in iscsibootsources[self.rdmc.app.typepath.defs.iscsisource]:
+                if item["iSCSINicSource"]:
+                    for device in devicealloc:
+                        listval = 1 if isinstance(device["Associations"][0], dict) else 0
+                        if item["iSCSINicSource"] == device["Associations"][listval]:
+                            for pcidevice in pcideviceslist:
+                                if device["CorrelatableID"] == pcidevice["UEFIDevicePath"]:
+                                    # self.rdmc.ui.printer("Match!!")
+                                    inputstring = (
+                                        pcidevice["DeviceType"]
+                                        + " "
+                                        + str(pcidevice["DeviceInstance"])
+                                        + " Port "
+                                        + str(pcidevice["DeviceSubInstance"])
+                                        + " : "
+                                        + pcidevice.get("Name", "")
+                                    )
+                                    structeredlist.append(
+                                        {
+                                            inputstring: {
+                                                str(
+                                                    "Attempt "
+                                                    + str(item[self.rdmc.app.typepath.defs.iscsiattemptinstance])
+                                                ): item
+                                            }
                                         }
-                                    }
-                                )
+                                    )
 
-            else:
-                structeredlist.append({"Not Added": {}})
+                else:
+                    structeredlist.append({"Not Added": {}})
+
         try:
             if iscsibootsources is None:
+                raise BootOrderMissingEntriesError("No entries found for iscsi boot sources \n\n")
+            elif "error" in iscsibootsources:
                 raise BootOrderMissingEntriesError(
-                    "No entries found for iscsi boot sources.\n\n"
+                    "/redfish/v1/systems/1/bios/oem/hpe/iscsi/settings URI seems to be not reachable even after"
+                    " 4 retry attempts , kindly retry the command after some time \n\n"
                 )
             elif not options.filename:
-                self.print_iscsi_config_helper(
-                    structeredlist, "Current iSCSI Attempts: \n"
-                )
+                self.print_iscsi_config_helper(structeredlist, "Current iSCSI Attempts: \n")
         except Exception as excp:
             raise excp
 
         if structeredlist is None:
             self.rdmc.ui.error("No entries found for iscsi boot sources.\n\n")
         elif options.filename:
-            output = json.dumps(
-                structeredlist, indent=2, cls=redfish.ris.JSONEncoder, sort_keys=True
-            )
+            output = json.dumps(structeredlist, indent=2, cls=redfish.ris.JSONEncoder, sort_keys=True)
             filehndl = open(options.filename[0], "w")
             filehndl.write(output)
             filehndl.close()
@@ -540,19 +488,16 @@ class IscsiConfigCommand:
         :type bootpath: str.
         """
         self.auxcommands["select"].selectfunction("HpBiosMapping.")
-        pcisettingsmap =self.auxcommands["get"].getworkerfunction(
-                    "BiosPciSettingsMappings", options, results=True, uselist=True
-                )
+        pcisettingsmap = self.auxcommands["get"].getworkerfunction(
+            "BiosPciSettingsMappings", options, results=True, uselist=True
+        )
 
         devicealloc = list()
         for item in pcisettingsmap["BiosPciSettingsMappings"]:
             if "Associations" in item:
                 # self.rdmc.ui.printer("Assoc 1 : %s\n" % (item["Associations"]))
                 # self.rdmc.ui.printer("Sub 1 : %s\n" % (item["Subinstances"]))
-                if (
-                    "EmbNicEnable" in item["Associations"]
-                    or "EmbNicConfig" in item["Associations"]
-                ):
+                if "EmbNicEnable" in item["Associations"] or "EmbNicConfig" in item["Associations"]:
                     _ = [devicealloc.append(x) for x in item["Subinstances"]]
 
                 try:
@@ -571,44 +516,32 @@ class IscsiConfigCommand:
         if self.rdmc.app.typepath.defs.isgen10:
             newpcilist = []
             self.auxcommands["select"].selectfunction("HpeServerPciDeviceCollection")
-            pcideviceslist = self.auxcommands["get"].getworkerfunction(
-                        "Members", options, results=True, uselist=False
-                    )
+            pcideviceslist = self.auxcommands["get"].getworkerfunction("Members", options, results=True, uselist=False)
             pcideviceslist = pcideviceslist[0]
             for device in pcideviceslist["Members"]:
-                newpcilist.append(
-                    self.rdmc.app.get_handler(device["@odata.id"], silent=True).dict
-                )
+                newpcilist.append(self.rdmc.app.get_handler(device["@odata.id"], silent=True).dict)
             pcideviceslist = newpcilist
         else:
             self.auxcommands["select"].selectfunction(["Collection."])
             pcideviceslist = self.auxcommands["get"].getworkerfunction(
-                        "Items",
-                        options,
-                        results=True,
-                        uselist=False,
-                        filtervals=("MemberType", "HpServerPciDevice.*"),
-                    )["Items"]
+                "Items",
+                options,
+                results=True,
+                uselist=False,
+                filtervals=("MemberType", "HpServerPciDevice.*"),
+            )["Items"]
 
-        self.auxcommands["select"].selectfunction(
-            self.rdmc.app.typepath.defs.hpiscsisoftwareinitiatortype
-        )
+        self.auxcommands["select"].selectfunction(self.rdmc.app.typepath.defs.hpiscsisoftwareinitiatortype)
         iscsiinitiatorname = self.auxcommands["get"].getworkerfunction(
-                    "iSCSIInitiatorName", options, results=True, uselist=True
-                 )
-
-        disabledlist = self.pcidevicehelper(
-            devicealloc, iscsipath, bootpath, pcideviceslist
+            "iSCSIInitiatorName", options, results=True, uselist=True
         )
 
-        self.print_out_iscsi_configuration(
-            iscsiinitiatorname, devicealloc, pcideviceslist
-        )
+        disabledlist = self.pcidevicehelper(devicealloc, iscsipath, bootpath, pcideviceslist)
+
+        self.print_out_iscsi_configuration(iscsiinitiatorname, devicealloc, pcideviceslist)
 
         if disabledlist:
-            self.print_out_iscsi_configuration(
-                iscsiinitiatorname, disabledlist, pcideviceslist, disabled=True
-            )
+            self.print_out_iscsi_configuration(iscsiinitiatorname, disabledlist, pcideviceslist, disabled=True)
 
     def modifyoptionhelper(self, options, iscsisettingspath):
         """Helper function to modify options for iscsi
@@ -624,9 +557,7 @@ class IscsiConfigCommand:
         except Exception as excp:
             raise InvalidCommandLineError("%s" % excp)
 
-        iscsibootsources = self.rawdatahandler(
-            action="GET", silent=True, jsonflag=True, path=iscsisettingspath
-        )
+        iscsibootsources = self.rawdatahandler(action="GET", silent=True, jsonflag=True, path=iscsisettingspath)
 
         count = 0
         resultsdict = list()
@@ -646,17 +577,13 @@ class IscsiConfigCommand:
                     )
 
                 if not enteredsection:
-                    resultsdict.append(
-                        iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count]
-                    )
+                    resultsdict.append(iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count])
 
                 count += 1
 
         contentsholder = {self.rdmc.app.typepath.defs.iscsisource: resultsdict}
 
-        self.rdmc.app.patch_handler(
-            iscsisettingspath, contentsholder, optionalpassword=options.biospassword
-        )
+        self.rdmc.app.patch_handler(iscsisettingspath, contentsholder, optionalpassword=options.biospassword)
         self.rdmc.app.get_handler(iscsisettingspath, silent=True)
         self.rdmc.ui.printer("Please reboot the server for changes to take effect\n")
 
@@ -673,9 +600,7 @@ class IscsiConfigCommand:
         foundoption = False
 
         for bootsource in bootsources:
-            if bootsource[self.rdmc.app.typepath.defs.iscsiattemptinstance] == int(
-                key[-1:]
-            ):
+            if bootsource[self.rdmc.app.typepath.defs.iscsiattemptinstance] == int(key[-1:]):
                 foundoption = True
                 break
             else:
@@ -683,9 +608,7 @@ class IscsiConfigCommand:
         if foundoption:
             return value
 
-    def pcidevicehelper(
-        self, devicealloc, iscsipath, bootpath, pcideviceslist=None, options=None
-    ):
+    def pcidevicehelper(self, devicealloc, iscsipath, bootpath, pcideviceslist=None, options=None):
         """Helper function to check for extra pci devices / identify disabled devices
 
         :param devicealloc: list of devices allocated
@@ -704,18 +627,12 @@ class IscsiConfigCommand:
                 newpcilist = []
                 self.auxcommands["select"].selectfunction("HpeServerPciDeviceCollection")
                 pcideviceslist = next(
-                    iter(
-                        self.auxcommands["get"].getworkerfunction(
-                            "Members", options, results=True, uselist=False
-                        )
-                    ),
+                    iter(self.auxcommands["get"].getworkerfunction("Members", options, results=True, uselist=False)),
                     None,
                 )
 
                 for device in pcideviceslist["Members"]:
-                    newpcilist.append(
-                        self.rdmc.app.get_handler(device["@odata.id"], silent=True).dict
-                    )
+                    newpcilist.append(self.rdmc.app.get_handler(device["@odata.id"], silent=True).dict)
 
                 pcideviceslist = newpcilist
             else:
@@ -733,25 +650,19 @@ class IscsiConfigCommand:
                     None,
                 )["Items"]
         try:
-            self.rawdatahandler(action="GET", silent=True, jsonflag=True, path=iscsipath)[
-                "iSCSINicSources"
-            ]
+            self.rawdatahandler(action="GET", silent=True, jsonflag=True, path=iscsipath)["iSCSINicSources"]
         except:
             raise NicMissingOrConfigurationError("No iSCSI nic sources available.")
 
         _ = [x["UEFIDevicePath"] for x in pcideviceslist]
         removal = list()
 
-        bios = self.rawdatahandler(
-            action="GET", silent=True, jsonflag=True, path=bootpath
-        )
+        bios = self.rawdatahandler(action="GET", silent=True, jsonflag=True, path=bootpath)
 
         for item in devicealloc:
             if isinstance(item["Associations"][0], dict):
                 if "PreBootNetwork" in list(item["Associations"][0].keys()):
-                    if item["Associations"] and item["Associations"][0][
-                        "PreBootNetwork"
-                    ] in list(bios.keys()):
+                    if item["Associations"] and item["Associations"][0]["PreBootNetwork"] in list(bios.keys()):
                         if bios[item["Associations"][0]["PreBootNetwork"]] == "Disabled":
                             removal.append(item)
             else:
@@ -763,9 +674,7 @@ class IscsiConfigCommand:
 
         return removal
 
-    def print_out_iscsi_configuration(
-        self, iscsiinitiatorname, devicealloc, pcideviceslist, disabled=False
-    ):
+    def print_out_iscsi_configuration(self, iscsiinitiatorname, devicealloc, pcideviceslist, disabled=False):
         """Convert content to human readable and print out to std.out
 
         :param iscsiinitiatorname: iscsi initiator name
@@ -779,15 +688,11 @@ class IscsiConfigCommand:
         """
         try:
             if iscsiinitiatorname is None:
-                BootOrderMissingEntriesError(
-                    "No entry found for the iscsi initiator name.\n\n"
-                )
+                BootOrderMissingEntriesError("No entry found for the iscsi initiator name.\n\n")
             elif disabled:
                 pass
             else:
-                self.print_iscsi_config_helper(
-                    iscsiinitiatorname["iSCSIInitiatorName"], "\nIscsi Initiator Name: "
-                )
+                self.print_iscsi_config_helper(iscsiinitiatorname["iSCSIInitiatorName"], "\nIscsi Initiator Name: ")
         except Exception as excp:
             raise excp
 
@@ -819,9 +724,7 @@ class IscsiConfigCommand:
                             if not disabled:
                                 count += 1
             else:
-                raise BootOrderMissingEntriesError(
-                    "No entries found for" " iscsi configurations devices.\n"
-                )
+                raise BootOrderMissingEntriesError("No entries found for" " iscsi configurations devices.\n")
         except Exception as excp:
             raise excp
 
@@ -877,24 +780,18 @@ class IscsiConfigCommand:
         if deviceallocsize:
             try:
                 if int(options.add) - 1 >= deviceallocsize:
-                    raise NicMissingOrConfigurationError(
-                        "Please verify the " "given input value for configuring NIC."
-                    )
+                    raise NicMissingOrConfigurationError("Please verify the " "given input value for configuring NIC.")
             except Exception:
-                raise NicMissingOrConfigurationError(
-                    "Please verify the " "given input value for configuring NIC."
-                )
+                raise NicMissingOrConfigurationError("Please verify the " "given input value for configuring NIC.")
         if deleteoption:
             try:
                 if int(options.delete) == 0:
                     raise NicMissingOrConfigurationError(
-                        "Invalid input value."
-                        "Please give valid attempt for instance values."
+                        "Invalid input value." "Please give valid attempt for instance values."
                     )
             except Exception:
                 raise NicMissingOrConfigurationError(
-                    "Invalid input value."
-                    "Please give valid attempt for instance values."
+                    "Invalid input value." "Please give valid attempt for instance values."
                 )
 
     def iscsiconfigurationvalidation(self, options):
@@ -934,30 +831,26 @@ class IscsiConfigCommand:
         customparser.add_argument(
             "--add",
             dest="add",
-            help="Use this iSCSI configuration option to add an iSCSI"
-            " configuration option.",
+            help="Use this iSCSI configuration option to add an iSCSI" " configuration option.",
             default=None,
         )
         customparser.add_argument(
             "--delete",
             dest="delete",
-            help="Use this iSCSI configuration option to delete an iSCSI"
-            " configuration option.",
+            help="Use this iSCSI configuration option to delete an iSCSI" " configuration option.",
             default=None,
         )
         customparser.add_argument(
             "--modify",
             dest="modify",
-            help="Use this iSCSI configuration option to modify an iSCSI"
-            " configuration option.",
+            help="Use this iSCSI configuration option to modify an iSCSI" " configuration option.",
             default=None,
         )
         customparser.add_argument(
             "--list",
             dest="list",
             action="store_true",
-            help="Use this iSCSI configuration option to list the details"
-            " of the different iSCSI configurations.",
+            help="Use this iSCSI configuration option to list the details" " of the different iSCSI configurations.",
             default=None,
         )
         customparser.add_argument(

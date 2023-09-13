@@ -17,16 +17,17 @@
 # -*- coding: utf-8 -*-
 """Command to apply a pre-defined configuration to PMM"""
 from __future__ import absolute_import
+
 from copy import deepcopy
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        LOGGER,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        LOGGER,
         NoChangesFoundOrMadeError,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -40,8 +41,6 @@ except ImportError:
 
 from .lib.DisplayHelpers import DisplayHelpers
 from .lib.RestHelpers import RestHelpers
-from .ShowPmemPendingConfigCommand import ShowPmemPendingConfigCommand
-from .ClearPendingConfigCommand import ClearPendingConfigCommand
 
 
 class ApplyPmemConfigCommand:
@@ -109,8 +108,7 @@ class ApplyPmemConfigCommand:
             action="store",
             type=str,
             dest="config",
-            help="Specify one of the pre-defined configIDs to apply"
-            " to all Persistent Memory Modules.",
+            help="Specify one of the pre-defined configIDs to apply" " to all Persistent Memory Modules.",
             default=None,
         )
 
@@ -119,8 +117,7 @@ class ApplyPmemConfigCommand:
             "--list",
             action="store_true",
             dest="list",
-            help="Display a list of available pre-defined configIDs"
-            " along with a brief description.",
+            help="Display a list of available pre-defined configIDs" " along with a brief description.",
             default=False,
         )
 
@@ -129,8 +126,7 @@ class ApplyPmemConfigCommand:
             "--force",
             action="store_true",
             dest="force",
-            help="Allow the user to force the configuration "
-            "by automatically accepting any prompts.",
+            help="Allow the user to force the configuration " "by automatically accepting any prompts.",
             default=False,
         )
 
@@ -170,9 +166,7 @@ class ApplyPmemConfigCommand:
         if options.config:
             raise InvalidCommandLineError("'config | -C' expects a single argument")
         else:
-            raise InvalidCommandLineError(
-                "Chosen flag doesn't expect additional arguments"
-            )
+            raise InvalidCommandLineError("Chosen flag doesn't expect additional arguments")
 
     def validate_options(self, options):
         """
@@ -181,27 +175,18 @@ class ApplyPmemConfigCommand:
         :type options: instance of OptionParser class.
         """
         # Set of valid configIDs
-        valid_config_ids = {
-            config_id.get("name").lower() for config_id in self.config_ids
-        }
+        valid_config_ids = {config_id.get("name").lower() for config_id in self.config_ids}
 
         if not options.config and not options.list and not options.force:
-            raise InvalidCommandLineError(
-                "No flag specified.\n\nUsage: " + self.ident["usage"]
-            )
+            raise InvalidCommandLineError("No flag specified.\n\nUsage: " + self.ident["usage"])
         if not options.config and options.force:
-            raise InvalidCommandLineError(
-                "'--force | -f' flag mandatorily requires the " "'--pmmconfig | -C' flag."
-            )
+            raise InvalidCommandLineError("'--force | -f' flag mandatorily requires the " "'--pmmconfig | -C' flag.")
         if options.config and options.list:
-            raise InvalidCommandLineError(
-                "Only one of '--pmmconfig | -C' or '--list | -L' " "may be specified"
-            )
+            raise InvalidCommandLineError("Only one of '--pmmconfig | -C' or '--list | -L' " "may be specified")
         # Check whether the user entered configID is valid
         if options.config and not options.config.lower() in valid_config_ids:
             raise InvalidCommandLineError(
-                "Invalid configID.\nTo view a list of pre-defined "
-                "configIDs, use 'applypmmconfig --list'"
+                "Invalid configID.\nTo view a list of pre-defined " "configIDs, use 'applypmmconfig --list'"
             )
 
     def apply_pmm_config(self, options):
@@ -216,8 +201,7 @@ class ApplyPmemConfigCommand:
             # Raise exception if server is in POST
             if RestHelpers(rdmcObject=self.rdmc).in_post():
                 raise NoContentsFoundForOperationError(
-                    "Unable to retrieve resources - "
-                    "server might be in POST or powered off"
+                    "Unable to retrieve resources - " "server might be in POST or powered off"
                 )
             self.apply_predefined_config(options)
 
@@ -285,9 +269,7 @@ class ApplyPmemConfigCommand:
                 data_id = chunk.get("@odata.id")
                 resp = RestHelpers(rdmcObject=self.rdmc).delete_resource(data_id)
                 if not resp:
-                    raise NoChangesFoundOrMadeError(
-                        "Error occured while deleting " "existing configuration"
-                    )
+                    raise NoChangesFoundOrMadeError("Error occured while deleting " "existing configuration")
         return None
 
     @staticmethod
@@ -304,23 +286,15 @@ class ApplyPmemConfigCommand:
         body = {
             "AddressRangeType": "PMEM",
             "InterleaveSets": [],
-            "Oem": {
-                "Hpe": {"MemoryChunkSizePercentage": config_data["totalPmemPercentage"]}
-            },
+            "Oem": {"Hpe": {"MemoryChunkSizePercentage": config_data["totalPmemPercentage"]}},
         }
         # Get the list of interleave sets based on the configuration
         if config_data["pmemIntereleaved"] or config_data["totalPmemPercentage"] == 0:
             # If pmem regions are interleaved or if it MemoryMode, choose the list with maximum entries.
-            interleave_sets = [
-                max(interleavable_memory_sets, key=lambda x: len(x["MemorySet"]))
-            ]
+            interleave_sets = [max(interleavable_memory_sets, key=lambda x: len(x["MemorySet"]))]
         else:
             # If pmem regions are NOT interleaved, choose all the lists with exactly one entry.
-            interleave_sets = [
-                il_set
-                for il_set in interleavable_memory_sets
-                if len(il_set["MemorySet"]) == 1
-            ]
+            interleave_sets = [il_set for il_set in interleavable_memory_sets if len(il_set["MemorySet"]) == 1]
 
         # Using in-place update to change the interleave sets format.
         # Replace 'MemorySet' with 'Memory' for each MemorySet in interleave_sets.
@@ -352,9 +326,7 @@ class ApplyPmemConfigCommand:
         ).retrieve_task_members_and_mem_domains()
 
         # Filter Task Resources to include only Pending Configuration Tasks
-        memory_chunk_tasks = RestHelpers(rdmcObject=self.rdmc).filter_task_members(
-            task_members
-        )
+        memory_chunk_tasks = RestHelpers(rdmcObject=self.rdmc).filter_task_members(task_members)
 
         if options.force:
             self.delete_existing_chunks_and_tasks(memory_chunk_tasks, memory_chunks)
@@ -362,17 +334,11 @@ class ApplyPmemConfigCommand:
             self.warn_existing_chunks_and_tasks(memory_chunk_tasks, memory_chunks)
 
         if not domain_members:
-            raise NoContentsFoundForOperationError(
-                "Failed to retrive Memory Domain Resources"
-            )
+            raise NoContentsFoundForOperationError("Failed to retrive Memory Domain Resources")
 
         # Get the user specified configID
         config_data = next(
-            (
-                config_id
-                for config_id in self.config_ids
-                if config_id.get("name").lower() == options.config.lower()
-            ),
+            (config_id for config_id in self.config_ids if config_id.get("name").lower() == options.config.lower()),
             None,
         )
 
@@ -382,14 +348,10 @@ class ApplyPmemConfigCommand:
             for body in data:
                 resp = RestHelpers(rdmcObject=self.rdmc).post_resource(path, body)
                 if resp is None:
-                    raise NoChangesFoundOrMadeError(
-                        "Error occured while applying configuration"
-                    )
+                    raise NoChangesFoundOrMadeError("Error occured while applying configuration")
 
         # display warning
         self.rdmc.ui.printer("Configuration changes require reboot to take effect.\n")
 
         # display pending configuration
-        self.auxcommands["showpmmpendingconfig"].show_pending_config(
-            type("MyOptions", (object,), dict(json=False))
-        )
+        self.auxcommands["showpmmpendingconfig"].show_pending_config(type("MyOptions", (object,), dict(json=False)))

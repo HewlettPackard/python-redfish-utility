@@ -17,26 +17,20 @@
 # -*- coding: utf-8 -*-
 """ Results Command for rdmc """
 
-import sys
-
-
 from redfish.ris.resp_handler import ResponseHandler
-
 from redfish.ris.rmc_helper import EmptyRaiseForEAFP
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ReturnCodes,
     )
 
 
@@ -47,8 +41,7 @@ class ResultsCommand:
         self.ident = {
             "name": "results",
             "usage": None,
-            "description": "Run to show the results of the last"
-            " changes after a server reboot.\n\texample: results",
+            "description": "Run to show the results of the last" " changes after a server reboot.\n\texample: results",
             "summary": "Show the results of changes which require a server reboot.",
             "aliases": [],
             "auxcommands": ["LoginCommand", "SelectCommand"],
@@ -93,47 +86,24 @@ class ResultsCommand:
         except:
             sapaths = None
 
-        biosresults = self.rdmc.app.get_handler(
-            self.rdmc.app.typepath.defs.biospath, service=True, silent=True
-        )
+        biosresults = self.rdmc.app.get_handler(self.rdmc.app.typepath.defs.biospath, service=True, silent=True)
         iscsiresults = self.rdmc.app.get_handler(iscsipath, service=True, silent=True)
         bootsresults = self.rdmc.app.get_handler(bootpath, service=True, silent=True)
         saresults = []
         if sapaths:
-            saresults = [
-                self.rdmc.app.get_handler(path, service=True, silent=True)
-                for path in sapaths
-            ]
+            saresults = [self.rdmc.app.get_handler(path, service=True, silent=True) for path in sapaths]
         try:
-            results.update(
-                {
-                    "Bios:": biosresults.dict[
-                        self.rdmc.app.typepath.defs.biossettingsstring
-                    ]["Messages"]
-                }
-            )
-        except Exception as exp:
+            results.update({"Bios:": biosresults.dict[self.rdmc.app.typepath.defs.biossettingsstring]["Messages"]})
+        except Exception:
             results.update({"Bios:": None})
 
         try:
-            results.update(
-                {
-                    "Iscsi:": iscsiresults.dict[
-                        self.rdmc.app.typepath.defs.biossettingsstring
-                    ]["Messages"]
-                }
-            )
+            results.update({"Iscsi:": iscsiresults.dict[self.rdmc.app.typepath.defs.biossettingsstring]["Messages"]})
         except:
             results.update({"Iscsi:": None})
 
         try:
-            results.update(
-                {
-                    "Boot:": bootsresults.dict[
-                        self.rdmc.app.typepath.defs.biossettingsstring
-                    ]["Messages"]
-                }
-            )
+            results.update({"Boot:": bootsresults.dict[self.rdmc.app.typepath.defs.biossettingsstring]["Messages"]})
         except:
             results.update({"Boot:": None})
         try:
@@ -143,17 +113,9 @@ class ResultsCommand:
                     loc += " %d:" % saresults.index(result)
                 else:
                     loc += ":"
-                results.update(
-                    {
-                        loc: result.dict[self.rdmc.app.typepath.defs.biossettingsstring][
-                            "Messages"
-                        ]
-                    }
-                )
+                results.update({loc: result.dict[self.rdmc.app.typepath.defs.biossettingsstring]["Messages"]})
         except:
             results.update({"SmartArray:": None})
-
-        messagelist = list()
 
         self.rdmc.ui.printer("Results of the previous reboot changes:\n\n")
 
@@ -161,12 +123,10 @@ class ResultsCommand:
             self.rdmc.ui.printer("%s\n" % result)
             try:
                 for msg in results[result]:
-                    resp = ResponseHandler(
+                    _ = ResponseHandler(
                         self.rdmc.app.validationmanager,
                         self.rdmc.app.typepath.defs.messageregistrytype,
-                    ).message_handler(
-                        response_data=msg, message_text="", verbosity=0, dl_reg=False
-                    )
+                    ).message_handler(response_data=msg, message_text="", verbosity=0, dl_reg=False)
                     pass
             except EmptyRaiseForEAFP as exp:
                 raise EmptyRaiseForEAFP(exp)

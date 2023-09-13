@@ -17,27 +17,14 @@
 # -*- coding: utf-8 -*-
 """ RawHead Command for rdmc """
 
-import sys
 import json
-
-from argparse import ArgumentParser, SUPPRESS
 
 import redfish
 
 try:
-    from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
-        Encryption,
-    )
+    from rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 except ImportError:
-    from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
-        Encryption,
-    )
+    from ilorest.rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 
 
 class RawHeadCommand:
@@ -82,9 +69,7 @@ class RawHeadCommand:
         if options.path.startswith('"') and options.path.endswith('"'):
             options.path = options.path[1:-1]
 
-        results = self.rdmc.app.head_handler(
-            options.path, silent=options.silent, service=options.service
-        )
+        results = self.rdmc.app.head_handler(options.path, silent=options.silent, service=options.service)
 
         content = None
         tempdict = dict()
@@ -98,16 +83,12 @@ class RawHeadCommand:
             tempdict = dict(content)
 
             if options.filename:
-                output = json.dumps(
-                    tempdict, indent=2, cls=redfish.ris.JSONEncoder, sort_keys=True
-                )
+                output = json.dumps(tempdict, indent=2, cls=redfish.ris.JSONEncoder, sort_keys=True)
                 filehndl = open(options.filename[0], "w")
                 filehndl.write(output)
                 filehndl.close()
 
-                self.rdmc.ui.printer(
-                    "Results written out to '%s'.\n" % options.filename[0]
-                )
+                self.rdmc.ui.printer("Results written out to '%s'.\n" % options.filename[0])
             else:
                 if options.service:
                     self.rdmc.ui.printer("%s\n" % tempdict)

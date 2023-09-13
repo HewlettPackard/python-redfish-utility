@@ -23,21 +23,17 @@ from redfish.ris.resp_handler import ResponseHandler
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
         FirmwareUpdateError,
+        InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
         FirmwareUpdateError,
+        InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        Encryption,
+        ReturnCodes,
     )
 
 
@@ -163,9 +159,7 @@ class FirmwareUpdateCommand:
                 pass
 
             if not results:
-                raise FirmwareUpdateError(
-                    "Unable to contact Update Service. " "Please re-login and try again."
-                )
+                raise FirmwareUpdateError("Unable to contact Update Service. " "Please re-login and try again.")
 
             if results["State"].lower().startswith("idle"):
                 time.sleep(2)
@@ -177,16 +171,10 @@ class FirmwareUpdateCommand:
                 else:
                     if not written:
                         written = True
-                        self.rdmc.ui.printer(
-                            "\n iLO is uploading the necessary files. Please wait...\n"
-                        )
+                        self.rdmc.ui.printer("\n iLO is uploading the necessary files. Please wait...\n")
 
                 time.sleep(0.5)
-            elif (
-                results["State"]
-                .lower()
-                .startswith(("progressing", "updating", "verifying", "writing"))
-            ):
+            elif results["State"].lower().startswith(("progressing", "updating", "verifying", "writing")):
                 counter = 0
 
                 for _ in range(2):
@@ -227,15 +215,9 @@ class FirmwareUpdateCommand:
             for messagetype in list(errmessages.keys()):
                 if error[0] == messagetype:
                     if errmessages[messagetype][error[-1]]["NumberOfArgs"] == 0:
-                        output = (
-                            "Firmware update error. %s"
-                            % errmessages[messagetype][error[-1]]["Message"]
-                        )
+                        output = "Firmware update error. %s" % errmessages[messagetype][error[-1]]["Message"]
                     else:
-                        output = (
-                            "Firmware update error. %s"
-                            % errmessages[messagetype][error[-1]]["Description"]
-                        )
+                        output = "Firmware update error. %s" % errmessages[messagetype][error[-1]]["Description"]
                     break
         except:
             pass
@@ -265,7 +247,6 @@ class FirmwareUpdateCommand:
             "--tpmenabled",
             dest="tpmenabled",
             action="store_true",
-            help="Use this flag if the server you are currently logged into"
-            " has a TPM chip installed.",
+            help="Use this flag if the server you are currently logged into" " has a TPM chip installed.",
             default=False,
         )

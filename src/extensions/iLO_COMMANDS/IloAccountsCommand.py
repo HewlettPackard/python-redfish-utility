@@ -17,9 +17,8 @@
 # -*- coding: utf-8 -*-
 """ Add Account Command for rdmc """
 
-import os
 import getpass
-
+import os
 from argparse import Action, RawDescriptionHelpFormatter
 
 from redfish.ris.ris import SessionExpired
@@ -27,25 +26,25 @@ from redfish.ris.rmc_helper import IdTokenError
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        ResourceExists,
-        InvalidCommandLineErrorOPTS,
-        NoContentsFoundForOperationError,
-        IncompatibleiLOVersionError,
         Encryption,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
         InvalidFileInputError,
+        NoContentsFoundForOperationError,
+        ResourceExists,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        ResourceExists,
-        InvalidCommandLineErrorOPTS,
-        NoContentsFoundForOperationError,
-        IncompatibleiLOVersionError,
         Encryption,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
         InvalidFileInputError,
+        NoContentsFoundForOperationError,
+        ResourceExists,
+        ReturnCodes,
     )
 
 __subparsers__ = ["add", "modify", "changepass", "delete", "addcert", "deletecert"]
@@ -76,10 +75,7 @@ class _AccountParse(Action):
                 priv = int(priv)
             except ValueError:
                 try:
-                    parser.error(
-                        "Invalid privilege entered: %s. Privileges must "
-                        "be numbers." % priv
-                    )
+                    parser.error("Invalid privilege entered: %s. Privileges must " "be numbers." % priv)
                 except:
                     raise InvalidCommandLineErrorOPTS("")
             try:
@@ -92,8 +88,7 @@ class _AccountParse(Action):
             except KeyError:
                 try:
                     parser.error(
-                        "Invalid privilege entered: %s. Number does not "
-                        "match an available privilege." % priv
+                        "Invalid privilege entered: %s. Number does not " "match an available privilege." % priv
                     )
                 except:
                     raise InvalidCommandLineErrorOPTS("")
@@ -116,7 +111,7 @@ class IloAccountsCommand:
             "in the iLO GUI for Redfish compatibility.\n\t\t"
             "2. While executing the command: iloaccounts add in a Linux machine, "
             "an escape character needs to be added before a special character in the password.\n\t\t\t"
-            "Example: iloaccount add rest rest 12iso\$help\n",
+            "Example: iloaccount add rest rest 12iso*help\n",
             "summary": "Views/Adds/deletes/modifies an iLO account on the currently logged in server.",
             "aliases": ["iloaccount"],
             "auxcommands": [],
@@ -176,10 +171,7 @@ class IloAccountsCommand:
             ).dict
             try:
                 if hasattr(options, "identifier"):
-                    if (
-                        acct["Id"] == options.identifier
-                        or acct["UserName"] == options.identifier
-                    ):
+                    if acct["Id"] == options.identifier or acct["UserName"] == options.identifier:
                         if redfish:
                             path = acct["@odata.id"]
                         else:
@@ -199,16 +191,13 @@ class IloAccountsCommand:
                     acct = None
 
         if not results:
-            raise NoContentsFoundForOperationError(
-                "No iLO Management Accounts were found."
-            )
+            raise NoContentsFoundForOperationError("No iLO Management Accounts were found.")
 
         outdict = dict()
         if options.command.lower() == "default":
             if not options.json:
                 self.rdmc.ui.printer(
-                    "\niLO Account info:\n\n[Id] UserName (LoginName): "
-                    "\nPrivileges\n-----------------\n\n",
+                    "\niLO Account info:\n\n[Id] UserName (LoginName): " "\nPrivileges\n-----------------\n\n",
                     verbose_override=True,
                 )
             for acct in sorted(results, key=lambda k: int(k["Id"])):
@@ -216,8 +205,7 @@ class IloAccountsCommand:
                 privs = acct["Oem"][self.rdmc.app.typepath.defs.oemhp]["Privileges"]
 
                 if (
-                    "ServiceAccount"
-                    in list(acct["Oem"][self.rdmc.app.typepath.defs.oemhp].keys())
+                    "ServiceAccount" in list(acct["Oem"][self.rdmc.app.typepath.defs.oemhp].keys())
                     and acct["Oem"][self.rdmc.app.typepath.defs.oemhp]["ServiceAccount"]
                 ):
                     service = "ServiceAccount=True"
@@ -246,24 +234,18 @@ class IloAccountsCommand:
             if not acct:
                 raise InvalidCommandLineError("Unable to find the specified account.")
             if not options.acct_password:
-                self.rdmc.ui.printer(
-                    "Please input the new password.\n", verbose_override=True
-                )
+                self.rdmc.ui.printer("Please input the new password.\n", verbose_override=True)
                 tempinput = getpass.getpass()
                 self.credentialsvalidation("", "", tempinput, "", True, options)
                 options.acct_password = tempinput
-            account = options.identifier.lower()
-            self.credentialsvalidation(
-                "", "", options.acct_password.split("\r")[0], "", True
-            )
+
+            self.credentialsvalidation("", "", options.acct_password.split("\r")[0], "", True)
             body = {"Password": options.acct_password.split("\r")[0]}
 
             if path and body:
                 self.rdmc.app.patch_handler(path, body)
             else:
-                raise NoContentsFoundForOperationError(
-                    "Unable to find the specified account."
-                )
+                raise NoContentsFoundForOperationError("Unable to find the specified account.")
 
         elif options.command.lower() == "add":
             if options.encode:
@@ -277,46 +259,30 @@ class IloAccountsCommand:
             body = {
                 "UserName": options.identifier,
                 "Password": options.acct_password,
-                "Oem": {
-                    self.rdmc.app.typepath.defs.oemhp: {"LoginName": options.loginname}
-                },
+                "Oem": {self.rdmc.app.typepath.defs.oemhp: {"LoginName": options.loginname}},
             }
             if privs:
-                body["Oem"][self.rdmc.app.typepath.defs.oemhp].update(
-                    {"Privileges": privs}
-                )
-            self.credentialsvalidation(
-                options.identifier, options.loginname, options.acct_password, acct, True
-            )
+                body["Oem"][self.rdmc.app.typepath.defs.oemhp].update({"Privileges": privs})
+            self.credentialsvalidation(options.identifier, options.loginname, options.acct_password, acct, True)
             if options.serviceacc:
-                body["Oem"][self.rdmc.app.typepath.defs.oemhp].update(
-                    {"ServiceAccount": True}
-                )
+                body["Oem"][self.rdmc.app.typepath.defs.oemhp].update({"ServiceAccount": True})
             if options.role:
                 if self.rdmc.app.getiloversion() >= 5.140:
                     body["RoleId"] = options.role
                 else:
-                    raise IncompatibleiLOVersionError(
-                        "Roles can only be set in iLO 5" " 1.40 or greater."
-                    )
+                    raise IncompatibleiLOVersionError("Roles can only be set in iLO 5" " 1.40 or greater.")
             if path and body:
                 self.rdmc.app.post_handler(path, body)
-            self.rdmc.ui.printer(
-                "New iLO account %s is added successfully\n" % options.identifier
-            )
+            self.rdmc.ui.printer("New iLO account %s is added successfully\n" % options.identifier)
         elif options.command.lower() == "modify":
             if not mod_acct:
                 raise InvalidCommandLineError("Unable to find the specified account.")
             body = {}
 
             if options.optprivs:
-                body.update(
-                    {"Oem": {self.rdmc.app.typepath.defs.oemhp: {"Privileges": {}}}}
-                )
+                body.update({"Oem": {self.rdmc.app.typepath.defs.oemhp: {"Privileges": {}}}})
                 if any(
-                    priv
-                    for priv in options.optprivs
-                    if "SystemRecoveryConfigPriv" in priv
+                    priv for priv in options.optprivs if "SystemRecoveryConfigPriv" in priv
                 ) and "SystemRecoveryConfigPriv" not in list(self.getsesprivs().keys()):
                     raise IdTokenError(
                         "The currently logged in account must have The System "
@@ -332,8 +298,7 @@ class IloAccountsCommand:
             if not body:
                 raise InvalidCommandLineError(
                     "Valid Privileges/RoleID have not been provided; "
-                    " no changes have been made to this account: %s\n"
-                    % options.identifier
+                    " no changes have been made to this account: %s\n" % options.identifier
                 )
             self.rdmc.app.patch_handler(path, body)
 
@@ -346,9 +311,7 @@ class IloAccountsCommand:
             certpath = "/redfish/v1/AccountService/UserCertificateMapping/"
             privs = self.getsesprivs()
             if self.rdmc.app.typepath.defs.isgen9:
-                IncompatibleiLOVersionError(
-                    "This operation is only available on gen 10 " "and newer machines."
-                )
+                IncompatibleiLOVersionError("This operation is only available on gen 10 " "and newer machines.")
             elif not privs["UserConfigPriv"]:
                 raise IdTokenError(
                     "The currently logged in account must have The User "
@@ -357,28 +320,22 @@ class IloAccountsCommand:
             else:
                 if options.command.lower() == "addcert":
                     if not acct:
-                        raise InvalidCommandLineError(
-                            "Unable to find the specified account."
-                        )
+                        raise InvalidCommandLineError("Unable to find the specified account.")
                     body = {}
                     username = acct["UserName"]
-                    account = acct["Id"]
+
                     fingerprintfile = options.certificate
                     if os.path.exists(fingerprintfile):
                         with open(fingerprintfile, "r") as fingerfile:
                             fingerprint = fingerfile.read()
                     else:
-                        raise InvalidFileInputError(
-                            "%s cannot be read." % fingerprintfile
-                        )
+                        raise InvalidFileInputError("%s cannot be read." % fingerprintfile)
                     body = {"Fingerprint": fingerprint, "UserName": username}
                     self.rdmc.app.post_handler(certpath, body)
 
                 elif options.command.lower() == "deletecert":
                     if not acct:
-                        raise InvalidCommandLineError(
-                            "Unable to find the specified account."
-                        )
+                        raise InvalidCommandLineError("Unable to find the specified account.")
                     certpath += acct["Id"]
                     self.rdmc.app.delete_handler(certpath)
 
@@ -399,7 +356,7 @@ class IloAccountsCommand:
         setprivs = {}
         availableprivs = self.getsesprivs(availableprivsopts=True)
 
-        if not "UserConfigPriv" in list(sesprivs.keys()):
+        if "UserConfigPriv" not in list(sesprivs.keys()):
             raise IdTokenError(
                 "The currently logged in account does not have the User Config "
                 "privilege and cannot add or modify user accounts."
@@ -409,17 +366,11 @@ class IloAccountsCommand:
             for priv in options.optprivs:
                 priv = next(iter(list(priv.keys())))
                 if priv not in availableprivs:
-                    raise IncompatibleiLOVersionError(
-                        "Privilege %s is not available on this " "iLO version." % priv
-                    )
+                    raise IncompatibleiLOVersionError("Privilege %s is not available on this " "iLO version." % priv)
 
             if all(priv.values() for priv in options.optprivs):
                 if (
-                    any(
-                        priv
-                        for priv in options.optprivs
-                        if "SystemRecoveryConfigPriv" in priv
-                    )
+                    any(priv for priv in options.optprivs if "SystemRecoveryConfigPriv" in priv)
                     and "SystemRecoveryConfigPriv" not in sesprivs.keys()
                 ):
                     raise IdTokenError(
@@ -450,10 +401,7 @@ class IloAccountsCommand:
             ses = self.rdmc.app.get_handler(sespath, service=False, silent=True)
 
             if not ses:
-                raise SessionExpired(
-                    "Invalid session. Please logout and "
-                    "log back in or include credentials."
-                )
+                raise SessionExpired("Invalid session. Please logout and " "log back in or include credentials.")
 
             sesprivs = {
                 "HostBIOSConfigPriv": True,
@@ -511,29 +459,26 @@ class IloAccountsCommand:
         password_max_chars = 39  # PASSWORD MAX CHARS
         password_min_chars = 8  # PASSWORD MIN CHARS
 
-        password_min_chars = next(iter(self.rdmc.app.select("AccountService."))).dict[
-            "Oem"
-        ][self.rdmc.app.typepath.defs.oemhp]["MinPasswordLength"]
+        password_min_chars = next(iter(self.rdmc.app.select("AccountService."))).dict["Oem"][
+            self.rdmc.app.typepath.defs.oemhp
+        ]["MinPasswordLength"]
 
         if username != "" and loginname != "":
             if len(username) > username_max_chars:
                 raise InvalidCommandLineError(
-                    "Username exceeds maximum length"
-                    ". Use at most %s characters." % username_max_chars
+                    "Username exceeds maximum length" ". Use at most %s characters." % username_max_chars
                 )
 
             if len(loginname) > loginname_max_chars:
                 raise InvalidCommandLineError(
-                    "Login name exceeds maximum "
-                    "length. Use at most %s characters." % loginname_max_chars
+                    "Login name exceeds maximum " "length. Use at most %s characters." % loginname_max_chars
                 )
 
             try:
                 if acct:
                     if (
                         acct["UserName"] == username
-                        or acct["Oem"][self.rdmc.app.typepath.defs.oemhp]["LoginName"]
-                        == loginname
+                        or acct["Oem"][self.rdmc.app.typepath.defs.oemhp]["LoginName"] == loginname
                     ):
                         raise ResourceExists("Username or login name is already in use.")
             except KeyError:
@@ -545,13 +490,11 @@ class IloAccountsCommand:
             else:
                 if len(password) > password_max_chars:
                     raise InvalidCommandLineError(
-                        "Password length is invalid."
-                        " Use at most %s characters." % password_max_chars
+                        "Password length is invalid." " Use at most %s characters." % password_max_chars
                     )
                 if len(password) < password_min_chars:
                     raise InvalidCommandLineError(
-                        "Password length is invalid."
-                        " Use at least %s characters." % password_min_chars
+                        "Password length is invalid." " Use at least %s characters." % password_min_chars
                     )
 
     def iloaccountsvalidation(self, options):
@@ -571,8 +514,7 @@ class IloAccountsCommand:
         """
         group = parser.add_argument_group(
             "GLOBAL OPTIONS",
-            "Options are available for all "
-            "arguments within the scope of this command.",
+            "Options are available for all " "arguments within the scope of this command.",
         )
 
         group.add_argument(
@@ -624,14 +566,12 @@ class IloAccountsCommand:
         self.cmdbase.add_login_arguments_group(default_parser)
         # add sub-parser
         add_help = (
-            "Adds an iLO user account to the currently logged in server with privileges\n"
-            "specified in --addprivs."
+            "Adds an iLO user account to the currently logged in server with privileges\n" "specified in --addprivs."
         )
         add_parser = subcommand_parser.add_parser(
             __subparsers__[0],
             help=add_help,
-            description=add_help
-            + "\n\t*Note*:By default only the login privilege is added to the"
+            description=add_help + "\n\t*Note*:By default only the login privilege is added to the"
             ' newly created account\n\twith role "ReadOnly"in iLO 5 and no privileges in iLO 4.'
             + privilege_help
             + "\n\n\tExamples:\n\n\tAdd an account with specific privileges:\n\t\tiloaccounts add "
@@ -648,8 +588,7 @@ class IloAccountsCommand:
         )
         add_parser.add_argument(
             "loginname",
-            help="The loginname of the iLO account to add. This is NOT used to login to the newly "
-            "created account.",
+            help="The loginname of the iLO account to add. This is NOT used to login to the newly " "created account.",
             metavar="LOGINNAME",
         )
         add_parser.add_argument(
@@ -673,8 +612,7 @@ class IloAccountsCommand:
             "--serviceaccount",
             dest="serviceacc",
             action="store_true",
-            help="Optionally include this flag if you wish to created account "
-            "to be a service account.",
+            help="Optionally include this flag if you wish to created account " "to be a service account.",
             default=False,
         )
         self.cmdbase.add_login_arguments_group(add_parser)
@@ -689,9 +627,7 @@ class IloAccountsCommand:
         modify_parser = subcommand_parser.add_parser(
             __subparsers__[1],
             help=modify_help,
-            description=modify_help
-            + privilege_help
-            + "\n\n\tExamples:\n\n\tModify an iLO account's "
+            description=modify_help + privilege_help + "\n\n\tExamples:\n\n\tModify an iLO account's "
             "privileges by adding:\n\tiloaccounts modify username --addprivs 3,5\n\n\t"
             "Modify an iLO account's privileges by removal:\n\tiloaccounts modify username "
             "--removeprivs 10\n\n\tOr modify an iLO account's privileges by both simultaneously "
@@ -728,15 +664,11 @@ class IloAccountsCommand:
             metavar="PRIV,",
         )
         # changepass sub-parser
-        changepass_help = (
-            "Changes the password of the provided iLO user account on the currently "
-            "logged in server."
-        )
+        changepass_help = "Changes the password of the provided iLO user account on the currently " "logged in server."
         changepass_parser = subcommand_parser.add_parser(
             __subparsers__[2],
             help=changepass_help,
-            description=changepass_help
-            + "\n\nExamples:\n\nChange the password of an account:\n\t"
+            description=changepass_help + "\n\nExamples:\n\nChange the password of an account:\n\t"
             "iloaccounts changepass 2 newpassword",
             formatter_class=RawDescriptionHelpFormatter,
         )
@@ -757,14 +689,11 @@ class IloAccountsCommand:
         self.cmdbase.add_login_arguments_group(changepass_parser)
 
         # delete sub-parser
-        delete_help = (
-            "Deletes the provided iLO user account on the currently logged in server."
-        )
+        delete_help = "Deletes the provided iLO user account on the currently logged in server."
         delete_parser = subcommand_parser.add_parser(
             __subparsers__[3],
             help=delete_help,
-            description=delete_help + "\n\nExamples:\n\nDelete an iLO account:\n\t"
-            "iloaccounts delete username",
+            description=delete_help + "\n\nExamples:\n\nDelete an iLO account:\n\t" "iloaccounts delete username",
             formatter_class=RawDescriptionHelpFormatter,
         )
         delete_parser.add_argument(
@@ -775,15 +704,11 @@ class IloAccountsCommand:
         self.cmdbase.add_login_arguments_group(delete_parser)
 
         # addcert sub-parser
-        addcert_help = (
-            "Adds a certificate to the provided iLO user account on the currently logged"
-            " in server."
-        )
+        addcert_help = "Adds a certificate to the provided iLO user account on the currently logged" " in server."
         addcert_parser = subcommand_parser.add_parser(
             __subparsers__[4],
             help=addcert_help,
-            description=addcert_help
-            + r"\n\nExamples:\n\nAdd a user certificate to the provided "
+            description=addcert_help + r"\n\nExamples:\n\nAdd a user certificate to the provided "
             r"iLO account.\n\tiloaccounts addcert accountUserName C:\Users\user\cert.txt",
             formatter_class=RawDescriptionHelpFormatter,
         )
@@ -800,15 +725,11 @@ class IloAccountsCommand:
         self.cmdbase.add_login_arguments_group(addcert_parser)
 
         # deletecert sub-parser
-        deletecert_help = (
-            "Deletes a certificate to the provided iLO user account on the currently "
-            "logged in server."
-        )
+        deletecert_help = "Deletes a certificate to the provided iLO user account on the currently " "logged in server."
         deletecert_parser = subcommand_parser.add_parser(
             __subparsers__[5],
             help=deletecert_help,
-            description=deletecert_help
-            + "\n\nExamples:\n\nDelete a user certificate from the "
+            description=deletecert_help + "\n\nExamples:\n\nDelete a user certificate from the "
             "provided iLO account.\n\tiloaccounts deletecert username",
             formatter_class=RawDescriptionHelpFormatter,
         )

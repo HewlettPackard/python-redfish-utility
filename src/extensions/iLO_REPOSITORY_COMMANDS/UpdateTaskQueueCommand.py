@@ -17,29 +17,25 @@
 # -*- coding: utf-8 -*-
 """ Update Task Queue Command for rdmc """
 
-from random import randint
 from argparse import RawDescriptionHelpFormatter
+from random import randint
 
 from redfish.ris.rmc_helper import IdTokenError
 
 try:
     from rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
-        NoContentsFoundForOperationError,
         InvalidCommandLineErrorOPTS,
-        InvalidCommandLineError,
-        Encryption,
+        NoContentsFoundForOperationError,
+        ReturnCodes,
         TaskQueueError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
-        NoContentsFoundForOperationError,
         InvalidCommandLineErrorOPTS,
-        InvalidCommandLineError,
-        Encryption,
+        NoContentsFoundForOperationError,
+        ReturnCodes,
         TaskQueueError,
     )
 
@@ -101,9 +97,7 @@ class UpdateTaskQueueCommand:
         self.updatetaskqueuevalidation(options)
 
         if self.rdmc.app.typepath.defs.isgen9:
-            raise IncompatibleiLOVersionError(
-                "iLO Repository commands are only available on iLO 5."
-            )
+            raise IncompatibleiLOVersionError("iLO Repository commands are only available on iLO 5.")
 
         if options.command.lower() == "create":
             self.createtask(options.keywords, options)
@@ -120,9 +114,7 @@ class UpdateTaskQueueCommand:
 
     def resetqueue(self):
         """Deletes everything in the update task queue"""
-        tasks = self.rdmc.app.getcollectionmembers(
-            "/redfish/v1/UpdateService/UpdateTaskQueue/"
-        )
+        tasks = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/UpdateTaskQueue/")
         if not tasks:
             self.rdmc.ui.printer("No tasks found.\n")
 
@@ -134,9 +126,7 @@ class UpdateTaskQueueCommand:
 
     def cleanqueue(self):
         """Deletes all finished or errored tasks in the update task queue"""
-        tasks = self.rdmc.app.getcollectionmembers(
-            "/redfish/v1/UpdateService/UpdateTaskQueue/"
-        )
+        tasks = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/UpdateTaskQueue/")
         if not tasks:
             self.rdmc.ui.printer("No tasks found.\n")
 
@@ -159,12 +149,8 @@ class UpdateTaskQueueCommand:
         tpmflag = None
 
         path = "/redfish/v1/UpdateService/UpdateTaskQueue/"
-        comps = self.rdmc.app.getcollectionmembers(
-            "/redfish/v1/UpdateService/" "ComponentRepository/"
-        )
-        curr_tasks = self.rdmc.app.getcollectionmembers(
-            "/redfish/v1/UpdateService/UpdateTaskQueue/"
-        )
+        comps = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/" "ComponentRepository/")
+        curr_tasks = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/UpdateTaskQueue/")
         for task in tasks:
             usedcomp = None
             newtask = None
@@ -172,8 +158,7 @@ class UpdateTaskQueueCommand:
             try:
                 usedcomp = int(task)
                 newtask = {
-                    "Name": "Wait-%s %s seconds"
-                    % (str(randint(0, 1000000)), str(usedcomp)),
+                    "Name": "Wait-%s %s seconds" % (str(randint(0, 1000000)), str(usedcomp)),
                     "Command": "Wait",
                     "WaitTimeSeconds": usedcomp,
                     "UpdatableBy": ["Bmc"],
@@ -194,15 +179,9 @@ class UpdateTaskQueueCommand:
                     else:
                         tpmflag = False
                     # TODO: Update to monolith check
-                    results = self.rdmc.app.get_handler(
-                        self.rdmc.app.typepath.defs.biospath, silent=True
-                    )
+                    results = self.rdmc.app.get_handler(self.rdmc.app.typepath.defs.biospath, silent=True)
                     if results.status == 200:
-                        contents = (
-                            results.dict
-                            if self.rdmc.app.typepath.defs.isgen9
-                            else results.dict["Attributes"]
-                        )
+                        contents = results.dict if self.rdmc.app.typepath.defs.isgen9 else results.dict["Attributes"]
                         tpmstate = contents["TpmState"]
                         if "Enabled" in tpmstate and not tpmflag:
                             raise IdTokenError("")
@@ -250,9 +229,7 @@ class UpdateTaskQueueCommand:
         :param options: command line options
         :type options: list.
         """
-        tasks = self.rdmc.app.getcollectionmembers(
-            "/redfish/v1/UpdateService/UpdateTaskQueue/"
-        )
+        tasks = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/UpdateTaskQueue/")
         if not tasks:
             self.rdmc.ui.printer("No tasks found.\n")
             return
@@ -274,9 +251,7 @@ class UpdateTaskQueueCommand:
                         % (task["Command"], str(task["WaitTimeSeconds"]), task["State"])
                     )
                 else:
-                    self.rdmc.ui.printer(
-                        "\tCommand:%s\n\tState: %s\n" % (task["Command"], task["State"])
-                    )
+                    self.rdmc.ui.printer("\tCommand:%s\n\tState: %s\n" % (task["Command"], task["State"]))
         elif options.json:
             outjson = dict()
             for task in tasks:
@@ -306,16 +281,14 @@ class UpdateTaskQueueCommand:
         """
         group = parser.add_argument_group(
             "GLOBAL OPTIONS",
-            "Options are available for all "
-            "arguments within the scope of this command.",
+            "Options are available for all " "arguments within the scope of this command.",
         )
 
         group.add_argument(
             "--tpmover",
             dest="tover",
             action="store_true",
-            help="If set then the TPMOverrideFlag is passed in on the "
-            "associated flash operations",
+            help="If set then the TPMOverrideFlag is passed in on the " "associated flash operations",
             default=False,
         )
 
@@ -372,8 +345,7 @@ class UpdateTaskQueueCommand:
         create_parser = subcommand_parser.add_parser(
             "create",
             help=create_help,
-            description=create_help
-            + "\n\n\tCreate a new task for 30 secs:\n\t\ttaskqueue "
+            description=create_help + "\n\n\tCreate a new task for 30 secs:\n\t\ttaskqueue "
             "create 30\n\n\tCreate a new reboot task.\n\t\ttaskqueue create reboot"
             "\n\n\tCreate a new component task.\n\t\ttaskqueue create compname.exe"
             "\n\n\tCreate multiple tasks at once.\n\t\ttaskqueue create 30 "

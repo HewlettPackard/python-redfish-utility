@@ -17,65 +17,63 @@
 # -*- coding: utf-8 -*-
 """ Log Operations Command for rdmc """
 
-import os
-import sys
-import json
-import time
 import ctypes
-import string
-import shlex
-import tempfile
 import datetime
-import platform
 import itertools
+import json
+import os
+import platform
+import shlex
+import string
 import subprocess
-from argparse import ArgumentParser, SUPPRESS
+import sys
+import tempfile
+import time
+
 from six.moves import queue
 
 import redfish.hpilo.risblobstore2 as risblobstore2
-from redfish.ris.utils import filter_output
 from redfish.rest.connections import SecurityStateError
+from redfish.ris.utils import filter_output
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
+        LOGGER,
         UI,
-        InvalidKeyError,
-        InvalidMSCfileInputError,
+        IncompatibleiLOVersionError,
+        InvalidCListFileError,
+        InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         InvalidFileInputError,
-        LOGGER,
-        InvalidCListFileError,
-        NoContentsFoundForOperationError,
-        IncompatibleiLOVersionError,
-        Encryption,
-        PartitionMoutingError,
+        InvalidKeyError,
+        InvalidMSCfileInputError,
         MultipleServerConfigError,
+        NoContentsFoundForOperationError,
+        PartitionMoutingError,
+        ReturnCodes,
         UnabletoFindDriveError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
+        LOGGER,
         UI,
-        InvalidKeyError,
-        InvalidMSCfileInputError,
+        IncompatibleiLOVersionError,
+        InvalidCListFileError,
+        InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         InvalidFileInputError,
-        LOGGER,
-        InvalidCListFileError,
-        NoContentsFoundForOperationError,
-        IncompatibleiLOVersionError,
-        Encryption,
-        PartitionMoutingError,
+        InvalidKeyError,
+        InvalidMSCfileInputError,
         MultipleServerConfigError,
+        NoContentsFoundForOperationError,
+        PartitionMoutingError,
+        ReturnCodes,
         UnabletoFindDriveError,
     )
 
 if os.name == "nt":
     import win32api
-elif sys.platform != "darwin" and not "VMkernel" in platform.uname():
+elif sys.platform != "darwin" and "VMkernel" not in platform.uname():
     import pyudev
 
 
@@ -170,9 +168,7 @@ class ServerlogsCommand:
         :type options: list.
         """
         if not options.service:
-            raise InvalidCommandLineError(
-                "Please select a log type using the --selectlog option."
-            )
+            raise InvalidCommandLineError("Please select a log type using the --selectlog option.")
 
         if options.service.lower() == "iml":
             path = self.returnimlpath(options=options)
@@ -184,10 +180,7 @@ class ServerlogsCommand:
             raise InvalidCommandLineError("Cannot filter AHS logs.")
         elif (
             options.service.lower() == "ahs"
-            and (
-                not self.rdmc.app.typepath.url
-                or self.rdmc.app.typepath.url.startswith("blobstore")
-            )
+            and (not self.rdmc.app.typepath.url or self.rdmc.app.typepath.url.startswith("blobstore"))
             and not options.clearlog
         ):
             if options.customiseAHS is not None:
@@ -196,9 +189,7 @@ class ServerlogsCommand:
                 from_date = date_check.split("&")[0].split("=")[1]
                 to_date = date_check.split("to")[-1].split("=")[-1]
                 if to_date < from_date or from_date > current_date:
-                    raise InvalidCommandLineError(
-                        "Please provide valid date to customiseAHS"
-                    )
+                    raise InvalidCommandLineError("Please provide valid date to customiseAHS")
             self.downloadahslocally(options=options)
             return
         elif options.service.lower() == "ahs":
@@ -235,9 +226,7 @@ class ServerlogsCommand:
             if self.runmpfunc(mpfile=mfile, outputdir=outputdir, options=options):
                 return ReturnCodes.SUCCESS
             else:
-                raise MultipleServerConfigError(
-                    "One or more servers failed to download logs."
-                )
+                raise MultipleServerConfigError("One or more servers failed to download logs.")
 
     def runmpfunc(self, mpfile=None, outputdir=None, options=None):
         """Main worker function for multi file command
@@ -263,9 +252,7 @@ class ServerlogsCommand:
                 outputdir = outputdir[1:-1]
 
             if not os.path.isdir(outputdir):
-                raise InvalidCommandLineError(
-                    "The given output folder path does not exist."
-                )
+                raise InvalidCommandLineError("The given output folder path does not exist.")
 
             dirpath = outputdir
         else:
@@ -276,10 +263,7 @@ class ServerlogsCommand:
         os.mkdir(createdir)
 
         oofile = open(os.path.join(createdir, "CompleteOutputfile.txt"), "w+")
-        self.rdmc.ui.printer(
-            "Creating multiple processes to load configuration "
-            "concurrently to all servers...\n"
-        )
+        self.rdmc.ui.printer("Creating multiple processes to load configuration " "concurrently to all servers...\n")
 
         while True:
             if not self.queue.empty():
@@ -302,9 +286,7 @@ class ServerlogsCommand:
                 listargforsubprocess = " ".join(listargforsubprocess)
 
             logfile = open(os.path.join(createdir, urlfilename + ".txt"), "w+")
-            pinput = subprocess.Popen(
-                listargforsubprocess, shell=True, stdout=logfile, stderr=logfile
-            )
+            pinput = subprocess.Popen(listargforsubprocess, shell=True, stdout=logfile, stderr=logfile)
 
             processes.append((pinput, finput, urlvar, logfile))
 
@@ -320,13 +302,9 @@ class ServerlogsCommand:
             logfile.close()
 
             if returncode == 0:
-                self.rdmc.ui.printer(
-                    "Loading Configuration for {} : SUCCESS\n".format(urlvar)
-                )
+                self.rdmc.ui.printer("Loading Configuration for {} : SUCCESS\n".format(urlvar))
             else:
-                self.rdmc.ui.error(
-                    "Loading Configuration for {} : FAILED\n".format(urlvar)
-                )
+                self.rdmc.ui.error("Loading Configuration for {} : FAILED\n".format(urlvar))
                 self.rdmc.ui.error(
                     "ILOREST return code : {}.\nFor more details please check {}"
                     ".txt under {} directory.\n".format(returncode, urlvar, createdir)
@@ -356,8 +334,7 @@ class ServerlogsCommand:
 
         if not os.path.isfile(mpfile) or not options.mplog:
             raise InvalidFileInputError(
-                "File '%s' doesn't exist, please "
-                "create file by running save command." % mpfile
+                "File '%s' doesn't exist, please " "create file by running save command." % mpfile
             )
 
         logs = self.checkmplog(options)
@@ -381,12 +358,8 @@ class ServerlogsCommand:
                         args = shlex.split(line, posix=False)
 
                         if len(args) < 5:
-                            self.rdmc.ui.error(
-                                "Incomplete data in input file: {}\n".format(line)
-                            )
-                            raise InvalidMSCfileInputError(
-                                "Please verify the " "contents of the %s file" % mpfile
-                            )
+                            self.rdmc.ui.error("Incomplete data in input file: {}\n".format(line))
+                            raise InvalidMSCfileInputError("Please verify the " "contents of the %s file" % mpfile)
                         else:
                             linelist = globalargs + cmdtorun + args + cmdargs
                             line = str(line).replace("\n", "")
@@ -534,9 +507,7 @@ class ServerlogsCommand:
             datadict = data.dict
 
             try:
-                completedatadictlist = (
-                    datadict["Items"] if "Items" in datadict else datadict["Members"]
-                )
+                completedatadictlist = datadict["Items"] if "Items" in datadict else datadict["Members"]
             except:
                 self.rdmc.ui.error("No data available within log.\n")
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
@@ -546,23 +517,17 @@ class ServerlogsCommand:
 
                 while morepages:
                     if "links" in datadict and "NextPage" in datadict["links"]:
-                        next_link_uri = (
-                            path + "?page=" + str(datadict["links"]["NextPage"]["page"])
-                        )
+                        next_link_uri = path + "?page=" + str(datadict["links"]["NextPage"]["page"])
 
                         href = "%s" % next_link_uri
                         data = self.rdmc.app.get_handler(href, silent=True)
                         datadict = data.dict
 
                         try:
-                            completedatadictlist = (
-                                completedatadictlist + datadict["Items"]
-                            )
+                            completedatadictlist = completedatadictlist + datadict["Items"]
                         except:
                             self.rdmc.ui.error("No data available within log.\n")
-                            raise NoContentsFoundForOperationError(
-                                "Unable to retrieve logs."
-                            )
+                            raise NoContentsFoundForOperationError("Unable to retrieve logs.")
                     else:
                         morepages = False
             else:
@@ -619,11 +584,7 @@ class ServerlogsCommand:
                             clearkey = [x for x in actiondict if x.endswith("ClearLog")]
                             path = actiondict[clearkey[0]]["target"]
                     else:
-                        linkpath = (
-                            filtereddict["links"]
-                            if "links" in filtereddict
-                            else filtereddict
-                        )
+                        linkpath = filtereddict["links"] if "links" in filtereddict else filtereddict
                         dictpath = linkpath["Entries"]
                         dictpath = dictpath[0] if isinstance(dictpath, list) else dictpath
                         path = dictpath[self.rdmc.app.typepath.defs.hrefstring]
@@ -631,7 +592,7 @@ class ServerlogsCommand:
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
         except NoContentsFoundForOperationError as excp:
             raise excp
-        except Exception as excp:
+        except Exception:
             self.rdmc.ui.error("No path found for the entry.\n")
             raise NoContentsFoundForOperationError("Unable to retrieve logs.")
 
@@ -669,11 +630,7 @@ class ServerlogsCommand:
                             clearkey = [x for x in actiondict if x.endswith("ClearLog")]
                             path = actiondict[clearkey[0]]["target"]
                     else:
-                        linkpath = (
-                            filtereddict["links"]
-                            if "links" in filtereddict
-                            else filtereddict
-                        )
+                        linkpath = filtereddict["links"] if "links" in filtereddict else filtereddict
                         dictpath = linkpath["Entries"]
                         dictpath = dictpath[0] if isinstance(dictpath, list) else dictpath
                         path = dictpath[self.rdmc.app.typepath.defs.hrefstring]
@@ -682,7 +639,7 @@ class ServerlogsCommand:
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
         except NoContentsFoundForOperationError as excp:
             raise excp
-        except Exception as excp:
+        except Exception:
             self.rdmc.ui.error("No path found for the entry.\n")
             raise NoContentsFoundForOperationError("Unable to retrieve logs.")
 
@@ -698,13 +655,8 @@ class ServerlogsCommand:
         :type options: list.
         """
 
-        if (
-            not self.rdmc.app.typepath.defs.isgen10
-            or not self.rdmc.app.getiloversion() >= 5.210
-        ):
-            raise IncompatibleiLOVersionError(
-                "Security logs are only available on iLO 5 2.10 or" " greater."
-            )
+        if not self.rdmc.app.typepath.defs.isgen10 or not self.rdmc.app.getiloversion() >= 5.210:
+            raise IncompatibleiLOVersionError("Security logs are only available on iLO 5 2.10 or" " greater.")
         LOGGER.info("Obtaining SL path for download.")
         path = ""
         val = self.rdmc.app.typepath.defs.logservicetype
@@ -729,7 +681,7 @@ class ServerlogsCommand:
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
         except NoContentsFoundForOperationError as excp:
             raise excp
-        except Exception as excp:
+        except Exception:
             self.rdmc.ui.error("No path found for the entry.\n")
             raise NoContentsFoundForOperationError("Unable to retrieve logs.")
 
@@ -749,8 +701,7 @@ class ServerlogsCommand:
 
         if options.filename:
             raise InvalidCommandLineError(
-                "AHS logs must be downloaded with "
-                "default name. Please re-run command without filename option."
+                "AHS logs must be downloaded with " "default name. Please re-run command without filename option."
             )
 
         val = self.rdmc.app.typepath.defs.hpiloactivehealthsystemtype
@@ -775,11 +726,7 @@ class ServerlogsCommand:
                         clearkey = [x for x in actiondict if x.endswith("ClearLog")]
                         path = actiondict[clearkey[0]]["target"]
                 else:
-                    linkpath = (
-                        filtereddict["links"]
-                        if "links" in filtereddict
-                        else filtereddict["Links"]
-                    )
+                    linkpath = filtereddict["links"] if "links" in filtereddict else filtereddict["Links"]
 
                     ahslocpath = linkpath["AHSLocation"]
                     path = ahslocpath["extref"]
@@ -807,15 +754,11 @@ class ServerlogsCommand:
                             startdat = list(map(int, startdate.split("-")))
 
                             weekago = datetime.datetime.now() - datetime.timedelta(days=6)
-                            weekagostr = list(
-                                map(int, (str(weekago).split()[0]).split("-"))
-                            )
+                            weekagostr = list(map(int, (str(weekago).split()[0]).split("-")))
 
                             strdate = min(
                                 max(
-                                    datetime.date(
-                                        weekagostr[0], weekagostr[1], weekagostr[2]
-                                    ),
+                                    datetime.date(weekagostr[0], weekagostr[1], weekagostr[2]),
                                     datetime.date(startdat[0], startdat[1], startdat[2]),
                                 ),
                                 datetime.date(enddat[0], enddat[1], enddat[2]),
@@ -823,14 +766,9 @@ class ServerlogsCommand:
 
                             aweekstr = "from=" + str(strdate) + "&&to=" + enddate
                         else:
-                            week_ago = datetime.datetime.now() - datetime.timedelta(
-                                days=6
-                            )
+                            week_ago = datetime.datetime.now() - datetime.timedelta(days=6)
                             aweekstr = (
-                                "from="
-                                + str(week_ago).split()[0]
-                                + "&&to="
-                                + str(datetime.datetime.now()).split()[0]
+                                "from=" + str(week_ago).split()[0] + "&&to=" + str(datetime.datetime.now()).split()[0]
                             )
 
                         path = path.split("downloadAll=1")[0]
@@ -840,7 +778,7 @@ class ServerlogsCommand:
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
         except NoContentsFoundForOperationError as excp:
             raise excp
-        except Exception as excp:
+        except Exception:
             self.rdmc.ui.error("No path found for the entry.\n")
             raise NoContentsFoundForOperationError("Unable to retrieve logs.")
 
@@ -900,21 +838,16 @@ class ServerlogsCommand:
         self.dontunmount = True
 
         if self.rdmc.app.typepath.ilogen and self.rdmc.app.typepath.ilogen < 4:
-            raise IncompatibleiLOVersionError(
-                "Need at least iLO 4 for this program to run!\n"
-            )
+            raise IncompatibleiLOVersionError("Need at least iLO 4 for this program to run!\n")
 
         if sys.platform == "darwin":
             raise InvalidCommandLineError("AHS loacal download is not supported on MacOS")
         elif "VMkernel" in platform.uname():
-            raise InvalidCommandLineError(
-                "AHS loacal download is not supported on VMWare"
-            )
+            raise InvalidCommandLineError("AHS loacal download is not supported on VMWare")
 
         if options.filename:
             raise InvalidCommandLineError(
-                "AHS logs must be downloaded with "
-                "default name! Re-run command without filename!"
+                "AHS logs must be downloaded with default name! Re-run command without filename!"
             )
 
         secstate = risblobstore2.BlobStore2().get_security_state()
@@ -928,9 +861,7 @@ class ServerlogsCommand:
             secstate = 0
         self.rdmc.ui.printer("Security State is {}...\n".format(secstate))
         if int(secstate) > 3:
-            raise SecurityStateError(
-                "AHS logs cannot be downloaded" " locally in high security state.\n"
-            )
+            raise SecurityStateError("AHS logs cannot be downloaded locally in high security state.\n")
 
         self.lib = risblobstore2.BlobStore2.gethprestchifhandle()
 
@@ -957,8 +888,7 @@ class ServerlogsCommand:
             self.createahsfile(ahsfile=self.getahsfilename(options))
         except Exception as excp:
             raise PartitionMoutingError(
-                "An exception occurred obtaining Blackbox data files. "
-                "The directory may be empty: %s.\n" % excp
+                "An exception occurred obtaining Blackbox data files. The directory may be empty: %s.\n" % excp
             )
 
         if not manual_ovr:
@@ -982,9 +912,9 @@ class ServerlogsCommand:
         LOGGER.info("Creating AHS file from the formatted data.")
         self.clearahsfile(ahsfile=ahsfile)
         self.lib.setAHSFilepath.argtypes = [ctypes.c_char_p]
-        self.lib.setAHSFilepath(os.path.abspath(ahsfile).encode("ascii", "ignore"))
+        self.lib.setAHSFilepath(os.path.abspath(ahsfile).encode("utf-8", "ignore"))
         self.lib.setBBdatapath.argtypes = [ctypes.c_char_p]
-        self.lib.setBBdatapath(self.abspath.encode("ascii", "ignore"))
+        self.lib.setBBdatapath(self.abspath.encode("utf-8", "ignore"))
         self.lib.createAHSLogFile_G9()
 
     def clearahsfile(self, ahsfile=None):
@@ -1028,9 +958,7 @@ class ServerlogsCommand:
             ]
 
             filesize = os.stat(os.path.join(self.abspath, files)).st_size
-            self.lib.gendatlisting(
-                files.encode("ascii", "ignore"), bisrequiredfile, filesize
-            )
+            self.lib.gendatlisting(files.encode("ascii", "ignore"), bisrequiredfile, filesize)
 
     def getfilenames(self, options=None, cfilelist=None):
         """Get all file names from the blackbox directory."""
@@ -1040,31 +968,21 @@ class ServerlogsCommand:
 
         filenames = next(os.walk(self.abspath))[2]
         timenow = (str(datetime.datetime.now()).split()[0]).split("-")
-        strdate = enddate = datetime.date(
-            int(timenow[0]), int(timenow[1]), int(timenow[2])
-        )
+        strdate = enddate = datetime.date(int(timenow[0]), int(timenow[1]), int(timenow[2]))
 
         if not options.downloadallahs and not options.customiseAHS:
             weekago = datetime.datetime.now() - datetime.timedelta(days=6)
             weekagostr = (str(weekago).split()[0]).split("-")
-            strdate = datetime.date(
-                int(weekagostr[0]), int(weekagostr[1]), int(weekagostr[2])
-            )
+            strdate = datetime.date(int(weekagostr[0]), int(weekagostr[1]), int(weekagostr[2]))
 
         if options.customiseAHS:
             instring = options.customiseAHS
             if instring.startswith(("'", '"')) and instring.endswith(("'", '"')):
                 instring = instring[1:-1]
             try:
-                (strdatestr, enddatestr) = [
-                    e.split("-") for e in instring.split("from=")[-1].split("&&to=")
-                ]
-                strdate = datetime.date(
-                    int(strdatestr[0]), int(strdatestr[1]), int(strdatestr[2])
-                )
-                enddate = datetime.date(
-                    int(enddatestr[0]), int(enddatestr[1]), int(enddatestr[2])
-                )
+                (strdatestr, enddatestr) = [e.split("-") for e in instring.split("from=")[-1].split("&&to=")]
+                strdate = datetime.date(int(strdatestr[0]), int(strdatestr[1]), int(strdatestr[2]))
+                enddate = datetime.date(int(enddatestr[0]), int(enddatestr[1]), int(enddatestr[2]))
             except Exception as excp:
                 LOGGER.warning(excp)
                 raise InvalidCommandLineError("Cannot parse customised AHSinput.")
@@ -1087,16 +1005,10 @@ class ServerlogsCommand:
             filesplit = filenoext.split("-")
 
             try:
-                newdate = datetime.date(
-                    int(filesplit[1]), int(filesplit[2]), int(filesplit[3])
-                )
+                newdate = datetime.date(int(filesplit[1]), int(filesplit[2]), int(filesplit[3]))
                 datelist.append(newdate)
 
-                if (
-                    (strdate <= newdate)
-                    and (newdate <= enddate)
-                    and not options.downloadallahs
-                ):
+                if (strdate <= newdate) and (newdate <= enddate) and not options.downloadallahs:
                     allfiles.append(files)
                     atleastonefile = True
             except:
@@ -1109,9 +1021,7 @@ class ServerlogsCommand:
                 try:
                     filenoext = files.rsplit(".", 1)[0]
                     filesplit = filenoext.split("-")
-                    newdate = datetime.date(
-                        int(filesplit[1]), int(filesplit[2]), int(filesplit[3])
-                    )
+                    newdate = datetime.date(int(filesplit[1]), int(filesplit[2]), int(filesplit[3]))
                     if not ((strdate <= newdate) and (newdate <= enddate)):
                         cfilelist.remove(files)
                 except:
@@ -1124,9 +1034,7 @@ class ServerlogsCommand:
             strdate = max(min(datelist), strdate) if datelist else strdate
             enddate = min(max(datelist), enddate) if datelist else enddate
 
-        LOGGER.info(
-            "All filenames: %s; Download files: %s", str(filenames), str(allfiles)
-        )
+        LOGGER.info("All filenames: %s; Download files: %s", str(filenames), str(allfiles))
 
         if atleastonefile:
             self.updateminmaxdate(strdate=strdate, enddate=enddate)
@@ -1226,17 +1134,15 @@ class ServerlogsCommand:
                             else:
                                 return False, abspathbb
 
-                if count > 3:
+                if count > 5:
                     found, path = self.manualmountbb()
                     if found:
                         return True, path
 
             count = count + 1
-            time.sleep(3)
+            time.sleep(5)
 
-        raise PartitionMoutingError(
-            "iLO not responding to request " "for mounting AHS partition"
-        )
+        raise PartitionMoutingError("iLO not responding to request " "for mounting AHS partition")
 
     def manualmountbb(self):
         """Manually mount blackbox when after fixed time."""
@@ -1275,9 +1181,7 @@ class ServerlogsCommand:
         :type dirpath: str
         """
         LOGGER.info("Manually unmounting the blackbox.")
-        pmount = subprocess.Popen(
-            ["umount", dirpath], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        pmount = subprocess.Popen(["umount", dirpath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         _, _ = pmount.communicate()
 
     def mountbb(self):
@@ -1320,9 +1224,7 @@ class ServerlogsCommand:
         LOGGER.info("Filtering logs based on requsted options.")
         if tofilter and data:
             try:
-                if (str(tofilter)[0] == str(tofilter)[-1]) and str(tofilter).startswith(
-                    ("'", '"')
-                ):
+                if (str(tofilter)[0] == str(tofilter)[-1]) and str(tofilter).startswith(("'", '"')):
                     tofilter = tofilter[1:-1]
 
                 (sel, val) = tofilter.split("=")
@@ -1332,9 +1234,7 @@ class ServerlogsCommand:
                 if val.lower() == "true" or val.lower() == "false":
                     val = val.lower() in ("yes", "true", "t", "1")
             except:
-                raise InvalidCommandLineError(
-                    "Invalid filter" " parameter format [filter_attribute]=[filter_value]"
-                )
+                raise InvalidCommandLineError("Invalid filter" " parameter format [filter_attribute]=[filter_value]")
 
             # Severity inside Oem/Hpe should be filtered
             if sel == "Severity":
@@ -1377,13 +1277,10 @@ class ServerlogsCommand:
                     snum = resp.dict["SerialNumber"] if resp else snum
                 except KeyError:
                     raise InvalidKeyError(
-                        "Unable to find key SerialNumber, please check path %s"
-                        % self.rdmc.app.typepath.defs.systempath
+                        "Unable to find key SerialNumber, please check path %s" % self.rdmc.app.typepath.defs.systempath
                     )
                 except:
-                    raise NoContentsFoundForOperationError(
-                        "Unable to retrieve log instance."
-                    )
+                    raise NoContentsFoundForOperationError("Unable to retrieve log instance.")
 
             snum = filtereddictslists[0]["SerialNumber"] if not snum else snum
         else:
@@ -1404,7 +1301,7 @@ class ServerlogsCommand:
 
         if options.directorypath:
             dir_name = options.directorypath
-            dir_name = dir_name.encode('utf-8').decode('utf-8')
+            dir_name = dir_name.encode("utf-8").decode("utf-8")
             if not os.path.exists(dir_name):
                 os.makedirs(dir_name)
             ahsdefaultfilename = os.path.join(dir_name, ahsdefaultfilename)
@@ -1456,8 +1353,7 @@ class ServerlogsCommand:
         customparser.add_argument(
             "--selectlog",
             dest="service",
-            help="""Read log from the given log service. Options: IML, """
-            """IEL or AHS.""",
+            help="""Read log from the given log service. Options: IML, """ """IEL or AHS.""",
             default=None,
         )
         customparser.add_argument(
@@ -1472,8 +1368,7 @@ class ServerlogsCommand:
             "--maintenancemessage",
             "-m",
             dest="mainmes",
-            help="""Maintenance message to be inserted into the log. """
-            """(IML LOGS ONLY FEATURE)""",
+            help="""Maintenance message to be inserted into the log. """ """(IML LOGS ONLY FEATURE)""",
             default=None,
         )
         customparser.add_argument(
@@ -1502,7 +1397,6 @@ class ServerlogsCommand:
             default=None,
         )
         customparser.add_argument(
-            "-o",
             "--outputdirectory",
             dest="outdirectory",
             help="""use the provided directory to output data for multiple server downloads.""",

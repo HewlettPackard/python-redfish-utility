@@ -37,28 +37,28 @@ from ctypes import (
     create_string_buffer,
 )
 from redfish.hpilo.rishpilo import (
-    HpIlo,
     HpIloInitialError,
     HpIloChifAccessDeniedError,
     HpIloNoChifDriverError,
 )
 from redfish.hpilo.rishpilo import BlobReturnCodes
-from redfish.hpilo.risblobstore2 import BlobStore2, Blob2SecurityError
-from redfish.rest.connections import Blobstore2Connection
+from redfish.hpilo.risblobstore2 import BlobStore2
+
 try:
     from rdmc_helper import (
+        LOGGER,
         ReturnCodes,
         InvalidCommandLineErrorOPTS,
-        Encryption,
         UploadError,
-        InvalidCommandLineError,
         IncompatibleiLOVersionError,
         TimeOutError,
         InvalidFileInputError,
         DeviceDiscoveryInProgress,
+        FirmwareUpdateError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
+        LOGGER,
         ReturnCodes,
         InvalidCommandLineErrorOPTS,
         Encryption,
@@ -68,6 +68,7 @@ except ImportError:
         TimeOutError,
         InvalidFileInputError,
         DeviceDiscoveryInProgress,
+        FirmwareUpdateError,
     )
 
 
@@ -83,9 +84,7 @@ def human_readable_time(seconds):
     minutes = seconds / 60
     seconds = seconds % 60
 
-    return "{:02.0f} hour(s) {:02.0f} minute(s) {:02.0f} second(s) ".format(
-        hours, minutes, seconds
-    )
+    return "{:02.0f} hour(s) {:02.0f} minute(s) {:02.0f} second(s) ".format(hours, minutes, seconds)
 
 
 class UploadComponentCommand:
@@ -132,27 +131,31 @@ class UploadComponentCommand:
 
         self.uploadcommandvalidation(options)
         fwpkg = False
-        if options.component.endswith(".fwpkg"):
+        if (
+            options.component.endswith(".fwpkg")
+            or options.component.endswith(".fup")
+            or options.component.endswith(".hpb")
+        ):
             fwpkg = True
-            comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(
-                self, options.component
-            )
+            comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(self, options.component)
             # if pldm firmware
             if pldmfw:
                 path = self.rdmc.app.typepath.defs.systempath
                 results = self.rdmc.app.get_handler(path, service=True, silent=True).dict
+                device_discovery_status = results["Oem"]["Hpe"]["DeviceDiscoveryComplete"]["DeviceDiscovery"]
+                LOGGER.info("Device Discovery Status is {}".format(device_discovery_status))
                 # check for device discovery
-                if results['Oem']['Hpe']['DeviceDiscoveryComplete']['DeviceDiscovery'] != "vMainDeviceDiscoveryComplete":
-                    raise DeviceDiscoveryInProgress("Device Discovery in progress...Please retry flashing firmware after 10 minutes")
-            if ctype == "C":
+                if ("DeviceDiscoveryComplete" not in device_discovery_status):
+                    raise DeviceDiscoveryInProgress(
+                        "Device Discovery in progress...Please retry flashing firmware after 10 minutes"
+                    )
+            if ctype in ["C", "BC"]:
                 options.component = comp[0]
             # else:
             #    options.component = os.path.join(loc, comp[0])
 
         if self.rdmc.app.typepath.defs.isgen9:
-            raise IncompatibleiLOVersionError(
-                "iLO Repository commands are only available on iLO 5."
-            )
+            raise IncompatibleiLOVersionError("iLO Repository commands are only available on iLO 5.")
 
         filestoupload = self._check_and_split_files(options)
 
@@ -166,10 +169,8 @@ class UploadComponentCommand:
             else:
                 ret = self.uploadfunction(filestoupload, options)
 
-            if ret == ReturnCodes.SUCCESS:
-                self.rdmc.ui.printer(
-                    "%s\n" % human_readable_time(time.time() - start_time)
-                )
+            if ret == ReturnCodes.SUCCESS and not options.update_target:
+                self.rdmc.ui.printer("Uploading took %s\n" % human_readable_time(time.time() - start_time))
 
             if len(filestoupload) > 1:
                 path, _ = os.path.split((filestoupload[0])[1])
@@ -209,7 +210,6 @@ class UploadComponentCommand:
                         and not options.forceupload
                         and prevfile != filehndl[0].upper()
                     ):
-
                         ans = input(
                             "A component with the same name (%s) has "
                             "been found. Would you like to upload and "
@@ -256,9 +256,7 @@ class UploadComponentCommand:
                 fd = open(filename, rw)
                 fd.close()
             except IOError:
-                raise InvalidFileInputError(
-                    "The file '%s' could not be opened for upload" % filename
-                )
+                raise InvalidFileInputError("The file '%s' could not be opened for upload" % filename)
 
         maxcompsize = 32 * 1024 * 1024
         filelist = []
@@ -289,9 +287,7 @@ class UploadComponentCommand:
             else:
                 tempdir = os.path.join(sys.executable, tempfoldername)
 
-            self.rdmc.ui.printer(
-                "Spliting component. Temporary " "cache directory at %s\n" % tempdir
-            )
+            self.rdmc.ui.printer("Spliting component. Temporary " "cache directory at %s\n" % tempdir)
 
             if not os.path.exists(tempdir):
                 os.makedirs(tempdir)
@@ -303,9 +299,7 @@ class UploadComponentCommand:
                         sectionfilename = filebasename + "_part" + str(section)
                         sectionfilepath = os.path.join(tempdir, sectionfilename)
 
-                        sectioncompsigpath = os.path.join(
-                            sigpath, sectionfilename + ".compsig"
-                        )
+                        sectioncompsigpath = os.path.join(sigpath, sectionfilename + ".compsig")
                         sigfullpath = os.path.join(tempdir, sigpath)
                         if not os.path.exists(sigfullpath):
                             os.makedirs(sigfullpath)
@@ -342,12 +336,7 @@ class UploadComponentCommand:
         # returns a tuple with the state and the result dict
         state, result = self.get_update_service_state()
 
-        if (
-            state != "COMPLETED"
-            and state != "COMPLETE"
-            and state != "ERROR"
-            and state != "IDLE"
-        ):
+        if state != "COMPLETED" and state != "COMPLETE" and state != "ERROR" and state != "IDLE":
             self.rdmc.ui.error("iLO UpdateService is busy. Please try again.")
 
             return ReturnCodes.UPDATE_SERVICE_BUSY
@@ -368,9 +357,7 @@ class UploadComponentCommand:
         for item in filelist:
             ilo_upload_filename = item[0]
 
-            ilo_upload_compsig_filename = (
-                ilo_upload_filename[: ilo_upload_filename.rfind(".")] + ".compsig"
-            )
+            ilo_upload_compsig_filename = ilo_upload_filename[: ilo_upload_filename.rfind(".")] + ".compsig"
 
             componentpath = item[1]
             compsigpath = item[2]
@@ -392,6 +379,7 @@ class UploadComponentCommand:
                 "ETag": etag,
                 "Section": section_num,
                 "UpdateRecoverySet": options.update_srs,
+                "TPMOverride": options.tover,
             }
 
             data = [("sessionKey", sessionkey), ("parameters", json.dumps(parameters))]
@@ -415,9 +403,7 @@ class UploadComponentCommand:
 
             with open(componentpath, "rb") as fle:
                 output = fle.read()
-            data.append(
-                ("file", (ilo_upload_filename, output, "application/octet-stream"))
-            )
+            data.append(("file", (ilo_upload_filename, output, "application/octet-stream")))
 
             self.rdmc.ui.printer("Uploading component " + filename + ".\n")
             res = self.rdmc.app.post_handler(
@@ -431,9 +417,7 @@ class UploadComponentCommand:
             if res.status != 200:
                 return ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
             else:
-                self.rdmc.ui.printer(
-                    "Component " + filename + " uploaded successfully.\n"
-                )
+                self.rdmc.ui.printer("Component " + filename + " uploading successfully.\n")
 
             if not self.wait_for_state_change():
                 # Failed to upload the component.
@@ -451,9 +435,7 @@ class UploadComponentCommand:
         total_time = 0
         spinner = ["|", "/", "-", "\\"]
         state = ""
-        self.rdmc.ui.printer(
-            "Waiting for iLO UpdateService to finish processing the component\n"
-        )
+        self.rdmc.ui.printer("Waiting for iLO UpdateService to finish processing the component\n")
 
         while total_time < wait_time:
             state, _ = self.get_update_service_state()
@@ -475,9 +457,7 @@ class UploadComponentCommand:
                 break
 
         if total_time > wait_time:
-            raise TimeOutError(
-                "UpdateService in " + state + " state for " + str(wait_time) + "s"
-            )
+            raise TimeOutError("UpdateService in " + state + " state for " + str(wait_time) + "s")
 
         return True
 
@@ -494,11 +474,7 @@ class UploadComponentCommand:
             output = results.dict
 
             if self.rdmc.opts.verbose:
-                self.rdmc.ui.printer(
-                    "UpdateService state = "
-                    + (output["Oem"]["Hpe"]["State"]).upper()
-                    + "\n"
-                )
+                self.rdmc.ui.printer("UpdateService state = " + (output["Oem"]["Hpe"]["State"]).upper() + "\n")
 
             return (output["Oem"]["Hpe"]["State"]).upper(), results.dict
         else:
@@ -524,9 +500,7 @@ class UploadComponentCommand:
         if not location:
             location = os.curdir
 
-        files = [
-            f for f in os.listdir(location) if os.path.isfile(os.path.join(location, f))
-        ]
+        files = [f for f in os.listdir(location) if os.path.isfile(os.path.join(location, f))]
 
         for filehndl in files:
             if filehndl.startswith(filename) and filehndl.endswith(".compsig"):
@@ -579,7 +553,6 @@ class UploadComponentCommand:
             dll.uploadComponent.restype = c_int
 
             for item in filelist:
-
                 ilo_upload_filename = item[0]
                 componentpath = item[1]
                 compsigpath = item[2]
@@ -613,11 +586,7 @@ class UploadComponentCommand:
                             dispatchflag = ctypes.c_uint32(0x00000000 | 0x00000001 | 0x40)
                         else:
                             dispatchflag = ctypes.c_uint32(0x00000000 | 0x00000001)
-                elif (
-                    not compsigpath
-                    and not options.update_target
-                    and options.update_repository
-                ):
+                elif not compsigpath and not options.update_target and options.update_repository:
                     # uploading a secuare flash binary image onto the NAND
                     if options.update_srs:
                         dispatchflag = ctypes.c_uint32(0x00000001 | 0x00000004 | 0x40)
@@ -626,24 +595,16 @@ class UploadComponentCommand:
                 else:
                     # Uploading a component with a side car file.
                     if options.update_srs:
-                        dispatchflag = ctypes.c_uint32(
-                            0x00000001 | 0x00000004 | 0x00000010 | 0x40
-                        )
+                        dispatchflag = ctypes.c_uint32(0x00000001 | 0x00000004 | 0x00000010 | 0x40)
                     else:
-                        dispatchflag = ctypes.c_uint32(
-                            0x00000001 | 0x00000004 | 0x00000010
-                        )
+                        dispatchflag = ctypes.c_uint32(0x00000001 | 0x00000004 | 0x00000010)
 
                 if multiupload:
                     # For second upload to append if the component is > 32MB in size
                     if options.update_srs:
-                        dispatchflag = ctypes.c_uint32(
-                            0x00000001 | 0x00000004 | 0x00000010 | 0x00000020 | 0x40
-                        )
+                        dispatchflag = ctypes.c_uint32(0x00000001 | 0x00000004 | 0x00000010 | 0x00000020 | 0x40)
                     else:
-                        dispatchflag = ctypes.c_uint32(
-                            0x00000001 | 0x00000004 | 0x00000010 | 0x00000020
-                        )
+                        dispatchflag = ctypes.c_uint32(0x00000001 | 0x00000004 | 0x00000010 | 0x00000020)
 
                 self.rdmc.ui.printer("Uploading component " + filename + "\n")
 
@@ -656,13 +617,16 @@ class UploadComponentCommand:
 
                 upload_failed = False
                 if ret != 0:
+                    LOGGER.error("Component {} upload failed".format(filename))
                     self.rdmc.ui.error("Component " + filename + " upload failed.\n")
                     upload_failed = True
                 else:
-                    self.rdmc.ui.printer(
-                        "Component " + filename + " uploaded successfully.\n"
-                    )
+                    LOGGER.info("Component {} uploaded successfully".format(filename))
+                    self.rdmc.ui.printer("Component " + filename + " uploaded successfully.\n")
                     self.rdmc.ui.printer("[200] The operation completed successfully.\n")
+                    if not self.wait_for_state_change():
+                        # Failed to upload the component.
+                        raise UploadError("Error while processing the component.")
 
                 multiupload = True
 
@@ -673,8 +637,10 @@ class UploadComponentCommand:
                     BlobStore2.unloadchifhandle(dll)
                     # Restore old chif channel
                     dll = dll_bk
+                    LOGGER.info("Created new chif channel for updating recovery set")
 
         except Exception as excep:
+            LOGGER.error("Exception occured, {}".format(excep))
             raise excep
 
         if upload_failed:
@@ -683,7 +649,6 @@ class UploadComponentCommand:
             return ReturnCodes.SUCCESS
 
     def create_new_chif_for_upload(self, user, passwrd):
-
         dll = BlobStore2.gethprestchifhandle()
         dll.ChifInitialize(None)
         # Enable Security Flag in Chif
@@ -695,13 +660,10 @@ class UploadComponentCommand:
         if status != BlobReturnCodes.SUCCESS:
             if status == BlobReturnCodes.CHIFERR_NoDriver:
                 raise HpIloNoChifDriverError(
-                    "Error %s - No Chif Driver occurred while trying to create a channel."
-                    % status
+                    "Error %s - No Chif Driver occurred while trying to create a channel." % status
                 )
             else:
-                raise HpIloInitialError(
-                    "Error %s occurred while trying to create a channel." % status
-                )
+                raise HpIloInitialError("Error %s occurred while trying to create a channel." % status)
         dll.initiate_credentials.argtypes = [c_char_p, c_char_p]
         dll.initiate_credentials.restype = POINTER(c_ubyte)
         usernew = create_string_buffer(user.encode("utf-8"))
@@ -709,9 +671,7 @@ class UploadComponentCommand:
         dll.initiate_credentials(usernew, passnew)
         status = dll.ChifPing(fhandle)
         if status != BlobReturnCodes.SUCCESS:
-            raise HpIloInitialError(
-                "Error %s occurred while trying to create a channel." % status
-            )
+            raise HpIloInitialError("Error %s occurred while trying to create a channel." % status)
         dll.ChifSetRecvTimeout(fhandle, 60000)
         credreturn = dll.ChifVerifyCredentials()
         if not credreturn == BlobReturnCodes.SUCCESS:
@@ -721,10 +681,7 @@ class UploadComponentCommand:
                     "to open a channel to iLO. Verify iLO Credetials passed." % credreturn
                 )
             else:
-                raise HpIloInitialError(
-                    "Error %s occurred while trying "
-                    "to open a channel to iLO" % credreturn
-                )
+                raise HpIloInitialError("Error %s occurred while trying " "to open a channel to iLO" % credreturn)
         return dll, fhandle
 
     def uploadcommandvalidation(self, options):
@@ -775,8 +732,7 @@ class UploadComponentCommand:
             "--forceupload",
             dest="forceupload",
             action="store_true",
-            help="Add this flag to force upload components with the same name "
-            "already on the repository.",
+            help="Add this flag to force upload components with the same name already on the repository.",
             default=False,
         )
         customparser.add_argument(
@@ -801,5 +757,12 @@ class UploadComponentCommand:
             action="store_true",
             help="Add this flag to update the System Recovery Set with the uploaded component. "
             "NOTE: This requires an account login with the system recovery set privilege.",
+            default=False,
+        )
+        customparser.add_argument(
+            "--tpmover",
+            dest="tover",
+            action="store_true",
+            help="If set then the TPMOverrideFlag is passed in on the associated flash operations",
             default=False,
         )

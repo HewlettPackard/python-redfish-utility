@@ -19,19 +19,17 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        Encryption,
+        ReturnCodes,
     )
 
 

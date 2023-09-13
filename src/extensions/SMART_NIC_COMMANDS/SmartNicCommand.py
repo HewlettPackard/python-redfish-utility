@@ -18,16 +18,14 @@
 """ Smart Nic Command for rdmc """
 import os
 import time
-from redfish.ris.ris import SessionExpired
 
 from rdmc_helper import (
-    ReturnCodes,
-    InvalidCommandLineError,
-    IncompatibleiLOVersionError,
-    InvalidCommandLineErrorOPTS,
     UI,
-    TimeOutError,
     FirmwareUpdateError,
+    IncompatibleiLOVersionError,
+    InvalidCommandLineError,
+    InvalidCommandLineErrorOPTS,
+    ReturnCodes,
     UploadError,
 )
 
@@ -79,8 +77,7 @@ class SmartNicCommand:
         ilo_ver = self.rdmc.app.getiloversion()
         if ilo_ver < 5.268:
             raise IncompatibleiLOVersionError(
-                "Please upgrade to iLO 5 2.68 or "
-                "greater to ensure correct flash of this firmware."
+                "Please upgrade to iLO 5 2.68 or " "greater to ensure correct flash of this firmware."
             )
 
         self.smartnicvalidation(options)
@@ -104,18 +101,14 @@ class SmartNicCommand:
                         json_content = self.print_get_bootprogress(info)
                         UI().print_out_json(json_content)
                     elif id != info["Id"]:
-                        self.rdmc.ui.printer(
-                            "No bootprogress present for given smartnic id %s \n" % id
-                        )
+                        self.rdmc.ui.printer("No bootprogress present for given smartnic id %s \n" % id)
 
                 elif options.logs:
                     if id == info["Id"]:
                         json_content = self.print_get_logs(info)
                         UI().print_out_json(json_content)
                     elif id != info["Id"]:
-                        self.rdmc.ui.printer(
-                            "No logs present for given smartnic id %s \n" % id
-                        )
+                        self.rdmc.ui.printer("No logs present for given smartnic id %s \n" % id)
 
                 elif options_system:
                     if id == info["Id"] and info["SystemType"] == "DPU":
@@ -123,18 +116,9 @@ class SmartNicCommand:
                         UI().print_out_json(json_content)
                     elif id != info["Id"] or info["SystemType"] != "DPU":
                         self.rdmc.ui.printer("System %s:\n" % id)
-                        self.rdmc.ui.printer(
-                            "\tNo SmartNic present in given id %s \n" % id
-                        )
+                        self.rdmc.ui.printer("\tNo SmartNic present in given id %s \n" % id)
 
-        elif (
-            options.json
-            and options.id is None
-            and options_system
-            and not options.logs
-            and not options.bootprogress
-        ):
-
+        elif options.json and options.id is None and options_system and not options.logs and not options.bootprogress:
             if info["SystemType"] == "DPU":
                 json_content = self.build_json_out(info, fw_version)
                 UI().print_out_json(json_content)
@@ -145,7 +129,6 @@ class SmartNicCommand:
         elif (options.json and options.logs and options.id is None) or (
             options.logs and not options.json and options.id is None
         ):
-
             raise InvalidCommandLineError(
                 "No command --logs for smartnic\n"
                 "usage: smartnic --id <id> --logs \n"
@@ -155,7 +138,6 @@ class SmartNicCommand:
         elif (options.bootprogress and options.json and options.id is None) or (
             options.bootprogress and not options.json and options.id is None
         ):
-
             raise InvalidCommandLineError(
                 "No command --bootprogress for smartnic\n"
                 "usage: smartnic --id <id> --bootprogress\n"
@@ -166,36 +148,26 @@ class SmartNicCommand:
             if options.id is not None:
                 string_id = options.id
                 str_lst = list(string_id.split(","))
-                if (
-                    options.update_fw is None
-                    and options.reset is None
-                ):
+                if options.update_fw is None and options.reset is None:
                     for id in str_lst:
                         if options.bootprogress:
                             if id == info["Id"]:
                                 self.get_bootprogress(info)
                             elif id != info["Id"]:
-                                self.rdmc.ui.printer(
-                                    "No bootprogress present for given smartnic id %s\n"
-                                    % id
-                                )
+                                self.rdmc.ui.printer("No bootprogress present for given smartnic id %s\n" % id)
 
                         elif options.logs:
                             if id == info["Id"]:
                                 self.get_logs(info)
                             elif id != info["Id"]:
-                                self.rdmc.ui.printer(
-                                    "No logs present for given smartnic id %s \n" % id
-                                )
+                                self.rdmc.ui.printer("No logs present for given smartnic id %s \n" % id)
 
                         elif options_system and not options.clearlog and not options.logs:
                             if id == info["Id"] and info["SystemType"] == "DPU":
                                 self.prettyprintinfo(info, fw_version)
                             elif id != info["Id"] or info["SystemType"] != "DPU":
                                 self.rdmc.ui.printer("System %s:\n" % id)
-                                self.rdmc.ui.printer(
-                                    "\tNo SmartNic present in given id %s \n" % id
-                                )
+                                self.rdmc.ui.printer("\tNo SmartNic present in given id %s \n" % id)
 
                         elif options.clearlog and options_system:
                             try:
@@ -203,9 +175,7 @@ class SmartNicCommand:
                                     if id == info["Id"]:
                                         self.clearlog(options, info, id)
                                     elif id != info["Id"]:
-                                        self.rdmc.ui.printer(
-                                            "Given smartnic id is not present to clear the logs."
-                                        )
+                                        self.rdmc.ui.printer("Given smartnic id is not present to clear the logs.")
                             except Exception as excp:
                                 raise excp
 
@@ -213,11 +183,11 @@ class SmartNicCommand:
                     try:
                         self.upload_firmware(options, info)
                     except Exception as excp:
-                        #if SessionExpired:
-                            #time.sleep(320)  # wait till reboot the server
-                            #self.smartnicvalidation(options)
-                            #self.cmdbase.login_select_validation(self, options)
-                        #else:
+                        # if SessionExpired:
+                        # time.sleep(320)  # wait till reboot the server
+                        # self.smartnicvalidation(options)
+                        # self.cmdbase.login_select_validation(self, options)
+                        # else:
                         raise excp
 
                 elif options.reset is not None:
@@ -226,10 +196,7 @@ class SmartNicCommand:
                             if id == info["Id"]:
                                 self.get_resettype(options, info, id)
                             elif id != info["Id"]:
-                                self.rdmc.ui.printer(
-                                    "No reset type present for given smartnic id %s \n"
-                                    % id
-                                )
+                                self.rdmc.ui.printer("No reset type present for given smartnic id %s \n" % id)
 
                     except Exception as excp:
                         raise excp
@@ -237,8 +204,7 @@ class SmartNicCommand:
             else:
                 if options.clearlog and options_system:
                     raise InvalidCommandLineError(
-                        "No command --clearlog for smartnic\n"
-                        "usage: smartnic --id <id> --clearlog"
+                        "No command --clearlog for smartnic\n" "usage: smartnic --id <id> --clearlog"
                     )
 
                 if options_system and not options.clearlog:
@@ -276,9 +242,7 @@ class SmartNicCommand:
                 members = data["Members"]
                 for val in members:
                     for dpu in val.values():
-                        dpu_data = self.rdmc.app.get_handler(
-                            dpu, service=True, silent=True
-                        ).dict
+                        dpu_data = self.rdmc.app.get_handler(dpu, service=True, silent=True).dict
                         path = dpu_data["Actions"]["#LogService.ClearLog"]["target"]
                         action = path.split("/")[-2]
                         action = {"Action": action}
@@ -288,7 +252,6 @@ class SmartNicCommand:
             raise excp
 
     def get_resettype(self, options, info, id):
-
         self.printreboothelp(options.reset)
         time.sleep(3)
 
@@ -353,23 +316,14 @@ class SmartNicCommand:
                     if id == info_id:
                         target = info["@odata.id"]
                         fw_path = options.update_fw
-                        results = self.rdmc.app.select(
-                            selector="UpdateService.", path_refresh=True
-                        )[0].dict
-                        results = results["Actions"]["#UpdateService.SimpleUpdate"][
-                            "target"
-                        ]
+                        results = self.rdmc.app.select(selector="UpdateService.", path_refresh=True)[0].dict
+                        results = results["Actions"]["#UpdateService.SimpleUpdate"]["target"]
                         string_split = fw_path.split("/")
                         for tar in string_split:
                             if tar.endswith("tar"):
-                                self.rdmc.ui.printer(
-                                    "Uploading firmware: %s\n" % os.path.basename(tar)
-                                )
+                                self.rdmc.ui.printer("Uploading firmware: %s\n" % os.path.basename(tar))
 
-                        res = self.rdmc.app.post_handler(
-                            results, {"ImageURI": fw_path, "Targets": [target]}
-                        )
-                        task_status = res.status
+                        res = self.rdmc.app.post_handler(results, {"ImageURI": fw_path, "Targets": [target]})
 
                         # Taskmonitor to find the firmware status
                         task_id = res.dict["TaskMonitor"]
@@ -402,9 +356,7 @@ class SmartNicCommand:
         total_time = 0
         spinner = ["|", "/", "-", "\\"]
         state = ""
-        self.rdmc.ui.printer(
-            "Waiting for iLO UpdateService to finish flashing the firmware \n"
-        )
+        self.rdmc.ui.printer("Waiting for iLO UpdateService to finish flashing the firmware \n")
 
         while total_time < wait_time:
             state, _ = self.get_update_service_state(taskid)
@@ -429,14 +381,11 @@ class SmartNicCommand:
                 break
 
         if total_time >= wait_time:
-            raise FirmwareUpdateError(
-                "UpdateService in " + state + " state for " + str(wait_time) + "s"
-            )
+            raise FirmwareUpdateError("UpdateService in " + state + " state for " + str(wait_time) + "s")
 
         return True
 
     def get_update_service_state(self, taskid):
-
         results = self.rdmc.app.get_handler(taskid, service=True, silent=True)
         if results.status == 202:
             return results.dict["TaskState"], results.dict
@@ -481,23 +430,17 @@ class SmartNicCommand:
             members = data["Members"]
             for val in members:
                 for dpu in val.values():
-                    dpu_data = self.rdmc.app.get_handler(
-                        dpu, service=True, silent=True
-                    ).dict
+                    dpu_data = self.rdmc.app.get_handler(dpu, service=True, silent=True).dict
                     entry = dpu_data["Entries"]
                     for dpu_entry in entry.values():
-                        result = self.rdmc.app.get_handler(
-                            dpu_entry, service=True, silent=True
-                        ).dict
+                        result = self.rdmc.app.get_handler(dpu_entry, service=True, silent=True).dict
                         result = result["Members"]
                         if not result:
                             content = {}
                         else:
                             for member in result:
                                 get_res = member["@odata.id"]
-                                get_result = self.rdmc.app.get_handler(
-                                    get_res, service=True, silent=True
-                                ).dict
+                                get_result = self.rdmc.app.get_handler(get_res, service=True, silent=True).dict
                                 content = {"Id": get_result["Id"]}
                                 content.update({"Name": get_result["Name"]})
                                 content.update({"Created": get_result["Created"]})
@@ -520,20 +463,14 @@ class SmartNicCommand:
             log_output += "------------------------------------------------\n"
             for val in members:
                 for dpu in val.values():
-                    dpu_data = self.rdmc.app.get_handler(
-                        dpu, service=True, silent=True
-                    ).dict
+                    dpu_data = self.rdmc.app.get_handler(dpu, service=True, silent=True).dict
                     entry = dpu_data["Entries"]
                     for dpu_entry in entry.values():
-                        result = self.rdmc.app.get_handler(
-                            dpu_entry, service=True, silent=True
-                        ).dict
+                        result = self.rdmc.app.get_handler(dpu_entry, service=True, silent=True).dict
                         result = result["Members"]
                         for member in result:
                             get_res = member["@odata.id"]
-                            get_result = self.rdmc.app.get_handler(
-                                get_res, service=True, silent=True
-                            ).dict
+                            get_result = self.rdmc.app.get_handler(get_res, service=True, silent=True).dict
                             log_output += "Id: %s\n" % get_result["Id"]
                             log_output += "Name: %s\n" % get_result["Name"]
                             log_output += "Created: %s\n" % get_result["Created"]
@@ -569,41 +506,31 @@ class SmartNicCommand:
                 try:
                     output += (
                         "\tOperating System: %s \n"
-                        % info["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                            "OperatingSystem"
-                        ]["Kernel"]["Name"]
+                        % info["Oem"][self.rdmc.app.typepath.defs.oemhp]["OperatingSystem"]["Kernel"]["Name"]
                     )
                 except KeyError:
                     pass
                 try:
                     output += (
                         "\tOS Version: %s \n"
-                        % info["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                            "OperatingSystem"
-                        ]["Kernel"]["Version"]
+                        % info["Oem"][self.rdmc.app.typepath.defs.oemhp]["OperatingSystem"]["Kernel"]["Version"]
                     )
                 except KeyError:
                     pass
                 try:
-                    avail_sys = info["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                        "AvailableSystemCapabilities"
-                    ]
+                    avail_sys = info["Oem"][self.rdmc.app.typepath.defs.oemhp]["AvailableSystemCapabilities"]
                     avail_sys = str(avail_sys).strip("[]''")
                     output += "\tAvailable SystemCapabilities: %s \n" % avail_sys
                 except KeyError:
                     pass
                 try:
-                    enable_sys = info["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                        "EnabledSystemCapabilities"
-                    ]
+                    enable_sys = info["Oem"][self.rdmc.app.typepath.defs.oemhp]["EnabledSystemCapabilities"]
                     enable_sys = str(enable_sys).strip("[]''")
                     output += "\tEnable SystemCapabilities: %s \n" % enable_sys
                 except KeyError:
                     pass
                 try:
-                    integration_con = info["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                        "IntegrationConfig"
-                    ]
+                    integration_con = info["Oem"][self.rdmc.app.typepath.defs.oemhp]["IntegrationConfig"]
                     integration_con = str(integration_con).strip("'{} ")
                     integration_con = integration_con.replace("'", "")
                     output += "\tIntegration Config: %s \n" % integration_con
@@ -635,9 +562,9 @@ class SmartNicCommand:
                 try:
                     content.update(
                         {
-                            "Operating System": info["Oem"][
-                                self.rdmc.app.typepath.defs.oemhp
-                            ]["OperatingSystem"]["Kernel"]["Name"]
+                            "Operating System": info["Oem"][self.rdmc.app.typepath.defs.oemhp]["OperatingSystem"][
+                                "Kernel"
+                            ]["Name"]
                         }
                     )
                 except KeyError:
@@ -645,9 +572,9 @@ class SmartNicCommand:
                 try:
                     content.update(
                         {
-                            "OS Version": info["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                "OperatingSystem"
-                            ]["Kernel"]["Version"]
+                            "OS Version": info["Oem"][self.rdmc.app.typepath.defs.oemhp]["OperatingSystem"]["Kernel"][
+                                "Version"
+                            ]
                         }
                     )
                 except KeyError:
@@ -655,9 +582,9 @@ class SmartNicCommand:
                 try:
                     content.update(
                         {
-                            "Available SystemCapabilities": info["Oem"][
-                                self.rdmc.app.typepath.defs.oemhp
-                            ]["AvailableSystemCapabilities"]
+                            "Available SystemCapabilities": info["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                "AvailableSystemCapabilities"
+                            ]
                         }
                     )
                 except KeyError:
@@ -665,20 +592,16 @@ class SmartNicCommand:
                 try:
                     content.update(
                         {
-                            "Enable SystemCapabilities": info["Oem"][
-                                self.rdmc.app.typepath.defs.oemhp
-                            ]["EnabledSystemCapabilities"]
+                            "Enable SystemCapabilities": info["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                "EnabledSystemCapabilities"
+                            ]
                         }
                     )
                 except KeyError:
                     pass
                 try:
                     content.update(
-                        {
-                            "Integration Config": info["Oem"][
-                                self.rdmc.app.typepath.defs.oemhp
-                            ]["IntegrationConfig"]
-                        }
+                        {"Integration Config": info["Oem"][self.rdmc.app.typepath.defs.oemhp]["IntegrationConfig"]}
                     )
                 except KeyError:
                     pass
@@ -697,9 +620,7 @@ class SmartNicCommand:
             for id in members:
                 for mem_id in id.values():
                     if path != mem_id:
-                        results = self.rdmc.app.get_handler(
-                            mem_id, service=True, silent=True
-                        ).dict
+                        results = self.rdmc.app.get_handler(mem_id, service=True, silent=True).dict
             return results
         except:
             pass
@@ -763,12 +684,12 @@ class SmartNicCommand:
             help="Include this flag to update firmware to pensando card",
             default=None,
         )
-        #customparser.add_argument(
+        # customparser.add_argument(
         #    "--update_os",
         #    dest="update_os",
         #    help="Include this flag to update OS to pensando card",
         #    default=None,
-        #)
+        # )
 
         customparser.add_argument(
             "--reset",

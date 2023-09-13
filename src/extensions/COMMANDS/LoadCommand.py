@@ -17,51 +17,47 @@
 # -*- coding: utf-8 -*-
 """ Load Command for RDMC """
 
-import os
-import sys
 import json
+import os
 import shlex
 import subprocess
-
+import sys
 from datetime import datetime
-from argparse import ArgumentParser, SUPPRESS
 
 from six.moves import queue
 
 import redfish.ris
-
 from redfish.ris.rmc_helper import LoadSkipSettingError
+
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        Encryption,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         InvalidFileFormattingError,
-        NoChangesFoundOrMadeError,
         InvalidFileInputError,
-        NoDifferencesFoundError,
-        MultipleServerConfigError,
         InvalidMSCfileInputError,
-        Encryption,
+        MultipleServerConfigError,
+        NoChangesFoundOrMadeError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
+        Encryption,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         InvalidFileFormattingError,
-        NoChangesFoundOrMadeError,
         InvalidFileInputError,
-        NoDifferencesFoundError,
-        MultipleServerConfigError,
         InvalidMSCfileInputError,
-        Encryption,
+        MultipleServerConfigError,
+        NoChangesFoundOrMadeError,
+        ReturnCodes,
     )
 
 try:
-    from rdmc_base_classes import HARDCODEDLIST
-except ImportError:
-    from ilorest.rdmc_base_classes import HARDCODEDLIST
+    from rdmc_helper import HARDCODEDLIST
+except:
+    from ilorest.rdmc_helper import HARDCODEDLIST
 
 # default file name
 __filename__ = "ilorest.json"
@@ -98,7 +94,7 @@ class LoadCommand:
     def securebootremovereadonly(self, tmp):
         templist = [
             "SecureBootCurrentBoot",
-
+            "@odata.etag",
         ]
         remove_data = self.rdmc.app.removereadonlyprops(tmp, False, True, templist)
         return remove_data
@@ -131,8 +127,7 @@ class LoadCommand:
         for files in self.filenames:
             if not os.path.isfile(files):
                 raise InvalidFileInputError(
-                    "File '%s' doesn't exist. Please "
-                    "create file by running save command." % files
+                    "File '%s' doesn't exist. Please create file by running save command." % files
                 )
             if options.encryption:
                 with open(files, "rb") as myfile:
@@ -160,9 +155,7 @@ class LoadCommand:
                 #                        if 'ProductId' in v:
                 #                            del (v["ProductId"])
                 except:
-                    raise InvalidFileFormattingError(
-                        "Invalid file formatting " "found in file %s" % files
-                    )
+                    raise InvalidFileFormattingError("Invalid file formatting found in file %s" % files)
 
             if options.mpfilename:
                 mfile = options.mpfilename
@@ -174,9 +167,7 @@ class LoadCommand:
                 if self.runmpfunc(mpfile=mfile, lfile=files, outputdir=outputdir):
                     return ReturnCodes.SUCCESS
                 else:
-                    raise MultipleServerConfigError(
-                        "One or more servers " "failed to load given configuration."
-                    )
+                    raise MultipleServerConfigError("One or more servers failed to load given configuration.")
 
             results = False
             validation_errs = []
@@ -207,7 +198,7 @@ class LoadCommand:
                                     uniqueoverride=options.uniqueoverride,
                                 ):
                                     results = True
-                            except LoadSkipSettingError as excp:
+                            except LoadSkipSettingError:
                                 returnvalue = True
                                 results = True
                             except:
@@ -246,7 +237,7 @@ class LoadCommand:
                                         self.rdmc.ui.error(str(err.sel))
                                 except:
                                     pass
-                raise redfish.ris.ValidationError(excp)
+                raise redfish.ris.ValidationError()
 
             if not results:
                 self.rdmc.ui.printer("No differences found from current configuration.\n")
@@ -297,9 +288,7 @@ class LoadCommand:
             tempholder = json.loads(filedata)
             return tempholder
         except:
-            raise InvalidFileFormattingError(
-                "Invalid file formatting found in file %s" % inputfile
-            )
+            raise InvalidFileFormattingError("Invalid file formatting found in file %s" % inputfile)
 
     def get_current_selector(self, path=None):
         """Returns current selected content minus hard coded list
@@ -356,10 +345,7 @@ class LoadCommand:
         os.mkdir(createdir)
 
         oofile = open(os.path.join(createdir, "CompleteOutputfile.txt"), "w+")
-        self.rdmc.ui.printer(
-            "Create multiple processes to load configuration "
-            "concurrently to all servers...\n"
-        )
+        self.rdmc.ui.printer("Create multiple processes to load configuration " "concurrently to all servers...\n")
 
         while True:
             if not self.queue.empty():
@@ -381,9 +367,7 @@ class LoadCommand:
 
             urlfilename = urlvar.split("//")[-1]
             logfile = open(os.path.join(createdir, urlfilename + ".txt"), "w+")
-            pinput = subprocess.Popen(
-                listargforsubprocess, shell=True, stdout=logfile, stderr=logfile
-            )
+            pinput = subprocess.Popen(listargforsubprocess, shell=True, stdout=logfile, stderr=logfile)
 
             processes.append((pinput, finput, urlfilename, logfile))
 
@@ -399,18 +383,12 @@ class LoadCommand:
             logfile.close()
 
             if returncode == 0:
-                self.rdmc.ui.printer(
-                    "Loading Configuration for {} : SUCCESS\n".format(urlfilename)
-                )
+                self.rdmc.ui.printer("Loading Configuration for {} : SUCCESS\n".format(urlfilename))
             else:
-                self.rdmc.ui.error(
-                    "Loading Configuration for {} : FAILED\n".format(urlfilename)
-                )
+                self.rdmc.ui.error("Loading Configuration for {} : FAILED\n".format(urlfilename))
                 self.rdmc.ui.error(
                     "ILOREST return code : {}.\nFor more details please check "
-                    "{}.txt under {} directory.\n".format(
-                        returncode, urlfilename, createdir
-                    )
+                    "{}.txt under {} directory.\n".format(returncode, urlfilename, createdir)
                 )
 
         oofile.close()
@@ -435,8 +413,7 @@ class LoadCommand:
 
         if not os.path.isfile(mpfile):
             raise InvalidFileInputError(
-                "File '%s' doesn't exist, please "
-                "create file by running save command." % mpfile
+                "File '%s' doesn't exist, please " "create file by running save command." % mpfile
             )
 
         try:
@@ -458,12 +435,8 @@ class LoadCommand:
                     args = shlex.split(line, posix=False)
 
                     if len(args) < 5:
-                        self.rdmc.ui.error(
-                            "Incomplete data in input file: {}\n".format(line)
-                        )
-                        raise InvalidMSCfileInputError(
-                            "Please verify the " "contents of the %s file" % mpfile
-                        )
+                        self.rdmc.ui.error("Incomplete data in input file: {}\n".format(line))
+                        raise InvalidMSCfileInputError("Please verify the " "contents of the %s file" % mpfile)
                     else:
                         linelist = globalargs + cmdtorun + args + cmdargs
                         line = str(line).replace("\n", "")
@@ -506,7 +479,6 @@ class LoadCommand:
             default=None,
         )
         customparser.add_argument(
-            "-o",
             "--outputdirectory",
             dest="outdirectory",
             help="""use the provided directory to output data for multiple server configuration""",
@@ -525,15 +497,13 @@ class LoadCommand:
             "--uniqueoverride",
             dest="uniqueoverride",
             action="store_true",
-            help="Override the measures stopping the tool from writing "
-            "over items that are system unique.",
+            help="Override the measures stopping the tool from writing " "over items that are system unique.",
             default=False,
         )
         customparser.add_argument(
             "--encryption",
             dest="encryption",
-            help="Optionally include this flag to encrypt/decrypt a file "
-            "using the key provided.",
+            help="Optionally include this flag to encrypt/decrypt a file " "using the key provided.",
             default=None,
         )
         customparser.add_argument(

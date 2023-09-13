@@ -17,8 +17,6 @@
 # -*- coding: utf-8 -*-
 """ Add Federation Command for rdmc """
 
-import json
-import getpass
 
 from argparse import Action, RawDescriptionHelpFormatter
 
@@ -27,25 +25,23 @@ from redfish.ris.rmc_helper import IdTokenError
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        IncompatibleiLOVersionError,
         InvalidCommandLineError,
-        ResourceExists,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        IncompatibleiLOVersionError,
+        ResourceExists,
+        ReturnCodes,
         UsernamePasswordRequiredError,
-        Encryption,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
+        IncompatibleiLOVersionError,
         InvalidCommandLineError,
-        ResourceExists,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        IncompatibleiLOVersionError,
+        ResourceExists,
+        ReturnCodes,
         UsernamePasswordRequiredError,
-        Encryption,
     )
 
 __subparsers__ = ["add", "modify", "changekey", "delete"]
@@ -76,10 +72,7 @@ class _FederationParse(Action):
                 priv = int(priv)
             except ValueError:
                 try:
-                    parser.error(
-                        "Invalid privilege entered: %s. Privileges must "
-                        "be numbers." % priv
-                    )
+                    parser.error("Invalid privilege entered: %s. Privileges must " "be numbers." % priv)
                 except:
                     raise InvalidCommandLineErrorOPTS("")
 
@@ -93,8 +86,7 @@ class _FederationParse(Action):
             except KeyError:
                 try:
                     parser.error(
-                        "Invalid privilege entered: %s. Number does not "
-                        "match an available privlege." % priv
+                        "Invalid privilege entered: %s. Number does not " "match an available privlege." % priv
                     )
                 except:
                     raise InvalidCommandLineErrorOPTS("")
@@ -192,14 +184,10 @@ class IloFederationCommand:
 
         if mod_fed:
             if options.command.lower() == "add":
-                raise ResourceExists(
-                    "Federation name %s is already in use." % options.fedname
-                )
+                raise ResourceExists("Federation name %s is already in use." % options.fedname)
         else:
             if options.command.lower() != "add" and options.command.lower() != "default":
-                raise InvalidCommandLineError(
-                    "Unable to find the specified federation %s." % options.fedname
-                )
+                raise InvalidCommandLineError("Unable to find the specified federation %s." % options.fedname)
 
         if options.command.lower() == "add":
             privs = self.getprivs(options)
@@ -218,9 +206,7 @@ class IloFederationCommand:
                     raise ResourceExists("")
 
         elif options.command.lower() == "changekey":
-
             try:
-                name = options.fedname
                 newkey = options.fedkey
             except:
                 raise InvalidCommandLineError("Invalid number of parameters.")
@@ -230,17 +216,12 @@ class IloFederationCommand:
             if path and body:
                 self.rdmc.app.patch_handler(path, body, service=True)
             else:
-                raise NoContentsFoundForOperationError(
-                    "Unable to find " "the specified federation."
-                )
+                raise NoContentsFoundForOperationError("Unable to find " "the specified federation.")
         elif options.command.lower() == "modify":
-
             if options.optprivs:
                 body.update({"Privileges": {}})
                 if any(
-                    priv
-                    for priv in options.optprivs
-                    if "SystemRecoveryConfigPriv" in priv
+                    priv for priv in options.optprivs if "SystemRecoveryConfigPriv" in priv
                 ) and "SystemRecoveryConfigPriv" not in list(self.getsesprivs().keys()):
                     raise IdTokenError(
                         "The currently logged in federation must have The System "
@@ -286,7 +267,7 @@ class IloFederationCommand:
         setprivs = {}
         availableprivs = self.getsesprivs(availableprivsopts=True)
 
-        if not "UserConfigPriv" in list(sesprivs.keys()):
+        if "UserConfigPriv" not in list(sesprivs.keys()):
             raise IdTokenError(
                 "The currently logged in federation does not have the Config"
                 "Privilege and cannot add or modify federations."
@@ -296,26 +277,16 @@ class IloFederationCommand:
             for priv in options.optprivs:
                 priv = next(iter(list(priv.keys())))
                 if not options.user or not options.password:
-                    if (
-                        priv == "SystemRecoveryConfigPriv"
-                        and self.rdmc.app.current_client.base_url == "blobstore://."
-                    ):
+                    if priv == "SystemRecoveryConfigPriv" and self.rdmc.app.current_client.base_url == "blobstore://.":
                         raise UsernamePasswordRequiredError(
-                            "Privilege %s need username and password to be specified."
-                            % priv
+                            "Privilege %s need username and password to be specified." % priv
                         )
                 if priv not in availableprivs:
-                    raise IncompatibleiLOVersionError(
-                        "Privilege %s is not available on this " "iLO version." % priv
-                    )
+                    raise IncompatibleiLOVersionError("Privilege %s is not available on this " "iLO version." % priv)
 
             if all(priv.values() for priv in options.optprivs):
                 if (
-                    any(
-                        priv
-                        for priv in options.optprivs
-                        if "SystemRecoveryConfigPriv" in priv
-                    )
+                    any(priv for priv in options.optprivs if "SystemRecoveryConfigPriv" in priv)
                     and "SystemRecoveryConfigPriv" not in sesprivs.keys()
                 ):
                     raise IdTokenError(
@@ -345,10 +316,7 @@ class IloFederationCommand:
             ses = self.rdmc.app.get_handler(sespath, service=False, silent=True)
 
             if ses.status != 200:
-                raise SessionExpired(
-                    "Invalid session. Please logout and "
-                    "log back in or include credentials."
-                )
+                raise SessionExpired("Invalid session. Please logout and " "log back in or include credentials.")
 
             sesprivs = {
                 "HostBIOSConfigPriv": True,
@@ -408,12 +376,6 @@ class IloFederationCommand:
         :param parser: The parser to add the addprivs option group to
         :type parser: ArgumentParser/OptionParser
         """
-        group = parser.add_argument_group(
-            "GLOBAL OPTION:",
-            "Option(s) are available for"
-            " all arguments within the scope of this subcommand.",
-        )
-
         parser.add_argument(
             "--addprivs",
             dest="optprivs",
@@ -434,11 +396,6 @@ class IloFederationCommand:
         :type parser: ArgumentParser/OptionParser
         """
 
-        group = parser.add_argument_group(
-            "GLOBAL OPTION:",
-            "Option(s) are available"
-            "for all arguments within the scope of this command.",
-        )
         parser.add_argument(
             "--removeprivs",
             dest="optprivs",
@@ -522,8 +479,7 @@ class IloFederationCommand:
             help=modify_help,
             description=modify_help + "\n\nTo add privileges:\n\tilofederation modify "
             "[FEDNAME] --addprivs <list of numbered privileges>\n\nTo remove privileges:\n\t"
-            "ilofederation modify [FEDNAME] --removeprivs <list of numbered privileges>\n\n"
-            + privilege_help,
+            "ilofederation modify [FEDNAME] --removeprivs <list of numbered privileges>\n\n" + privilege_help,
             formatter_class=RawDescriptionHelpFormatter,
         )
         modify_parser.add_argument(
@@ -537,15 +493,11 @@ class IloFederationCommand:
         self.cmdbase.add_login_arguments_group(modify_parser)
 
         # changepass sub-parser
-        changekey_help = (
-            "Change the key of an iLO federation group on the currently logged in "
-            "server."
-        )
+        changekey_help = "Change the key of an iLO federation group on the currently logged in " "server."
         changekey_parser = subcommand_parser.add_parser(
             __subparsers__[2],
             help=changekey_help,
-            description=changekey_help
-            + "\n\nexample:ilofederation changekey [FEDNAME] [NEWFEDKEY]",
+            description=changekey_help + "\n\nexample:ilofederation changekey [FEDNAME] [NEWFEDKEY]",
             formatter_class=RawDescriptionHelpFormatter,
         )
         changekey_parser.add_argument(
@@ -566,9 +518,7 @@ class IloFederationCommand:
         self.cmdbase.add_login_arguments_group(changekey_parser)
 
         # delete sub-parser
-        delete_help = (
-            "Deletes the provided iLO user account on the currently logged in server."
-        )
+        delete_help = "Deletes the provided iLO user account on the currently logged in server."
         delete_parser = subcommand_parser.add_parser(
             __subparsers__[3],
             help=delete_help,

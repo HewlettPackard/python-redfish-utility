@@ -19,17 +19,15 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ReturnCodes,
     )
 
 
@@ -98,40 +96,22 @@ class ClearControllerConfigCommand:
                     if options.controller.isdigit():
                         slotlocation = self.get_location_from_id(options.controller)
                         if slotlocation:
-                            slotcontrol = (
-                                slotlocation.lower().strip('"').split("slot")[-1].lstrip()
-                            )
+                            slotcontrol = slotlocation.lower().strip('"').split("slot")[-1].lstrip()
                             for control in content:
-                                if (
-                                    slotcontrol.lower()
-                                    == control["Location"]
-                                    .lower()
-                                    .split("slot")[-1]
-                                    .lstrip()
-                                ):
+                                if slotcontrol.lower() == control["Location"].lower().split("slot")[-1].lstrip():
                                     controllist.append(control)
                     elif "slot" in options.controller.lower():
                         controllerid = options.controller.strip("Slot ")
                         slotlocation = self.get_location_from_id(controllerid)
                         if slotlocation:
-                            slotcontrol = (
-                                slotlocation.lower().strip('"').split("slot")[-1].lstrip()
-                            )
+                            slotcontrol = slotlocation.lower().strip('"').split("slot")[-1].lstrip()
                             for control in content:
-                                if (
-                                        slotcontrol.lower()
-                                        == control["Location"]
-                                        .lower()
-                                        .split("slot")[-1]
-                                        .lstrip()
-                                ):
+                                if slotcontrol.lower() == control["Location"].lower().split("slot")[-1].lstrip():
                                     controllist.append(control)
                     if not controllist:
                         raise InvalidCommandLineError("")
                 except InvalidCommandLineError:
-                    raise InvalidCommandLineError(
-                        "Selected controller not found in the current " "inventory list."
-                    )
+                    raise InvalidCommandLineError("Selected controller not found in the current " "inventory list.")
                 for controller in controllist:
                     # self.rdmc.ui.printer(
                     #    "ClearController path and payload: %s, %s\n"
@@ -181,7 +161,6 @@ class ClearControllerConfigCommand:
         customparser.add_argument(
             "--controller",
             dest="controller",
-            help="Use this flag to select the corresponding controller "
-            "using either the slot number or index.",
+            help="Use this flag to select the corresponding controller " "using either the slot number or index.",
             default=None,
         )

@@ -17,32 +17,27 @@
 # -*- coding: utf-8 -*-
 """ RawPatch Command for rdmc """
 
-import os
-import re
-import sys
 import json
+import re
 from collections import OrderedDict
-
-from argparse import ArgumentParser, SUPPRESS
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        InvalidFileFormattingError,
         InvalidCommandLineErrorOPTS,
+        InvalidFileFormattingError,
         InvalidFileInputError,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        InvalidFileFormattingError,
         InvalidCommandLineErrorOPTS,
+        InvalidFileFormattingError,
         InvalidFileInputError,
-        Encryption,
+        ReturnCodes,
     )
+
 
 class RawPatchCommand:
     """Raw form of the patch command"""
@@ -85,12 +80,11 @@ class RawPatchCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        url = None
         headers = {}
         results = []
 
         if hasattr(options, "sessionid") and options.sessionid:
-            url = self.sessionvalidation(options)
+            _ = self.sessionvalidation(options)
         else:
             self.patchvalidation(options)
 
@@ -100,13 +94,10 @@ class RawPatchCommand:
                 contentsholder = json.loads(_if.read(), object_pairs_hook=OrderedDict)
         except IOError:
             raise InvalidFileInputError(
-                "File '%s' doesn't exist. "
-                "Please create file by running 'save' command." % options.path
+                "File '%s' doesn't exist. " "Please create file by running 'save' command." % options.path
             )
-        except (ValueError):
-            raise InvalidFileFormattingError(
-                "Input file '%s' was not " "formatted properly." % options.path
-            )
+        except ValueError:
+            raise InvalidFileFormattingError("Input file '%s' was not " "formatted properly." % options.path)
 
         if options.headers:
             extraheaders = options.headers.split(",")
@@ -144,9 +135,7 @@ class RawPatchCommand:
                     )
                 )
         else:
-            raise InvalidFileFormattingError(
-                "Input file '%s' was not format properly." % options.path
-            )
+            raise InvalidFileFormattingError("Input file '%s' was not format properly." % options.path)
 
         returnresponse = False
 
@@ -188,7 +177,7 @@ class RawPatchCommand:
         else:
             if self.rdmc.app.redfishinst.base_url:
                 url = self.rdmc.app.redfishinst.base_url
-        if url and not "https://" in url:
+        if url and "https://" not in url:
             url = "https://" + url
 
         return url

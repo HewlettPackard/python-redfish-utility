@@ -25,11 +25,11 @@ import redfish.ris
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        Encryption,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         PathUnavailableError,
-        Encryption,
+        ReturnCodes,
         UsernamePasswordRequiredError,
     )
 except ImportError:
@@ -41,6 +41,7 @@ except ImportError:
         Encryption,
         UsernamePasswordRequiredError,
     )
+
 from redfish.rest.v1 import ServerDownOrUnreachableError
 
 
@@ -52,15 +53,19 @@ class LoginCommand:
             "name": "login",
             "usage": None,
             "description": "To login remotely run using iLO url and iLO credentials"
-                           "\n\texample: login <iLO url/hostname> -u <iLO username> "
-                           "-p <iLO password>\n\n\tTo login on a local server run without "
-                           "arguments\n\texample: login"
-                           "\n\n\tTo login through VNIC run using --force_vnic and iLO credentials "
-                           "\n\texample: login --force_vnic -u <iLO username> -p <iLO password>"
-                           "\n\n\tNOTE: A [URL] can be specified with "
-                           "an IPv4, IPv6, or hostname address.",
-            "summary": "Connects to a server, establishes a secure session,"
-                       " and discovers data from iLO.",
+            "\n\texample: login <iLO url/hostname> -u <iLO username> "
+            "-p <iLO password>\n\n\tTo login on a local server run without "
+            "arguments\n\texample: login"
+            "\n\n\tTo login through VNIC run using --force_vnic and iLO credentials "
+            "\n\texample: login --force_vnic -u <iLO username> -p <iLO password>"
+            "\n\nLogin using OTP can be done in 2 ways."
+            "\n\n\t To login implicitly, use the tag --wait_for_otp."
+            "\n\t\texample: login -u <iLO username> -p <iLO password> --wait_for_otp"
+            "\n\n\n\t To login explicitly, use the tag -o/--otp and enter OTP after."
+            "\n\t\texample: login -u <iLO username> -p <iLO password> -o <iLO OTP>"
+            "\n\n\tNOTE: A [URL] can be specified with "
+            "an IPv4, IPv6, or hostname address.",
+            "summary": "Connects to a server, establishes a secure session," " and discovers data from iLO.",
             "aliases": [],
             "auxcommands": ["LogoutCommand"],
             "cert_data": {},
@@ -74,6 +79,7 @@ class LoginCommand:
         self.biospassword = None
         self.auxcommands = dict()
         self.cert_data = dict()
+        self.login_otp = None
 
     def run(self, line, help_disp=False):
         """wrapper function for main login function
@@ -94,10 +100,8 @@ class LoginCommand:
 
             if not self.rdmc.app.monolith._visited_urls:
                 self.auxcommands["logout"].run("")
-                raise PathUnavailableError(
-                    "The path specified by the --path flag is unavailable."
-                )
-        except Exception as excp:
+                raise PathUnavailableError("The path specified by the --path flag is unavailable.")
+        except Exception:
             raise
 
         # Return code
@@ -123,16 +127,17 @@ class LoginCommand:
 
         self.loginvalidation(options, args)
 
-        # if proxy server provided in command line as --useproxy, it will be used, otherwise it will the environment variable setting.
+        # if proxy server provided in command line as --useproxy, it will be used,
+        # otherwise it will the environment variable setting.
         # else proxy will be set as None.
         if self.rdmc.opts.proxy:
-            proxy = self.rdmc.opts.proxy
+            _ = self.rdmc.opts.proxy
         elif "https_proxy" in os.environ and os.environ["https_proxy"]:
-            proxy = os.environ["https_proxy"]
+            _ = os.environ["https_proxy"]
         elif "http_proxy" in os.environ and os.environ["http_proxy"]:
-            proxy = os.environ["http_proxy"]
+            _ = os.environ["http_proxy"]
         else:
-            proxy = self.rdmc.config.proxy
+            _ = self.rdmc.config.proxy
 
         no_bundle = False
 
@@ -157,49 +162,70 @@ class LoginCommand:
         try:
             if getattr(options, "force_vnic", False):
                 self.rdmc.ui.printer("\nAttempt to login with Vnic...\n")
-                proxy = None
             try:
                 sock = socket.create_connection((args[0], 443))
                 if sock:
-                    proxy = None
                     sock.close
             except:
                 pass
 
-            # if self.username is not None:
-            #    self.username = self.username.replace("\\", "")
-            # if self.password is not None:
-            #    self.password = self.password.replace("\\", "")
-            # print (self.username)
-            # print (self.password)
             self.sessionid = options.sessionid
-            self.rdmc.app.login(
-                username=self.username,
-                password=self.password,
-                sessionid=self.sessionid,
-                base_url=self.url,
-                path=options.path,
-                skipbuild=skipbuild,
-                includelogs=options.includelogs,
-                biospassword=self.biospassword,
-                is_redfish=self.rdmc.opts.is_redfish,
-                proxy=self.rdmc.opts.proxy,
-                user_ca_cert_data=user_ca_cert_data,
-                json_out=self.rdmc.json,
-            )
-            # else:
-            #    if not options.force_url:
-            #        self.rdmc.ui.printer("\nAttempt to login with Chif...\n")
-            #        self.rdmc.app.login(username=self.username, password=self.password, \
-            #            base_url='blobstore://.', path=options.path, skipbuild=skipbuild, \
-            #            includelogs=options.includelogs, biospassword=self.biospassword, \
-            #            is_redfish=self.rdmc.opts.is_redfish, proxy=proxy, \
-            #            user_ca_cert_data=user_ca_cert_data)
+            self.login_otp = options.login_otp
+
+            if options.waitforOTP:
+                try:
+                    self.rdmc.app.login(
+                        username=self.username,
+                        password=self.password,
+                        sessionid=self.sessionid,
+                        base_url=self.url,
+                        path=options.path,
+                        skipbuild=skipbuild,
+                        includelogs=options.includelogs,
+                        biospassword=self.biospassword,
+                        is_redfish=self.rdmc.opts.is_redfish,
+                        proxy=self.rdmc.opts.proxy,
+                        user_ca_cert_data=user_ca_cert_data,
+                        json_out=self.rdmc.json,
+                        login_otp=self.login_otp,
+                    )
+                except redfish.rest.connections.OneTimePasscodeError:
+                    self.rdmc.ui.printer("One Time Passcode Sent to registered email.\n")
+                    ans = input("Enter OTP: ")
+                    self.login_otp = ans
+                    self.rdmc.app.login(
+                        username=self.username,
+                        password=self.password,
+                        sessionid=self.sessionid,
+                        base_url=self.url,
+                        path=options.path,
+                        skipbuild=skipbuild,
+                        includelogs=options.includelogs,
+                        biospassword=self.biospassword,
+                        is_redfish=self.rdmc.opts.is_redfish,
+                        proxy=self.rdmc.opts.proxy,
+                        user_ca_cert_data=user_ca_cert_data,
+                        json_out=self.rdmc.json,
+                        login_otp=self.login_otp,
+                    )
+            else:
+                self.rdmc.app.login(
+                    username=self.username,
+                    password=self.password,
+                    sessionid=self.sessionid,
+                    base_url=self.url,
+                    path=options.path,
+                    skipbuild=skipbuild,
+                    includelogs=options.includelogs,
+                    biospassword=self.biospassword,
+                    is_redfish=self.rdmc.opts.is_redfish,
+                    proxy=self.rdmc.opts.proxy,
+                    user_ca_cert_data=user_ca_cert_data,
+                    json_out=self.rdmc.json,
+                    login_otp=self.login_otp,
+                )
         except ServerDownOrUnreachableError as excp:
-            self.rdmc.ui.printer(
-                "The following error occurred during login: '%s'\n"
-                % str(excp.__class__.__name__)
-            )
+            self.rdmc.ui.printer("The following error occurred during login: '%s'\n" % str(excp.__class__.__name__))
 
         self.username = None
         self.password = None
@@ -241,13 +267,13 @@ class LoginCommand:
             options.user_root_ca_password = self.rdmc.config.user_root_ca_password
 
         if (
-                options.user
-                and not options.password
-                and (
+            options.user
+            and not options.password
+            and (
                 not hasattr(options, "user_certificate")
                 or not hasattr(options, "user_root_ca_key")
                 or hasattr(options, "user_root_ca_password")
-        )
+            )
         ):
             # Option for interactive entry of password
             tempinput = getpass.getpass().rstrip()
@@ -271,14 +297,9 @@ class LoginCommand:
 
         # Assignment of url in case no url is entered
         if getattr(options, "force_vnic", False):
-            if not (
-                    getattr(options, "ca_cert_bundle", False)
-                    or getattr(options, "user_certificate", False)
-            ):
+            if not (getattr(options, "ca_cert_bundle", False) or getattr(options, "user_certificate", False)):
                 if not (self.username and self.password) and not options.sessionid:
-                    raise UsernamePasswordRequiredError(
-                        "Please provide credentials to login with VNIC"
-                    )
+                    raise UsernamePasswordRequiredError("Please provide credentials to login with VNIC")
             self.url = "https://16.1.15.1"
         else:
             self.url = "blobstore://."
@@ -292,14 +313,12 @@ class LoginCommand:
                 self.url = "https://" + self.url
 
             if not (
-                    hasattr(options, "user_certificate")
-                    or hasattr(options, "user_root_ca_key")
-                    or hasattr(options, "user_root_ca_password")
+                hasattr(options, "user_certificate")
+                or hasattr(options, "user_root_ca_key")
+                or hasattr(options, "user_root_ca_password")
             ):
                 if not (options.username and options.password):
-                    raise InvalidCommandLineError(
-                        "Empty username or password was entered."
-                    )
+                    raise InvalidCommandLineError("Empty username or password was entered.")
         else:
             # Check to see if there is a URL in config file
             if self.rdmc.config.url:
@@ -328,15 +347,23 @@ class LoginCommand:
 
         if not customparser:
             return
+
+        customparser.add_argument(
+            "--wait_for_otp",
+            dest="waitforOTP",
+            help="Optionally include this flag to implicitly wait for OTP.",
+            action="store_true",
+            default=None,
+        )
         self.cmdbase.add_login_arguments_group(customparser)
         remove_argument(customparser, "url")
         customparser.add_argument(
             "--selector",
             dest="selector",
             help="Optionally include this flag to select a type to run"
-                 " the current command on. Use this flag when you wish to"
-                 " select a type without entering another command, or if you"
-                 " wish to work with a type that is different from the one"
-                 " you currently have selected.",
+            " the current command on. Use this flag when you wish to"
+            " select a type without entering another command, or if you"
+            " wish to work with a type that is different from the one"
+            " you currently have selected.",
             default=None,
         )

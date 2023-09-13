@@ -19,19 +19,17 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        Encryption,
+        ReturnCodes,
     )
 
 
@@ -44,8 +42,7 @@ class FactoryDefaultsCommand:
             "usage": None,
             "description": "Reset iLO to factory defaults in the current logged in "
             "server.\n\texample: factorydefaults",
-            "summary": "Resets iLO to factory defaults. WARNING: user data will "
-            "be removed use with caution.",
+            "summary": "Resets iLO to factory defaults. WARNING: user data will " "be removed use with caution.",
             "aliases": [],
             "auxcommands": [],
         }
@@ -77,10 +74,7 @@ class FactoryDefaultsCommand:
 
         self.factorydefaultsvalidation(options)
 
-        self.rdmc.ui.warn(
-            "Resetting iLO to factory default settings.\n"
-            "Current session will be terminated.\n"
-        )
+        self.rdmc.ui.warn("Resetting iLO to factory default settings.\n" "Current session will be terminated.\n")
 
         select = "Manager."
         results = self.rdmc.app.select(selector=select)

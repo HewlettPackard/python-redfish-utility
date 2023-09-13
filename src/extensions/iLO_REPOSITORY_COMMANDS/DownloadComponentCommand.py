@@ -17,33 +17,26 @@
 # -*- coding: utf-8 -*-
 """ Download Component Command for rdmc """
 
+import ctypes
 import os
 import time
-import ctypes
-
 from ctypes import c_char_p, c_int
-
-import redfish.hpilo.risblobstore2 as risblobstore2
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
-        InvalidCommandLineError,
         DownloadError,
-        InvalidFileInputError,
         IncompatibleiLOVersionError,
-        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
-        InvalidCommandLineError,
         DownloadError,
-        InvalidFileInputError,
         IncompatibleiLOVersionError,
-        Encryption,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        ReturnCodes,
     )
 
 
@@ -59,9 +52,7 @@ def human_readable_time(seconds):
     minutes = seconds / 60
     seconds = seconds % 60
 
-    return "{:02.0f} hour(s) {:02.0f} minute(s) {:02.0f} second(s) ".format(
-        hours, minutes, seconds
-    )
+    return "{:02.0f} hour(s) {:02.0f} minute(s) {:02.0f} second(s) ".format(hours, minutes, seconds)
 
 
 class DownloadComponentCommand:
@@ -103,9 +94,7 @@ class DownloadComponentCommand:
         self.downloadcomponentvalidation(options)
 
         if self.rdmc.app.typepath.defs.isgen9:
-            raise IncompatibleiLOVersionError(
-                "iLO Repository commands are " "only available on iLO 5."
-            )
+            raise IncompatibleiLOVersionError("iLO Repository commands are " "only available on iLO 5.")
 
         start_time = time.time()
         ret = ReturnCodes.FAILED_TO_DOWNLOAD_COMPONENT
@@ -200,9 +189,7 @@ class DownloadComponentCommand:
                 )
                 return ReturnCodes.FAILED_TO_DOWNLOAD_COMPONENT
             else:
-                self.rdmc.ui.printer(
-                    "Component " + filename + " downloaded successfully.\n"
-                )
+                self.rdmc.ui.printer("Component " + filename + " downloaded successfully.\n")
                 self.rdmc.ui.printer("[200] The operation completed successfully.\n")
 
         except Exception as excep:
@@ -231,8 +218,7 @@ class DownloadComponentCommand:
 
         customparser.add_argument(
             "component",
-            help="""Component name (starting with path '/fwrepo/<comp name>') of the target"""
-            """ component.""",
+            help="""Component name (starting with path '/fwrepo/<comp name>') of the target""" """ component.""",
             metavar="[COMPONENT URI]",
         )
         customparser.add_argument(

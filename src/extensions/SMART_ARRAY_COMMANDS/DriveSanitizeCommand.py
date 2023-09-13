@@ -19,19 +19,17 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 
 
@@ -84,42 +82,38 @@ class DriveSanitizeCommand:
         ilo_ver = self.rdmc.app.getiloversion()
         if ilo_ver >= 6.110:
             if not options.storageid:
-                raise InvalidCommandLineError("--storageid option is mandatory for iLO6"
-                                              " along with --controller option.\n")
+                raise InvalidCommandLineError(
+                    "--storageid option is mandatory for iLO6" " along with --controller option.\n"
+                )
             self.auxcommands["select"].selectfunction("StorageController")
             content = self.rdmc.app.getprops()
-            controllers = self.auxcommands["storagecontroller"].storagecontroller(
-                options, single_use=True
-            )
+            controllers = self.auxcommands["storagecontroller"].storagecontroller(options, single_use=True)
             if controllers:
                 for controller in controllers:
-                    if getattr(options, "controller", False) == controller or \
-                            controllers[controller]["Location"]["PartLocation"]["ServiceLabel"][-1] == \
-                            getattr(options, "controller", False)[-1]:
-                        controller_physicaldrives = self.auxcommands[
-                            "storagecontroller"
-                        ].storagephysical_drives(
-                            options, options.controller, options.storageid, single_use=True
+                    if (
+                        getattr(options, "controller", False) == controller
+                        or controllers[controller]["Location"]["PartLocation"]["ServiceLabel"][-1]
+                        == getattr(options, "controller", False)[-1]
+                    ):
+                        controller_physicaldrives = self.auxcommands["storagecontroller"].storagephysical_drives(
+                            options,
+                            options.controller,
+                            options.storageid,
+                            single_use=True,
                         )
         else:
             self.auxcommands["select"].selectfunction("SmartStorageConfig")
             content = self.rdmc.app.getprops()
-            controllers = self.auxcommands["storagecontroller"].controllers(
-                options, single_use=True
-            )
+            controllers = self.auxcommands["storagecontroller"].controllers(options, single_use=True)
             if controllers:
                 for controller in controllers:
                     if int(controller) == int(options.controller):
-                        controller_physicaldrives = self.auxcommands[
-                            "storagecontroller"
-                        ].physical_drives(
+                        controller_physicaldrives = self.auxcommands["storagecontroller"].physical_drives(
                             options, controllers[controller], single_use=True
                         )
 
         if not args and not options.all:
-            raise InvalidCommandLineError(
-                "You must include a physical drive to sanitize."
-            )
+            raise InvalidCommandLineError("You must include a physical drive to sanitize.")
         elif not options.controller:
             raise InvalidCommandLineError("You must include a controller to select.")
         else:
@@ -137,40 +131,20 @@ class DriveSanitizeCommand:
                 if options.controller.isdigit():
                     slotlocation = self.storageget_location_from_id(options.controller, options.storageid)
                     if slotlocation:
-                        slotcontrol = (
-                            slotlocation.lower()
-                            .strip('"')
-                            .split("slot")[-1]
-                            .lstrip()
-                            .strip("=")
-                        )
+                        slotcontrol = slotlocation.lower().strip('"').split("slot")[-1].lstrip().strip("=")
                         for control in controllers.values():
-                            if "Location" in control and slotcontrol.lower() == control[
-                                "Location"
-                            ]["PartLocation"]["ServiceLabel"].lower().split("slot")[
-                                -1
-                            ].lstrip().strip(
-                                "="
-                            ):
+                            if "Location" in control and slotcontrol.lower() == control["Location"]["PartLocation"][
+                                "ServiceLabel"
+                            ].lower().split("slot")[-1].lstrip().strip("="):
                                 controllist.append(control)
                 elif "slot" in options.controller.lower():
                     slotlocation = options.controller
                     if slotlocation:
-                        slotcontrol = (
-                            slotlocation.lower()
-                            .strip('"')
-                            .split("slot")[-1]
-                            .lstrip()
-                            .strip("=")
-                        )
+                        slotcontrol = slotlocation.lower().strip('"').split("slot")[-1].lstrip().strip("=")
                         for control in controllers.values():
-                            if "Location" in control and slotcontrol.lower() == control[
-                                "Location"
-                            ]["PartLocation"]["ServiceLabel"].lower().split("slot")[
-                                -1
-                            ].lstrip().strip(
-                                "="
-                            ):
+                            if "Location" in control and slotcontrol.lower() == control["Location"]["PartLocation"][
+                                "ServiceLabel"
+                            ].lower().split("slot")[-1].lstrip().strip("="):
                                 controllist.append(control)
                 if not controllist:
                     raise InvalidCommandLineError("")
@@ -178,21 +152,14 @@ class DriveSanitizeCommand:
                 if options.controller.isdigit():
                     slotlocation = self.get_location_from_id(options.controller)
                     if slotlocation:
-                        slotcontrol = (
-                            slotlocation.lower().strip('"').split("slot")[-1].lstrip()
-                        )
+                        slotcontrol = slotlocation.lower().strip('"').split("slot")[-1].lstrip()
                         for control in content:
-                            if (
-                                slotcontrol.lower()
-                                == control["Location"].lower().split("slot")[-1].lstrip()
-                            ):
+                            if slotcontrol.lower() == control["Location"].lower().split("slot")[-1].lstrip():
                                 controllist.append(control)
                 if not controllist:
                     raise InvalidCommandLineError("")
         except InvalidCommandLineError:
-            raise InvalidCommandLineError(
-                "Selected controller not found in the current inventory " "list."
-            )
+            raise InvalidCommandLineError("Selected controller not found in the current inventory " "list.")
 
         if ilo_ver >= 6.110:
             if options.status:
@@ -201,14 +168,19 @@ class DriveSanitizeCommand:
                         pdrive_inilo = self.convertloc(drive["PhysicalLocation"]["PartLocation"]["ServiceLabel"])
                         if len(drive["Operations"]) != 0:
                             self.rdmc.ui.printer(
-                                "The drive is in %s state, %s percent complete.\n" % (
+                                "The drive is in %s state, %s percent complete.\n"
+                                % (
                                     drive["Operations"][0]["OperationName"],
-                                    drive["Operations"][0]["PercentageComplete"])
+                                    drive["Operations"][0]["PercentageComplete"],
+                                )
                             )
                             if int(drive["Operations"][0]["PercentageComplete"]) == 100:
                                 self.rdmc.ui.printer("You can reset %s using --drivereset now.\n" % (pdrive_inilo))
+                        elif len(drive["Operations"]) == 0:
+                            mr_ct = drive["Status"]["State"]
+                            self.rdmc.ui.printer("Sanitization is completed and updated drive status = %s\n" % (mr_ct))
                         else:
-                            self.rdmc.ui.printer("The drive %s is not in Sanitizing state.\n" % (pdrive_inilo))
+                            self.rdmc.ui.printer("Sanitization failed for drive %s.\n" % (pdrive_inilo))
                 else:
                     for drive in controller_physicaldrives.values():
                         pdrive_inilo = self.convertloc(drive["PhysicalLocation"]["PartLocation"]["ServiceLabel"])
@@ -216,14 +188,22 @@ class DriveSanitizeCommand:
                             if userdrive == pdrive_inilo:
                                 if len(drive["Operations"]) != 0:
                                     self.rdmc.ui.printer(
-                                        "The drive is in %s state, %s percent complete.\n" % (
+                                        "The drive is in %s state, %s percent complete.\n"
+                                        % (
                                             drive["Operations"][0]["OperationName"],
-                                            drive["Operations"][0]["PercentageComplete"])
+                                            drive["Operations"][0]["PercentageComplete"],
+                                        )
                                     )
                                     if int(drive["Operations"][0]["PercentageComplete"]) == 100:
                                         self.rdmc.ui.printer("You can reset %s using --drivereset now.\n" % (userdrive))
+                                elif len(drive["Operations"]) == 0:
+                                    mr_ct = drive["Status"]["State"]
+                                    self.rdmc.ui.printer(
+                                        "Sanitization is completed and updated drive status = %s\n" % (mr_ct)
+                                    )
+
                                 else:
-                                    self.rdmc.ui.printer("The drive %s is not in Sanitizing state.\n" % (userdrive))
+                                    self.rdmc.ui.printer("Sanitization failed for drive %s.\n" % (userdrive))
             elif options.drivereset:
                 if options.all:
                     for drive in controller_physicaldrives.values():
@@ -231,26 +211,21 @@ class DriveSanitizeCommand:
                         if "Actions" in drive:
                             if "#Drive.Reset" in drive["Actions"]:
                                 path = drive["@odata.id"] + "/Actions/Drive.Reset"
-                                contentsholder = {
-                                    "ResetType": "ForceOn"
-                                }
-                                self.rdmc.ui.printer(
-                                    "DriveReset path and payload: %s, %s\n" % (path, contentsholder)
-                                )
+                                contentsholder = {"ResetType": "ForceOn"}
+                                self.rdmc.ui.printer("DriveReset path and payload: %s, %s\n" % (path, contentsholder))
                                 self.rdmc.app.post_handler(path, contentsholder)
                             else:
                                 if len(drive["Operations"]) != 0:
                                     self.rdmc.ui.printer(
-                                        "The drive %s is still in Sanitizing state. Use --status to check it's status.\n" % (
-                                            pdrive_inilo))
+                                        "Sanitization is in progress for drive %s. Use --status to check it's status.\n"
+                                        % (pdrive_inilo)
+                                    )
                                 else:
                                     self.rdmc.ui.printer(
                                         "Drive sanitization is not being performed on %s\n" % (pdrive_inilo)
                                     )
                         else:
-                            self.rdmc.ui.printer(
-                                "Drive sanitization is not being performed on %s\n" % (pdrive_inilo)
-                            )
+                            self.rdmc.ui.printer("Drive sanitization is not being performed on %s\n" % (pdrive_inilo))
                 else:
                     for drive in controller_physicaldrives.values():
                         pdrive_inilo = self.convertloc(drive["PhysicalLocation"]["PartLocation"]["ServiceLabel"])
@@ -259,9 +234,7 @@ class DriveSanitizeCommand:
                                 if "Actions" in drive:
                                     if "#Drive.Reset" in drive["Actions"]:
                                         path = drive["@odata.id"] + "/Actions/Drive.Reset"
-                                        contentsholder = {
-                                            "ResetType": "ForceOn"
-                                        }
+                                        contentsholder = {"ResetType": "ForceOn"}
                                         self.rdmc.ui.printer(
                                             "DriveReset path and payload: %s, %s\n" % (path, contentsholder)
                                         )
@@ -269,8 +242,9 @@ class DriveSanitizeCommand:
                                     else:
                                         if len(drive["Operations"]) != 0:
                                             self.rdmc.ui.printer(
-                                                "The drive %s is still in Sanitizing state. Use --status to check it's status.\n" % (
-                                                    pdrive_inilo))
+                                                "Santization is in progress for drive %s. Use --status to check its "
+                                                "status.\n" % (pdrive_inilo)
+                                            )
                                         else:
                                             self.rdmc.ui.printer(
                                                 "Drive sanitization is not being performed on %s\n" % (pdrive_inilo)
@@ -280,15 +254,15 @@ class DriveSanitizeCommand:
                                         "Drive sanitization is not being performed on %s\n" % (pdrive_inilo)
                                     )
             else:
-                if self.storagesanitizedrives(
-                        physicaldrives, controller_physicaldrives, options.all
-                ):
+                if self.storagesanitizedrives(physicaldrives, controller_physicaldrives, options.all):
                     if options.reboot:
                         self.auxcommands["reboot"].run("ColdBoot")
                         self.rdmc.ui.printer("Preparing for sanitization...\n")
                         self.monitorsanitization()
 
         else:
+            if options.status is True or options.drivereset is True:
+                raise InvalidCommandLineError("--status and --drivereset options are not supported on iLO 5\n")
             if self.sanitizedrives(
                 controllist,
                 physicaldrives,
@@ -301,9 +275,7 @@ class DriveSanitizeCommand:
                     self.rdmc.ui.printer("Preparing for sanitization...\n")
                     self.monitorsanitization()
                 else:
-                    self.rdmc.ui.printer(
-                        "Sanitization will occur on the next system reboot.\n"
-                    )
+                    self.rdmc.ui.printer("Sanitization will occur on the next system reboot.\n")
 
         self.cmdbase.logout_routine(self, options)
         # Return code
@@ -325,9 +297,7 @@ class DriveSanitizeCommand:
                     return controller["Location"]["PartLocation"]["ServiceLabel"]
         return None
 
-    def sanitizedrives(
-        self, controllist, drivelist, controller_drives, mediatype, optall
-    ):
+    def sanitizedrives(self, controllist, drivelist, controller_drives, mediatype, optall):
         """Gets drives ready for sanitization
 
         :param controllist: list of controllers
@@ -360,23 +330,17 @@ class DriveSanitizeCommand:
                                         "Unable to"
                                         " sanitize configured drive. Remove"
                                         " any volume(s) associated "
-                                        "with drive %s and try again."
-                                        % pdrive["Location"]
+                                        "with drive %s and try again." % pdrive["Location"]
                                     )
 
                                 # Validate Media Type
-                                if not (
-                                    self.validate_mediatype(
-                                        erasedrive, mediatype, controller_drives
-                                    )
-                                ):
+                                if not (self.validate_mediatype(erasedrive, mediatype, controller_drives)):
                                     raise InvalidCommandLineError(
                                         "One or more of the drives given does not match the "
                                         "mediatype %s which is specified" % mediatype
                                     )
                                 self.rdmc.ui.printer(
-                                    "Setting physical drive %s "
-                                    "for sanitization\n" % pdrive["Location"]
+                                    "Setting physical drive %s " "for sanitization\n" % pdrive["Location"]
                                 )
                                 sanitizedrivelist.append(pdrive["Location"])
                                 break
@@ -418,65 +382,58 @@ class DriveSanitizeCommand:
 
     def convertloc(self, servicelabel):
         loc = servicelabel.split(":")
-        temp_str = str(loc[1].split("=")[1] + ':' + loc[2].split("=")[1] + ':' + loc[3].split("=")[1])
+        temp_str = str(loc[1].split("=")[1] + ":" + loc[2].split("=")[1] + ":" + loc[3].split("=")[1])
         return temp_str
 
     def storagesanitizedrives(self, drivelist, controller_drives, optall):
         sanitizedrivelist = []
         changes = False
+        plocation = ""
+        if len(controller_drives) != 0:
+            for plist in controller_drives.values():
+                logicaldrivelist = []
+                logicaldrivelist.extend(plist["Links"]["Volumes"])
+                plocation = self.convertloc(plist["PhysicalLocation"]["PartLocation"]["ServiceLabel"])
 
-        for plist in controller_drives.values():
-            logicaldrivelist = []
-            logicaldrivelist.extend(plist["Links"]["Volumes"])
-            plocation = self.convertloc(
-                plist["PhysicalLocation"]["PartLocation"]["ServiceLabel"]
-            )
-
-            if optall:
-                if logicaldrivelist:
-                    self.rdmc.ui.printer(
-                        "Unable to"
-                        " sanitize drive %s. Remove"
-                        " any volume(s) associated "
-                        "with this drive and try again.\n" % plocation
-                    )
-                    break
-                sanitizedrivelist.append(plocation)
-            else:
-                for erasedrive in drivelist:
-                    try:
-                        if erasedrive == plocation:
-                            if logicaldrivelist:
-                                self.rdmc.ui.printer(
-                                    "Unable to"
-                                    " sanitize drive %s. Remove"
-                                    " any volume(s) associated "
-                                    "with this drive and try again.\n" % plocation
-                                )
-                            self.rdmc.ui.printer(
-                                "Setting physical drive %s "
-                                "for sanitization\n" % plocation
-                            )
-                            sanitizedrivelist.append(plocation)
-                            break
-                    except KeyError as excp:
-                        raise NoContentsFoundForOperationError(
-                            "The property '%s' is missing " "or invalid.\n" % str(excp)
+                if optall:
+                    if logicaldrivelist:
+                        self.rdmc.ui.printer(
+                            "Unable to"
+                            " sanitize drive %s. Remove"
+                            " any volume(s) associated "
+                            "with this drive and try again.\n" % plocation
                         )
+                        break
+                    sanitizedrivelist.append(plocation)
+                else:
+                    for erasedrive in drivelist:
+                        try:
+                            if erasedrive == plocation:
+                                if logicaldrivelist:
+                                    self.rdmc.ui.printer(
+                                        "Unable to"
+                                        " sanitize drive %s. Remove"
+                                        " any volume(s) associated "
+                                        "with this drive and try again.\n" % plocation
+                                    )
+                                self.rdmc.ui.printer("Setting physical drive %s " "for sanitization\n" % plocation)
+                                sanitizedrivelist.append(plocation)
+                                break
+                        except KeyError as excp:
+                            raise NoContentsFoundForOperationError(
+                                "The property '%s' is missing " "or invalid.\n" % str(excp)
+                            )
 
-            if sanitizedrivelist:
-                changes = True
-                path = plist["@odata.id"] + "/Actions/Drive.SecureErase"
-                contentsholder = {}
+                if sanitizedrivelist:
+                    changes = True
+                    path = plist["@odata.id"] + "/Actions/Drive.SecureErase"
+                    contentsholder = {}
 
-                self.rdmc.ui.printer(
-                    "DriveSanitize path and payload: %s, %s\n" % (path, contentsholder)
-                )
+                    self.rdmc.ui.printer("DriveSanitize path and payload: %s, %s\n" % (path, contentsholder))
 
-                self.rdmc.app.post_handler(path, contentsholder)
-                sanitizedrivelist = []
-                self.rdmc.ui.printer(
-                    "You can check the sanitization status of %s using --status\n" % (plocation))
+                    self.rdmc.app.post_handler(path, contentsholder)
+                    sanitizedrivelist = []
+                    self.rdmc.ui.printer("You can check the sanitization status of %s using --status\n" % (plocation))
 
         return changes
 
@@ -484,10 +441,7 @@ class DriveSanitizeCommand:
         """validates media type as HDD or SSD"""
         for idx in list(controller_drives.keys()):
             phy_drive = controller_drives[idx]
-            if (
-                phy_drive["Location"] == erasedrive
-                and phy_drive["MediaType"] == mediatype
-            ):
+            if phy_drive["Location"] == erasedrive and phy_drive["MediaType"] == mediatype:
                 return True
         return False
 
@@ -517,8 +471,7 @@ class DriveSanitizeCommand:
         customparser.add_argument(
             "--controller",
             dest="controller",
-            help="Use this flag to select the corresponding controller "
-            "using either the slot number or index.",
+            help="Use this flag to select the corresponding controller " "using either the slot number or index.",
             default=None,
         )
         customparser.add_argument(
@@ -546,24 +499,21 @@ class DriveSanitizeCommand:
         customparser.add_argument(
             "--all",
             dest="all",
-            help="""Use this flag to sanitize all physical drives on a """
-            """controller.""",
+            help="""Use this flag to sanitize all physical drives on a """ """controller.""",
             action="store_true",
             default=False,
         )
         customparser.add_argument(
             "--drivereset",
             dest="drivereset",
-            help="""Use this flag to reset physical drives on a """
-                 """controller.""",
+            help="""Use this flag to reset physical drives on a """ """controller.""",
             action="store_true",
             default=False,
         )
         customparser.add_argument(
             "--status",
             dest="status",
-            help="""Use this flag to check sanitization status of a """
-                 """controller.""",
+            help="""Use this flag to check sanitization status of a """ """controller.""",
             action="store_true",
             default=False,
         )

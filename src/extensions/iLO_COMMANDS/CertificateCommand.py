@@ -17,32 +17,27 @@
 # -*- coding: utf-8 -*-
 """ Certificates Command for rdmc """
 
-from argparse import ArgumentParser, RawDescriptionHelpFormatter
-from logging import exception
 import time
+from argparse import RawDescriptionHelpFormatter
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
-        NoContentsFoundForOperationError,
-        InvalidFileInputError,
-        IncompatibleiLOVersionError,
-        Encryption,
         IloLicenseError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        NoContentsFoundForOperationError,
+        ReturnCodes,
         ScepenabledError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
-        NoContentsFoundForOperationError,
-        InvalidFileInputError,
-        IncompatibleiLOVersionError,
-        Encryption,
         IloLicenseError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineErrorOPTS,
+        InvalidFileInputError,
+        NoContentsFoundForOperationError,
+        ReturnCodes,
         ScepenabledError,
     )
 
@@ -59,15 +54,15 @@ class CertificateCommand:
             "name": "certificate",
             "usage": None,
             "description": "Generate a certificate signing request (CSR) or import an X509 formatted"
-                           " TLS or CA certificate.\nImport Scep Certificate.\nInvoke Auto Enroll of certificate generation\n\n"
-                           "NOTE: Use quotes to include parameters which contain whitespace when "
-                           'generating a CSR.\nexample: certificate gen_csr "Hewlett Packard Enterprise"'
-                           '"iLORest Group" "CName"\n"United States" "Texas" "Houston" "False or True"\n\n'
-                           'NOTE: unifiedcertificate command which was augmenting certificate command is merged'
-                           ' into single command certificate',
+            " TLS or CA certificate.\nImport Scep Certificate.\nInvoke Auto Enroll of certificate generation\n\n"
+            "NOTE: Use quotes to include parameters which contain whitespace when "
+            'generating a CSR.\nexample: certificate gen_csr "Hewlett Packard Enterprise"'
+            '"iLORest Group" "CName"\n"United States" "Texas" "Houston" "False or True"\n\n'
+            "NOTE: unifiedcertificate command which was augmenting certificate command is merged"
+            " into single command certificate",
             "summary": "Command for importing both iLO and login authorization "
-                       "certificates as well as generating iLO certificate signing requests (CSR)\n",
-            "aliases": ['unifiedcertificate'],
+            "certificates as well as generating iLO certificate signing requests (CSR)\n",
+            "aliases": ["unifiedcertificate"],
             "auxcommands": [],
         }
         self.cmdbase = None
@@ -109,7 +104,7 @@ class CertificateCommand:
         if options.command == "csr":
             self.rdmc.ui.printer(
                 "This command has been deprecated. Please use the following command: "
-                "certificate gen_csr \"Hewlet Packard Enterprice\" \"ILORestGroup\" ...\n"
+                'certificate gen_csr "Hewlet Packard Enterprice" "ILORestGroup" ...\n'
                 "It performs the same function.\n"
                 "Check --help for more information.\n"
             )
@@ -118,7 +113,8 @@ class CertificateCommand:
             return returnCode
         elif options.command == "ca":
             self.rdmc.ui.printer(
-                "This command has been deprecated. Please use the following command: certificate import --ca_cert <ca_txt>\n"
+                "This command has been deprecated. Please use the following "
+                "command: certificate import --ca_cert <ca_txt>\n"
                 "It performs the same function.\n"
                 "Check --help for more information.\n"
             )
@@ -235,9 +231,7 @@ class CertificateCommand:
         try:
             for item in bodydict["Links"]:
                 if "AutomaticCertificateEnrollment" in item:
-                    path = bodydict["Links"]["AutomaticCertificateEnrollment"][
-                        "@odata.id"
-                    ]
+                    path = bodydict["Links"]["AutomaticCertificateEnrollment"]["@odata.id"]
                     break
         except:
             path = path + "AutomaticCertificateEnrollment"
@@ -260,37 +254,38 @@ class CertificateCommand:
         }
 
         try:
-
             results = self.rdmc.app.patch_handler(path, body, silent=True)
 
             i = 0
             results1 = self.rdmc.app.get_handler(path, silent=True)
-            while i < 9 and (results1.dict["AutomaticCertificateEnrollmentSettings"][
-                                 'CertificateEnrollmentStatus'] == "InProgress"):
+            while i < 9 and (
+                results1.dict["AutomaticCertificateEnrollmentSettings"]["CertificateEnrollmentStatus"] == "InProgress"
+            ):
                 results1 = self.rdmc.app.get_handler(path, silent=True)
                 time.sleep(1)
                 i = i + 1
 
             if results.status == 200 and (
-                    not (results1.dict["AutomaticCertificateEnrollmentSettings"][
-                             'CertificateEnrollmentStatus'] == "Failed")):
+                not (results1.dict["AutomaticCertificateEnrollmentSettings"]["CertificateEnrollmentStatus"] == "Failed")
+            ):
+                self.rdmc.ui.printer("Auto enrolment Enable/Disable operation successful \n")
                 return ReturnCodes.SUCCESS
             elif results.status == 400:
                 self.rdmc.ui.error(
-                    "There was a problem with auto enroll, Please check whether Scep CA cert is imported \t\n")
+                    "There was a problem with auto enroll, Please check whether Scep CA cert is imported \t\n"
+                )
 
                 return ReturnCodes.SCEP_ENABLED_ERROR
             else:
                 self.rdmc.ui.error(
-                    "There was a problem with auto enroll, Plese Check the Url\Password whether it is correct\n")
+                    "There was a problem with auto enroll, Plese Check the Url/Password whether it is correct\n"
+                )
                 return ReturnCodes.SCEP_ENABLED_ERROR
         except IloLicenseError:
             self.rdmc.ui.error("License Error Occured while auto enroll\n")
             return ReturnCodes.ILO_LICENSE_ERROR
         except IdTokenError:
-            self.rdmc.ui.printer(
-                "Insufficient Privilege to auto enroll scep certificate process\n"
-            )
+            self.rdmc.ui.printer("Insufficient Privilege to auto enroll scep certificate process\n")
             return ReturnCodes.RIS_MISSING_ID_TOKEN
 
     def gencsrfunction(self, options):
@@ -390,9 +385,7 @@ class CertificateCommand:
             self.rdmc.ui.error("License Error Occured while delete")
             return ReturnCodes.ILO_LICENSE_ERROR
         except IncompatibleiLOVersionError:
-            self.rdmc.ui.error(
-                "iLO FW version on this server doesnt support this operation"
-            )
+            self.rdmc.ui.error("iLO FW version on this server doesnt support this operation")
             return ReturnCodes.INCOMPATIBLE_ILO_VERSION_ERROR
 
     def viewfunction(self, options):
@@ -433,9 +426,7 @@ class CertificateCommand:
         try:
             for item in bodydict["Links"]:
                 if "AutomaticCertificateEnrollment" in item:
-                    path = bodydict["Links"]["AutomaticCertificateEnrollment"][
-                        "@odata.id"
-                    ]
+                    path = bodydict["Links"]["AutomaticCertificateEnrollment"]["@odata.id"]
                     break
         except:
             path = path + "AutomaticCertificateEnrollment"
@@ -495,20 +486,15 @@ class CertificateCommand:
             return ReturnCodes.ILO_LICENSE_ERROR
 
     def exportfunction(self, options):
-
         result = self.exportplatformhelper(options)
 
         if result:
             if options.filename:
                 self.file_handler(next(iter(options.filename)), result, options, "wb")
-                self.rdmc.ui.printer(
-                    "The certificate was saved to: %s\n" % next(iter(options.filename))
-                )
+                self.rdmc.ui.printer("The certificate was saved to: %s\n" % next(iter(options.filename)))
                 return ReturnCodes.SUCCESS
             else:
-                self.rdmc.ui.printer(
-                    "The certificate retrieved is as follows:\n%s\n" % result
-                )
+                self.rdmc.ui.printer("The certificate retrieved is as follows:\n%s\n" % result)
                 return ReturnCodes.SUCCESS
         else:
             raise NoContentsFoundForOperationError("An error occurred retrieving the requested certificate.\n")
@@ -519,29 +505,18 @@ class CertificateCommand:
         :type options: list.
         """
 
-        type = "PlatformCert"  # assume platform certificate
-        str_type = "Platform"
-        ss_instance = next(
-            iter(self.rdmc.app.select("SecurityService." + ".", path_refresh=True))
-        )
+        str_type = "PlatformCert"
+        ss_instance = next(iter(self.rdmc.app.select("SecurityService." + ".", path_refresh=True)))
         if options.ldevid_cert:
-            type = "iLOLDevID"
             str_type = "iLO lDevID"
         elif options.idevid_cert:
-            type = "iLOIDevID"
             str_type = "iLO iDevID"
         elif options.systemiak_cert:
-            type = "SystemIAK"
             str_type = "System IAK"
         elif options.systemidevid_cert:
-            type = "SystemIDevID"
             str_type = "System iDevID"
         instance_path_uri = (
-            (
-                ss_instance.dict[type]["Certificates"][
-                    self.rdmc.app.typepath.defs.hrefstring
-                ]
-            )
+            (ss_instance.dict[str_type]["Certificates"][self.rdmc.app.typepath.defs.hrefstring])
             if ss_instance.dict.get("SystemIAK")
             else None
         )
@@ -557,8 +532,7 @@ class CertificateCommand:
             return cert.get("CertificateString")
         else:
             raise NoContentsFoundForOperationError(
-                "Unable to find specified certificate at "
-                "position %s." % getattr(options, "id", 0)
+                "Unable to find specified certificate at " "position %s." % getattr(options, "id", 0)
             )
 
     def file_handler(self, filename, data, options, operation="rb"):
@@ -575,37 +549,26 @@ class CertificateCommand:
         :returns: json file data
         """
         writeable_ops = ["wb", "w", "w+", "a", "a+"]
-        readable_ops = ["rb", "r", "r+"]
 
         if operation in writeable_ops:
             with open(filename, operation) as fh:
                 try:
                     data = data.encode("UTF-8")
                 except IOError:
-                    raise InvalidFileInputError(
-                        "Unable to write to file '%s'" % filename
-                    )
+                    raise InvalidFileInputError("Unable to write to file '%s'" % filename)
                 except UnicodeEncodeError:
                     pass
                 finally:
-                    # No encryption...yet..?
-                    # if options.encryption:
-                    #    fh.write(Encryption().encrypt_file(data, options.encryption))
-                    # else:
                     fh.write(data)
         else:
-            # No encryption...yet...?
-            # if options.encryption:
-            #    fdata = Encryption().decrypt_file(fh.read(), options.encryption)
             with open(filename, operation) as fh:
+                fdata = fh.read()
                 try:
                     return fdata.decode("UTF-8")
                 except UnicodeDecodeError:
                     return fdata
                 except IOError:
-                    raise InvalidFileInputError(
-                        "Unable to read from file '%s'" % filename
-                    )
+                    raise InvalidFileInputError("Unable to read from file '%s'" % filename)
 
     def importfunction(self, options):
         if self.rdmc.app.typepath.defs.isgen10:
@@ -636,9 +599,7 @@ class CertificateCommand:
         try:
             for item in bodydict["Links"]:
                 if "AutomaticCertificateEnrollment" in item:
-                    path = bodydict["Links"]["AutomaticCertificateEnrollment"][
-                        "@odata.id"
-                    ]
+                    path = bodydict["Links"]["AutomaticCertificateEnrollment"]["@odata.id"]
                     break
         except:
             path = path + "AutomaticCertificateEnrollment"
@@ -671,9 +632,7 @@ class CertificateCommand:
             self.rdmc.ui.error("Error Occured while importing scep certificate")
             return ReturnCodes.ILO_LICENSE_ERROR
         except IncompatibleiLOVersionError:
-            self.rdmc.ui.error(
-                "iLO FW version on this server doesnt support this operation"
-            )
+            self.rdmc.ui.error("iLO FW version on this server doesnt support this operation")
             return ReturnCodes.INCOMPATIBLE_ILO_VERSION_ERROR
 
     def importfunctionhelper(self, options):
@@ -686,9 +645,13 @@ class CertificateCommand:
             result = self.importcrlhelper(options)
         elif getattr(options, "tls_cert"):
             result = self.importtlshelper(options)
-        elif getattr(options, "ldevid_cert") or getattr(options, "idevid_cert") or getattr(options,
-                                                                                           "systemiak_cert") or getattr(
-            options, "systemidevid_cert") or getattr(options, "platform_cert"):
+        elif (
+            getattr(options, "ldevid_cert")
+            or getattr(options, "idevid_cert")
+            or getattr(options, "systemiak_cert")
+            or getattr(options, "systemidevid_cert")
+            or getattr(options, "platform_cert")
+        ):
             result = self.importplatformhelper(options)
 
         return result
@@ -700,7 +663,8 @@ class CertificateCommand:
         :type options: list.
         """
         self.rdmc.ui.printer(
-            "Warning:Command CSR has been replaced with Gen_csr comamnd and CSR command will be deprecated in next release of our tool. Please plan to use gen_csr command instead \n"
+            "Warning:Command CSR has been replaced with Gen_csr comamnd and "
+            "CSR command will be deprecated in next release of our tool. Please plan to use gen_csr command instead \n"
         )
         select = self.rdmc.app.typepath.defs.hphttpscerttype
         results = self.rdmc.app.select(selector=select)
@@ -741,8 +705,7 @@ class CertificateCommand:
         }
 
         self.rdmc.ui.printer(
-            "iLO is creating a new certificate signing request. "
-            "This process can take up to 10 minutes.\n"
+            "iLO is creating a new certificate signing request. " "This process can take up to 10 minutes.\n"
         )
 
         try:
@@ -795,7 +758,6 @@ class CertificateCommand:
             raise NoContentsFoundForOperationError("Unable to find %s" % select)
 
     def get_csr_helper(self, options):
-
         result = None
         if options.TLSCERT:
             instance = next(iter(self.rdmc.app.select("HttpsCert.", path_refresh=True)))
@@ -818,7 +780,9 @@ class CertificateCommand:
             return ReturnCodes.SUCCESS
         else:
             self.rdmc.ui.error(
-                "An error occurred retrieving a CSR. Check whether CSR is requested , if not kindly run gen_csr command and generate CSR")
+                "An error occurred retrieving a CSR. Check whether CSR is requested , "
+                "if not kindly run gen_csr command and generate CSR"
+            )
 
     def gen_csr_helper(self, options):
         """
@@ -843,28 +807,15 @@ class CertificateCommand:
         elif options.PLATFORM:
             # There is seemingly no way to update the Certificate subject data which
             # appears problematic.
-            cs_instance = next(
-                iter(self.rdmc.app.select("CertificateService.", path_refresh=True))
+            _ = next(iter(self.rdmc.app.select("CertificateService.", path_refresh=True)))
+            ss_instance = next(iter(self.rdmc.app.select("SecurityService.", path_refresh=True)))
+            cert_obtain_path = ss_instance.dict.get("iLOLDevID")[next(iter(ss_instance.dict.get("iLOLDevID")))].get(
+                self.rdmc.app.typepath.defs.hrefstring
             )
-            ss_instance = next(
-                iter(self.rdmc.app.select("SecurityService.", path_refresh=True))
-            )
-            cert_obtain_path = ss_instance.dict.get("iLOLDevID")[
-                next(iter(ss_instance.dict.get("iLOLDevID")))
-            ].get(self.rdmc.app.typepath.defs.hrefstring)
             if not cert_obtain_path:
-                raise NoContentsFoundForOperationError(
-                    "Unable to find specified certificate path"
-                    " for CSR request"
-                )
-            instance = next(
-                iter(self.rdmc.app.select("CertificateService.", path_refresh=True))
-            )
-            body = {
-                "CertificateCollection": {
-                    self.rdmc.app.typepath.defs.hrefstring: cert_obtain_path
-                }
-            }
+                raise NoContentsFoundForOperationError("Unable to find specified certificate path" " for CSR request")
+            instance = next(iter(self.rdmc.app.select("CertificateService.", path_refresh=True)))
+            body = {"CertificateCollection": {self.rdmc.app.typepath.defs.hrefstring: cert_obtain_path}}
 
         try:
             for act in instance.dict.get("Actions"):
@@ -876,14 +827,10 @@ class CertificateCommand:
                     path = instance.dict["Actions"][act]["target"]
                     break
         except:
-            raise NoContentsFoundForOperationError(
-                "Unable to find specified certificate action"
-                "path for CSR request"
-            )
+            raise NoContentsFoundForOperationError("Unable to find specified certificate action" "path for CSR request")
 
         self.rdmc.ui.printer(
-            "iLO is creating a new certificate signing request. "
-            "This request may take up to 10 minutes.\n"
+            "iLO is creating a new certificate signing request. " "This request may take up to 10 minutes.\n"
         )
         return self.rdmc.app.post_handler(path, body)
 
@@ -945,9 +892,7 @@ class CertificateCommand:
             self.rdmc.ui.error("Error occurred while importing TLS certificate")
             return ReturnCodes.ILO_LICENSE_ERROR
         except IncompatibleiLOVersionError:
-            self.rdmc.ui.error(
-                "iLO FW version on this server doesnt support this operation"
-            )
+            self.rdmc.ui.error("iLO FW version on this server doesnt support this operation")
             return ReturnCodes.INCOMPATIBLE_ILO_VERSION_ERROR
 
     def importcrlhelper(self, options):
@@ -957,9 +902,7 @@ class CertificateCommand:
         :type options: list.
         """
         if not self.rdmc.app.typepath.flagiften:
-            raise IncompatibleiLOVersionError(
-                "This certificate is not available on this system."
-            )
+            raise IncompatibleiLOVersionError("This certificate is not available on this system.")
 
         select = "HpeCertAuth."
         results = self.rdmc.app.select(selector=select)
@@ -994,9 +937,7 @@ class CertificateCommand:
             self.rdmc.ui.error("Error Occured while importing CRL certificate")
             return ReturnCodes.ILO_LICENSE_ERROR
         except IncompatibleiLOVersionError:
-            self.rdmc.ui.error(
-                "iLO FW version on this server doesnt support this operation"
-            )
+            self.rdmc.ui.error("iLO FW version on this server doesnt support this operation")
             return ReturnCodes.INCOMPATIBLE_ILO_VERSION_ERROR
 
     def importcahelper(self, options):
@@ -1006,9 +947,7 @@ class CertificateCommand:
         :type options: list.
         """
         if not self.rdmc.app.typepath.flagiften:
-            raise IncompatibleiLOVersionError(
-                "This certificate is not available on this system."
-            )
+            raise IncompatibleiLOVersionError("This certificate is not available on this system.")
 
         tlsfile = options.certfile
 
@@ -1052,9 +991,7 @@ class CertificateCommand:
             self.rdmc.ui.error("Error occurred while importing CA certificate")
             return ReturnCodes.ILO_LICENSE_ERROR
         except IncompatibleiLOVersionError:
-            self.rdmc.ui.error(
-                "iLO FW version on this server doesnt support this operation"
-            )
+            self.rdmc.ui.error("iLO FW version on this server doesnt support this operation")
             return ReturnCodes.INCOMPATIBLE_ILO_VERSION_ERROR
 
     def importplatformhelper(self, options):
@@ -1084,8 +1021,7 @@ class CertificateCommand:
             type = "PlatformCert"
         else:
             raise InvalidCommandLineErrorOPTS(
-                "An invalid set of options were selected...verify "
-                " options were selected correctly and re-try."
+                "An invalid set of options were selected...verify " " options were selected correctly and re-try."
             )
         type_totarget = "#HpeiLODiagnostics.Import" + type
 
@@ -1124,9 +1060,7 @@ class CertificateCommand:
                     self.rdmc.ui.error("Error Occured while importing %s certificate\n" % type)
                     return ReturnCodes.ILO_LICENSE_ERROR
                 except IncompatibleiLOVersionError:
-                    self.rdmc.ui.error(
-                        "iLO FW version on this server doesnt support this operation"
-                    )
+                    self.rdmc.ui.error("iLO FW version on this server doesnt support this operation")
                     return ReturnCodes.INCOMPATIBLE_ILO_VERSION_ERROR
 
     def certificatesvalidation(self, options):
@@ -1152,14 +1086,14 @@ class CertificateCommand:
 
         # gen csr sub-parser
         gen_csr_help = (
-            "This command has been deprecated. Please use the below given example command to execute the same function."
+            "This command has been deprecated. Please use the below example command to execute the same function."
         )
         gen_csr_parser = subcommand_parser.add_parser(
             "csr",
             help=gen_csr_help,
             description=gen_csr_help + "\nexample: certificate gen_csr [ORG_NAME] [ORG_UNIT]"
-                                       " [COMMON_NAME] [COUNTRY] [STATE] [CITY]\n\nNOTE: please make "
-                                       "certain the order of arguments is correct.",
+            " [COMMON_NAME] [COUNTRY] [STATE] [CITY]\n\nNOTE: please make "
+            "certain the order of arguments is correct.",
             formatter_class=RawDescriptionHelpFormatter,
         )
         gen_csr_parser.add_argument(
@@ -1182,25 +1116,20 @@ class CertificateCommand:
             help="Organization country. i.e. United States.",
             metavar="ORGCOUNTRY",
         )
-        gen_csr_parser.add_argument(
-            "csr_state", help="Organization state. i.e. Texas.", metavar="ORGSTATE"
-        )
-        gen_csr_parser.add_argument(
-            "csr_city", help="Organization city. i.e. Houston.", metavar="ORGCITY"
-        )
+        gen_csr_parser.add_argument("csr_state", help="Organization state. i.e. Texas.", metavar="ORGSTATE")
+        gen_csr_parser.add_argument("csr_city", help="Organization city. i.e. Houston.", metavar="ORGCITY")
         self.cmdbase.add_login_arguments_group(gen_csr_parser)
 
         # get csr
         get_csr_help = (
-            "Retrieve the generated certificate signing request (CSR) printed to the "
-            "console or to a json file."
+            "Retrieve the generated certificate signing request (CSR) printed to the " "console or to a json file."
         )
         get_csr_parser = subcommand_parser.add_parser(
             "getcsr",
             help=get_csr_help,
             description=get_csr_help
-                        + "\nexample: certificate getcsr\nexample: certificate getcsr  --TLS_CERT\--PLATFORM_CERT"
-                          "-f mycsrfile.json",
+            + "\nexample: certificate getcsr\nexample: certificate getcsr  --TLS_CERT/--PLATFORM_CERT"
+            "-f mycsrfile.json",
             formatter_class=RawDescriptionHelpFormatter,
         )
         get_csr_parser.add_argument(
@@ -1222,37 +1151,34 @@ class CertificateCommand:
             "--filename",
             dest="filename",
             help="Use this flag if you wish to use a different"
-                 " filename for the certificate signing request. The default"
-                 " filename is %s." % __filename__,
+            " filename for the certificate signing request. The default"
+            " filename is %s." % __filename__,
             action="append",
             default=None,
         )
         self.cmdbase.add_login_arguments_group(get_csr_parser)
 
         # ca certificate
-        ca_help = "This command has been deprecated. Please use the below given example command to execute the same function."
+        ca_help = "This command has been deprecated. Please use the below example command to execute the same function."
         ca_parser = subcommand_parser.add_parser(
             "ca",
             help=ca_help,
             description=ca_help + "\nexample: certificate import --ca_cert mycertfile.txt\nNote: The "
-                                  "certificate must be in X.509 format",
+            "certificate must be in X.509 format",
             formatter_class=RawDescriptionHelpFormatter,
         )
-        ca_parser.add_argument(
-            "certfile", help="X.509 formatted CA certificate", metavar="CACERTFILE"
-        )
+        ca_parser.add_argument("certfile", help="X.509 formatted CA certificate", metavar="CACERTFILE")
         self.cmdbase.add_login_arguments_group(ca_parser)
 
         # crl certificate
         crl_help = (
-            "This command has been deprecated. Please use the below given example command to execute the same function."
+            "This command has been deprecated. Please use the below example command to execute the same function."
         )
         crl_parser = subcommand_parser.add_parser(
             "crl",
             help=crl_help,
-            description=crl_help
-                        + "\nexample: certificate import --crl_cert https://mycertfileurl/mycertfile.txt"
-                          "\nNote: The certificate must be in X.509 format",
+            description=crl_help + "\nexample: certificate import --crl_cert https://mycertfileurl/mycertfile.txt"
+            "\nNote: The certificate must be in X.509 format",
             formatter_class=RawDescriptionHelpFormatter,
         )
         crl_parser.add_argument(
@@ -1263,17 +1189,17 @@ class CertificateCommand:
         self.cmdbase.add_login_arguments_group(crl_parser)
 
         # tls certificate
-        tls_help = "This command has been deprecated. Please use the below given example command to execute the same function."
+        tls_help = (
+            "This command has been deprecated. Please use the below example command to execute the same function."
+        )
         tls_parser = subcommand_parser.add_parser(
             "tls",
             help=tls_help,
             description=tls_help + "\nexample: certificate import --tls_cert mycertfile.txt\nNote: The "
-                                   "certificate must be in TLS X.509 format",
+            "certificate must be in TLS X.509 format",
             formatter_class=RawDescriptionHelpFormatter,
         )
-        tls_parser.add_argument(
-            "certfile", help="X.509 formatted TLS certificate", metavar="TLSCERTFILE"
-        )
+        tls_parser.add_argument("certfile", help="X.509 formatted TLS certificate", metavar="TLSCERTFILE")
         self.cmdbase.add_login_arguments_group(tls_parser)
 
         # view certificate
@@ -1282,13 +1208,15 @@ class CertificateCommand:
             "view",
             help=view_help,
             description=view_help
-                        + "\nexample: certificate view --https_cert  \n or \n certificate view --scep_cert \n  Webserver certificate whether self-signed or manually imported or issued by SCEP server can be viewed",
+            + "\nexample: certificate view --https_cert  \n or \n certificate view --scep_cert \n"
+            + "Webserver certificate whether self-signed or manually imported or issued by SCEP server can be viewed",
             formatter_class=RawDescriptionHelpFormatter,
         )
         view_parser.add_argument(
             "--scep_cert",
             dest="scep_cert",
-            help="Gets the information of SCEP settings for iLO such as SCEP enable status, URL of the SCEP server, ChallengePassword, SCEP CA certificate name, webserver CSR subject contents, SCEP enrollment status",
+            help="Gets the information of SCEP settings for iLO such as SCEP enable status, URL of the SCEP server,"
+            + " ChallengePassword, SCEP CA certificate name, webserver CSR subject contents, SCEP enrollment status",
             action="store_true",
         )
         view_parser.add_argument(
@@ -1305,7 +1233,8 @@ class CertificateCommand:
             "import",
             help=import_help,
             description=import_help
-                        + "\nexample: certificate import --scep_cert certificate.txt \n  make sure you are providing a .txt file input.\n",
+            + "\nexample: certificate import --scep_cert certificate.txt \n"
+            + " make sure you are providing a .txt file input.\n",
             formatter_class=RawDescriptionHelpFormatter,
         )
         import_parser.add_argument(
@@ -1381,9 +1310,7 @@ class CertificateCommand:
         export_parser = subcommand_parser.add_parser(
             "export",
             help=export_help,
-            description=export_help
-                        + "\nExample: certificate export --IDEVID -f "
-                          "myidevidfile\n",
+            description=export_help + "\nExample: certificate export --IDEVID -f " "myidevidfile\n",
             formatter_class=RawDescriptionHelpFormatter,
         )
 
@@ -1426,8 +1353,8 @@ class CertificateCommand:
             "--id",
             dest="id",
             help="Optionally specify the certificate instance, if multiples are available. If"
-                 "the instance specified is not available, then the next is retrieved. Default is"
-                 "the first instance",
+            "the instance specified is not available, then the next is retrieved. Default is"
+            "the first instance",
             default=1,
         )
         export_parser.add_argument(
@@ -1446,8 +1373,7 @@ class CertificateCommand:
         delete_parser = subcommand_parser.add_parser(
             "delete",
             help=delete_help,
-            description=delete_help
-                        + "\nexample: certificate delete \n  delete the https_cert certificate ",
+            description=delete_help + "\nexample: certificate delete \n  delete the https_cert certificate ",
             formatter_class=RawDescriptionHelpFormatter,
         )
 
@@ -1462,10 +1388,9 @@ class CertificateCommand:
         gencsr_parser = subcommand_parser.add_parser(
             "gen_csr",
             help=gencsr_help,
-            description=gen_csr_help
-                        + "\nexample: certificate gen_csr [ORG_NAME] [ORG_UNIT]"
-                          " [COMMON_NAME] [COUNTRY] [STATE] [CITY] [INCLUDEIP] \n\nNOTE: please make "
-                          "certain the order of arguments is correct.",
+            description=gen_csr_help + "\nexample: certificate gen_csr [ORG_NAME] [ORG_UNIT]"
+            " [COMMON_NAME] [COUNTRY] [STATE] [CITY] [INCLUDEIP] \n\nNOTE: please make "
+            "certain the order of arguments is correct.",
             formatter_class=RawDescriptionHelpFormatter,
         )
         gencsr_parser.add_argument(
@@ -1488,12 +1413,8 @@ class CertificateCommand:
             help="Organization country. i.e. United States.",
             metavar="ORGCOUNTRY",
         )
-        gencsr_parser.add_argument(
-            "gencsr_state", help="Organization state. i.e. Texas.", metavar="ORGSTATE"
-        )
-        gencsr_parser.add_argument(
-            "gencsr_city", help="Organization city. i.e. Houston.", metavar="ORGCITY"
-        )
+        gencsr_parser.add_argument("gencsr_state", help="Organization state. i.e. Texas.", metavar="ORGSTATE")
+        gencsr_parser.add_argument("gencsr_city", help="Organization city. i.e. Houston.", metavar="ORGCITY")
         gencsr_parser.add_argument(
             "gencsr_parser_includeIP",
             help="Include IP. i.e. True or False.",
@@ -1504,15 +1425,16 @@ class CertificateCommand:
         # automatic enrollment sub-parser
         autoenroll_help = (
             "Use this command for invoking the auto enroll the certificate enrollment process"
-            "\nMake sure you have imported the scep CA certificate before head using certificate import --scep certifcate.txt"
+            "\nMake sure you have imported the scep CA certificate "
+            "before head using certificate import --scep certifcate.txt"
         )
         autoenroll_parser = subcommand_parser.add_parser(
             "auto_enroll",
             help=autoenroll_help,
-            description=autoenroll_help
-                        + "\nexample: certificate auto_enroll [ORG_NAME] [ORG_UNIT]"
-                          " [COMMON_NAME] [COUNTRY] [STATE] [CITY] [SCEP_ADDRESS] [CHALLENGEPASSWORD] [SERVICEENABLED] [INCLUDEIP]]\n\nNOTE: please make "
-                          "certain the order of arguments is correct.",
+            description=autoenroll_help + "\nexample: certificate auto_enroll [ORG_NAME] [ORG_UNIT]"
+            " [COMMON_NAME] [COUNTRY] [STATE] [CITY] [SCEP_ADDRESS] [CHALLENGEPASSWORD] "
+            "[SERVICEENABLED] [INCLUDEIP]]\n\nNOTE: please make "
+            "certain the order of arguments is correct.",
             formatter_class=RawDescriptionHelpFormatter,
         )
         autoenroll_parser.add_argument(
@@ -1535,12 +1457,8 @@ class CertificateCommand:
             help="Organization country. i.e. United States.",
             metavar="ORGCOUNTRY",
         )
-        autoenroll_parser.add_argument(
-            "autoenroll_state", help="Organization state. i.e. Texas.", metavar="ORGSTATE"
-        )
-        autoenroll_parser.add_argument(
-            "autoenroll_city", help="Organization city. i.e. Houston.", metavar="ORGCITY"
-        )
+        autoenroll_parser.add_argument("autoenroll_state", help="Organization state. i.e. Texas.", metavar="ORGSTATE")
+        autoenroll_parser.add_argument("autoenroll_city", help="Organization city. i.e. Houston.", metavar="ORGCITY")
         autoenroll_parser.add_argument(
             "autoenroll_scep_enrollAddress",
             help="Scep-enroll dll address",

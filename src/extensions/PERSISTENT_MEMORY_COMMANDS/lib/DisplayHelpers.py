@@ -19,7 +19,9 @@
 from __future__ import absolute_import
 
 from enum import Enum
+
 from tabulate import tabulate
+
 try:
     from rdmc_helper import LOGGER, UI
 except ImportError:
@@ -80,25 +82,15 @@ class DisplayHelpers(object):
         """
         table = []
         for item in data:
-            row = [
-                ":".join(x.split(":")[1:]).strip()
-                for x in item.split("\n")
-                if len(x.split(":")) >= 2
-            ]
+            row = [":".join(x.split(":")[1:]).strip() for x in item.split("\n") if len(x.split(":")) >= 2]
             table.append(row)
-        headers = [
-            x.split(":")[0].strip() for x in data[0].split("\n") if len(x.split(":")) == 2
-        ]
+        headers = [x.split(":")[0].strip() for x in data[0].split("\n") if len(x.split(":")) == 2]
         not_found = [x for x in data[0].split("\n") if len(x.split(":")) < 2]
         self._ui.printer("\n".join(not_found))
         if not truncate:
             return headers, table
-        truncated_headers = [
-            self.truncate_lengthy(str(x), self.max_width) for x in headers
-        ]
-        truncated_data = [
-            [self.truncate_lengthy(str(x), self.max_width) for x in row] for row in table
-        ]
+        truncated_headers = [self.truncate_lengthy(str(x), self.max_width) for x in headers]
+        truncated_data = [[self.truncate_lengthy(str(x), self.max_width) for x in row] for row in table]
         return truncated_headers, truncated_data
 
     # pylint: disable=unused-argument
@@ -111,9 +103,9 @@ class DisplayHelpers(object):
         :type string
         """
         headers, data = self.format_data(table_data, True)
-        self._ui.printer(u"\n")
+        self._ui.printer("\n")
         self._ui.printer(tabulate(data, headers, tablefmt="plain"))
-        self._ui.printer(u"\n\n")
+        self._ui.printer("\n\n")
         return
 
     def print_list(self, list_data, property_id=None):
@@ -137,16 +129,14 @@ class DisplayHelpers(object):
 
         for item in data:
             if flag == 0:
-                self._ui.printer(
-                    "--- " + property_id + ": " + str(item[property_id_index] + " ---")
-                )
+                self._ui.printer("--- " + property_id + ": " + str(item[property_id_index] + " ---"))
                 item.remove(item[property_id_index])
             else:
                 counter += 1
                 self._ui.printer("--- " + str(counter) + " ---")
             for prop in enumerate(headers):
                 self._ui.printer("\n" + headers[prop[0]] + ": " + str(item[prop[0]]))
-            self._ui.printer(u"\n\n")
+            self._ui.printer("\n\n")
         return
 
     def print_properties(self, data):
@@ -156,14 +146,14 @@ class DisplayHelpers(object):
         :type array of string
         """
         if not data:
-            self._ui.printer(u"\n")
+            self._ui.printer("\n")
             return
         headers, data = self.format_data(data)
         for item in data:
             for prop in enumerate(headers):
                 self._ui.printer("\n" + headers[prop[0]] + ": " + str(item[prop[0]]))
-            self._ui.printer(u"\n")
-        self._ui.printer(u"\n")
+            self._ui.printer("\n")
+        self._ui.printer("\n")
         return
 
     # pylint: disable=unused-argument
@@ -175,9 +165,9 @@ class DisplayHelpers(object):
         :param property_id: Specifies the property which acts as the identifier
         :type property_id: string
         """
-        self._ui.printer(u"\n")
+        self._ui.printer("\n")
         self._ui.print_out_json(json_data)
-        self._ui.printer(u"\n")
+        self._ui.printer("\n")
         return
 
     @staticmethod

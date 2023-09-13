@@ -19,26 +19,22 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
-        Encryption,
-        PathUnavailableError,
-        IncompatibleiLOVersionError,
         IloLicenseError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineErrorOPTS,
+        PathUnavailableError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         ReturnCodes,
-        InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
         PathUnavailableError,
         IncompatibleiLOVersionError,
         IloLicenseError,
     )
 
-from redfish.ris.rmc_helper import IdTokenError, IloLicenseError
+from redfish.ris import rmc_helper
 
 
 class IloLicenseCommand:
@@ -162,7 +158,7 @@ class IloLicenseCommand:
             results = self.rdmc.app.delete_handler(path, silent=True)
             if results.status == 404:
                 raise PathUnavailableError("License is not installed")
-                ##return ReturnCodes.SUCCESS
+                # return ReturnCodes.SUCCESS
             if results.status == 403:
                 self.rdmc.ui.error("Insufficient Privilege to uninstall license")
                 return ReturnCodes.RIS_MISSING_ID_TOKEN
@@ -172,13 +168,11 @@ class IloLicenseCommand:
             if results.status == 200:
                 self.rdmc.ui.printer("Uninstalled license successfully\n")
                 return ReturnCodes.SUCCESS
-        except IloLicenseError:
+        except rmc_helper.IloLicenseError:
             self.rdmc.ui.error("Error Occured while Uninstall")
             return ReturnCodes.ILO_LICENSE_ERROR
         except IncompatibleiLOVersionError:
-            self.rdmc.ui.error(
-                "iLO FW version on this server doesnt support this operation"
-            )
+            self.rdmc.ui.error("iLO FW version on this server doesnt support this operation")
             return ReturnCodes.INCOMPATIBLE_ILO_VERSION_ERROR
 
     def license_key(self, options, path, args):
@@ -199,7 +193,7 @@ class IloLicenseCommand:
         except IloLicenseError:
             self.rdmc.ui.error("Error Occured while install")
             return ReturnCodes.ILO_LICENSE_ERROR
-        except IdTokenError:
+        except rmc_helper.IdTokenError:
             self.rdmc.ui.error("Insufficient Privilege to update license")
             return ReturnCodes.RIS_MISSING_ID_TOKEN
 
@@ -211,13 +205,8 @@ class IloLicenseCommand:
             if options.check_license[0] is not None:
                 result = self.get_license(options, path)
 
-                if (
-                    result.dict["ConfirmationRequest"]["EON"]["LicenseKey"]
-                    == options.check_license[0]
-                ):
-                    self.rdmc.ui.printer(
-                        "Matched. Provided key is installed on this server\n"
-                    )
+                if result.dict["ConfirmationRequest"]["EON"]["LicenseKey"] == options.check_license[0]:
+                    self.rdmc.ui.printer("Matched. Provided key is installed on this server\n")
                 else:
                     self.rdmc.ui.printer("Provided key is not installed on this server\n")
             else:

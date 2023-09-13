@@ -20,23 +20,25 @@
 import sys
 
 try:
-    from rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS
+    from rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 except ImportError:
-    from ilorest.rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS
+    from ilorest.rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 
-class ExitCommand():
-    """ Exit class to handle exiting from interactive mode """
+
+class ExitCommand:
+    """Exit class to handle exiting from interactive mode"""
+
     def __init__(self):
         self.ident = {
-            'name':'exit',
-            'usage': None,
-            'description':'Run to exit from the interactive shell\n\texample: exit',
-            'summary':'Exits from the interactive shell.',
-            'aliases': ['quit'],
-            'auxcommands': ["LogoutCommand"]
+            "name": "exit",
+            "usage": None,
+            "description": "Run to exit from the interactive shell\n\texample: exit",
+            "summary": "Exits from the interactive shell.",
+            "aliases": ["quit"],
+            "auxcommands": ["LogoutCommand"],
         }
-        #self.rdmc = rdmcObj
-        #self.logoutobj = rdmcObj.commands_dict["LogoutCommand"](rdmcObj)
+        # self.rdmc = rdmcObj
+        # self.logoutobj = rdmcObj.commands_dict["LogoutCommand"](rdmcObj)
 
         self.cmdbase = None
         self.rdmc = None
@@ -60,16 +62,16 @@ class ExitCommand():
                 raise InvalidCommandLineErrorOPTS("")
 
         if not args or not line:
-            self.auxcommands['logout'].run("")
+            self.auxcommands["logout"].run("")
 
-            #System exit
+            # System exit
             sys.exit(ReturnCodes.SUCCESS)
         else:
             self.rdmc.ui.error("Exit command does not take any parameters.\n")
             raise InvalidCommandLineErrorOPTS("Invalid command line arguments.")
 
     def definearguments(self, customparser):
-        """ Wrapper function for new command main function
+        """Wrapper function for new command main function
 
         :param customparser: command line input
         :type customparser: parser.

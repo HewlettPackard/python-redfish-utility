@@ -18,8 +18,6 @@
 """ Update Task Queue Command for rdmc """
 
 import re
-import json
-
 from argparse import RawDescriptionHelpFormatter
 from random import randint
 
@@ -28,20 +26,16 @@ from redfish.ris.rmc_helper import ValidationError
 try:
     from rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
-        NoContentsFoundForOperationError,
         InvalidCommandLineErrorOPTS,
-        InvalidCommandLineError,
-        Encryption,
+        NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
-        NoContentsFoundForOperationError,
         InvalidCommandLineErrorOPTS,
-        InvalidCommandLineError,
-        Encryption,
+        NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 
 __subparsers__ = ["add", "delete"]
@@ -93,13 +87,9 @@ class MaintenanceWindowCommand:
         self.maintenancewindowvalidation(options)
 
         if self.rdmc.app.typepath.defs.isgen9:
-            raise IncompatibleiLOVersionError(
-                "iLO Repository commands are only available on iLO 5."
-            )
+            raise IncompatibleiLOVersionError("iLO Repository commands are only available on iLO 5.")
 
-        windows = self.rdmc.app.getcollectionmembers(
-            "/redfish/v1/UpdateService/MaintenanceWindows/"
-        )
+        windows = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/MaintenanceWindows/")
 
         if options.command.lower() == "add":
             self.addmaintenancewindow(options, windows, options.time_window)
@@ -167,9 +157,7 @@ class MaintenanceWindowCommand:
                 break
 
         if not deleted:
-            raise NoContentsFoundForOperationError(
-                "No maintenance window found with that Name/Id."
-            )
+            raise NoContentsFoundForOperationError("No maintenance window found with that Name/Id.")
 
     def listmainenancewindows(self, options, windows):
         """Lists the maintenance windows
@@ -186,13 +174,7 @@ class MaintenanceWindowCommand:
         if windows:
             for window in windows:
                 if options.json:
-                    jsonwindows.append(
-                        dict(
-                            (key, val)
-                            for key, val in window.items()
-                            if not "@odata." in key
-                        )
-                    )
+                    jsonwindows.append(dict((key, val) for key, val in window.items() if "@odata." not in key))
                 else:
                     outstring += "%s:" % window["Name"]
                     outstring += "%s:" % window["Id"]
@@ -227,9 +209,7 @@ class MaintenanceWindowCommand:
 
         for window in windows:
             if cmw["Name"] == window["Name"]:
-                errorlist.append(
-                    "Maintenance window with Name: %s already exists." % cmw["Name"]
-                )
+                errorlist.append("Maintenance window with Name: %s already exists." % cmw["Name"])
 
         if "Name" in list(cmw.keys()):
             if len(cmw["Name"]) > 64:
@@ -323,21 +303,17 @@ class MaintenanceWindowCommand:
         add_parser.add_argument(
             "--expire",
             dest="expire",
-            help="Optionally include this flag if you would like to add a "
-            "time the maintenance window expires.",
+            help="Optionally include this flag if you would like to add a " "time the maintenance window expires.",
             default=None,
         )
         self.cmdbase.add_login_arguments_group(add_parser)
 
         # delete sub-parser
-        delete_help = (
-            "Deletes the specified maintenance window on the currently logged in server."
-        )
+        delete_help = "Deletes the specified maintenance window on the currently logged in server."
         delete_parser = subcommand_parser.add_parser(
             "delete",
             help=delete_help,
-            description=delete_help
-            + "\nexample: maintenancewindow delete mymaintenancewindowname\n"
+            description=delete_help + "\nexample: maintenancewindow delete mymaintenancewindowname\n"
             "Note: The maintenance window identifier can be referenced by Name or ID#."
             "maintenancewindow delete name",
             formatter_class=RawDescriptionHelpFormatter,

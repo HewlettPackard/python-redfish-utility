@@ -20,23 +20,23 @@ import sys
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        Encryption,
-        InvalidCommandLineErrorOPTS,
         UI,
         IloLicenseError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         UI,
         IloLicenseError,
     )
+
 from redfish.ris import rmc_helper
+
 
 class VirtualMediaCommand:
     """ Changes the iscsi configuration for the server that is currently """ """ logged in """
@@ -85,15 +85,12 @@ class VirtualMediaCommand:
 
         if len(args) > 2:
             raise InvalidCommandLineError(
-                "Invalid number of parameters. "
-                "virtualmedia command takes a maximum of 2 parameters."
+                "Invalid number of parameters. " "virtualmedia command takes a maximum of 2 parameters."
             )
         else:
             self.virtualmediavalidation(options)
 
-        resp = self.rdmc.app.get_handler(
-            "/rest/v1/Managers/1/VirtualMedia/1", silent=True
-        )
+        resp = self.rdmc.app.get_handler("/rest/v1/Managers/1/VirtualMedia/1", silent=True)
 
         if not resp.status == 200:
             raise IloLicenseError("")
@@ -103,24 +100,16 @@ class VirtualMediaCommand:
 
         if self.rdmc.app.monolith.is_redfish:
             isredfish = True
-            paths = self.auxcommands["get"].getworkerfunction(
-                "@odata.id", options, results=True, uselist=False
-            )
-            ids = self.auxcommands["get"].getworkerfunction(
-                "Id", options, results=True, uselist=False
-            )
+            paths = self.auxcommands["get"].getworkerfunction("@odata.id", options, results=True, uselist=False)
+            ids = self.auxcommands["get"].getworkerfunction("Id", options, results=True, uselist=False)
             paths = {ind: path for ind, path in enumerate(paths)}
             ids = {ind: id for ind, id in enumerate(ids)}
             for path in paths:
                 paths[path] = paths[path]["@odata.id"]
         else:
             isredfish = False
-            paths = self.auxcommands["get"].getworkerfunction(
-                "links/self/href", options, results=True, uselist=False
-            )
-            ids = self.auxcommands["get"].getworkerfunction(
-                "Id", options, results=True, uselist=False
-            )
+            paths = self.auxcommands["get"].getworkerfunction("links/self/href", options, results=True, uselist=False)
+            ids = self.auxcommands["get"].getworkerfunction("Id", options, results=True, uselist=False)
             paths = {ind: path for ind, path in enumerate(paths)}
             ids = {ind: id for ind, id in enumerate(ids)}
             for path in paths:
@@ -140,9 +129,7 @@ class VirtualMediaCommand:
         elif not args:
             self.vmdefaulthelper(options, paths)
         else:
-            raise InvalidCommandLineError(
-                "Invalid parameter(s). Please run" " 'help virtualmedia' for parameters."
-            )
+            raise InvalidCommandLineError("Invalid parameter(s). Please run" " 'help virtualmedia' for parameters.")
 
         self.cmdbase.logout_routine(self, options)
         # Return code
@@ -231,7 +218,6 @@ class VirtualMediaCommand:
         if ilover <= 4.230:
             self.rdmc.app.patch_handler(path, body)
         else:
-            # res = self.rdmc.app.post_handler(path, body)
             try:
                 results = self.rdmc.app.post_handler(path, body)
                 if results.status == 200:
@@ -242,9 +228,8 @@ class VirtualMediaCommand:
                     return ReturnCodes.SUCCESS
             except rmc_helper.IloLicenseError:
                 raise IloLicenseError("Error:License Key Required\n")
-            except Exception as e:
+            except Exception:
                 sys.stdout.write("Please unmount/Eject virtual media and try it again \n")
-                # return ReturnCodes.ILO_LICENSE_ERROR
 
     def vmdefaulthelper(self, options, paths):
         """Worker function to reset virtual media config to default
@@ -256,12 +241,8 @@ class VirtualMediaCommand:
         """
         images = {}
         count = 0
-        mediatypes = self.auxcommands["get"].getworkerfunction(
-            "MediaTypes", options, results=True, uselist=False
-        )
-        ids = self.auxcommands["get"].getworkerfunction(
-            "Id", options, results=True, uselist=False
-        )
+        mediatypes = self.auxcommands["get"].getworkerfunction("MediaTypes", options, results=True, uselist=False)
+        ids = self.auxcommands["get"].getworkerfunction("Id", options, results=True, uselist=False)
         ids = {ind: id for ind, id in enumerate(ids)}
         mediatypes = {ind: med for ind, med in enumerate(mediatypes)}
         # To keep indexes consistent between versions
@@ -299,8 +280,7 @@ class VirtualMediaCommand:
                 json_str["MediaTypes"][str(media)] = imagestr
             else:
                 self.rdmc.ui.printer(
-                    "[%s] Media Types Available: %s Image Inserted:"
-                    " %s\n" % (str(image), str(media), imagestr)
+                    "[%s] Media Types Available: %s Image Inserted:" " %s\n" % (str(image), str(media), imagestr)
                 )
         if getattr(options, "json", False):
             UI().print_out_json(json_str)
@@ -370,9 +350,7 @@ class VirtualMediaCommand:
                     else:
                         action = "InsertVirtualMedia"
 
-                    path = bodydict["Oem"][self.rdmc.app.typepath.defs.oemhp]["Actions"][
-                        item
-                    ]["target"]
+                    path = bodydict["Oem"][self.rdmc.app.typepath.defs.oemhp]["Actions"][item]["target"]
                     body = {"Action": action, "Image": image}
                     break
         elif action == "remove":
@@ -383,9 +361,7 @@ class VirtualMediaCommand:
                     else:
                         action = "EjectVirtualMedia"
 
-                    path = bodydict["Oem"][self.rdmc.app.typepath.defs.oemhp]["Actions"][
-                        item
-                    ]["target"]
+                    path = bodydict["Oem"][self.rdmc.app.typepath.defs.oemhp]["Actions"][item]["target"]
                     body = {"Action": action}
                     break
         else:

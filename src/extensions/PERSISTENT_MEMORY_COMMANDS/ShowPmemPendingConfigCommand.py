@@ -21,11 +21,11 @@ from __future__ import absolute_import
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        LOGGER,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        LOGGER,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -52,8 +52,7 @@ class ShowPmemPendingConfigCommand:
         self.ident = {
             "name": "showpmmpendingconfig",
             "usage": None,
-            "description": "Shows the pending tasks for configuring PMM\n"
-            "\texample: showpmmpendingconfig --json",
+            "description": "Shows the pending tasks for configuring PMM\n" "\texample: showpmmpendingconfig --json",
             "summary": "Shows the pending configuration for PMM.",
             "aliases": [],
             "auxcommands": [],
@@ -105,9 +104,7 @@ class ShowPmemPendingConfigCommand:
             else:
                 raise InvalidCommandLineError("Failed to parse options")
         if args:
-            raise InvalidCommandLineError(
-                "Chosen command or flag doesn't expect additional arguments"
-            )
+            raise InvalidCommandLineError("Chosen command or flag doesn't expect additional arguments")
         # Raise exception if server is in POST
         if RestHelpers(rdmcObject=self.rdmc).in_post():
             raise NoContentsFoundForOperationError(
@@ -127,9 +124,7 @@ class ShowPmemPendingConfigCommand:
         task_members = RestHelpers(rdmcObject=self.rdmc).retrieve_task_members()
 
         # filtering task members
-        filtered_task_members = RestHelpers(rdmcObject=self.rdmc).filter_task_members(
-            task_members
-        )
+        filtered_task_members = RestHelpers(rdmcObject=self.rdmc).filter_task_members(task_members)
         if not filtered_task_members:
             self.rdmc.ui.printer("No pending configuration tasks found.\n\n")
             return None
@@ -145,23 +140,17 @@ class ShowPmemPendingConfigCommand:
         display_output = list()
         for task in filtered_task_members:
             # finding operation of task
-            operation = self._mapper.get_single_attribute(
-                task, "Operation", MappingTable.tasks.value, True
-            )
+            operation = self._mapper.get_single_attribute(task, "Operation", MappingTable.tasks.value, True)
             # displaying existing configuration for DELETE operation
             if operation.get("Operation", "") == "DELETE":
                 target_uri = task.get("Payload").get("TargetUri")
                 data = RestHelpers(rdmcObject=self.rdmc).get_resource(target_uri)
                 table = MappingTable.delete_task.value
             else:
-                task_type = self._mapper.get_single_attribute(
-                    task, "Type", MappingTable.tasks.value, True
-                )
+                task_type = self._mapper.get_single_attribute(task, "Type", MappingTable.tasks.value, True)
                 task_type = task_type.get("Type", "")
                 if task_type != "PMEM":
-                    self.rdmc.ui.warn(
-                        "Unsupported interleave set type found: " + task_type
-                    )
+                    self.rdmc.ui.warn("Unsupported interleave set type found: " + task_type)
                     continue
                 data = task
                 table = MappingTable.tasks.value

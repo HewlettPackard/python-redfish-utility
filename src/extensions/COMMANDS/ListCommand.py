@@ -19,18 +19,16 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
         InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
         InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
-
-from argparse import ArgumentParser, SUPPRESS
 
 
 class ListCommand:
@@ -78,21 +76,15 @@ class ListCommand:
 
         if options.filter:
             try:
-                if (str(options.filter)[0] == str(options.filter)[-1]) and str(
-                    options.filter
-                ).startswith(("'", '"')):
+                if (str(options.filter)[0] == str(options.filter)[-1]) and str(options.filter).startswith(("'", '"')):
                     options.filter = options.filter[1:-1]
 
                 (sel, val) = options.filter.split("=")
                 fvals = (sel.strip(), val.strip())
             except:
-                raise InvalidCommandLineError(
-                    "Invalid filter" " parameter format [filter_attribute]=[filter_value]"
-                )
+                raise InvalidCommandLineError("Invalid filter" " parameter format [filter_attribute]=[filter_value]")
 
-        self.auxcommands["get"].getworkerfunction(
-            args, options, filtervals=fvals, uselist=False
-        )
+        self.auxcommands["get"].getworkerfunction(args, options, filtervals=fvals, uselist=False)
 
         self.cmdbase.logout_routine(self, options)
         # Return code
@@ -155,7 +147,6 @@ class ListCommand:
             "--refresh",
             dest="ref",
             action="store_true",
-            help="Optionally reload the data of selected type and clear "
-            "patches from current selection.",
+            help="Optionally reload the data of selected type and clear " "patches from current selection.",
             default=False,
         )

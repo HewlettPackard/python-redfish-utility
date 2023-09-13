@@ -17,13 +17,9 @@
 # -*- coding: utf-8 -*-
 """ SetPassword Command for rdmc """
 
-import getpass
-from argparse import SUPPRESS, ArgumentParser
-
 try:
     from rdmc_helper import (
         Encryption,
-        InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         ReturnCodes,
         UnableToDecodeError,
@@ -31,7 +27,6 @@ try:
 except ImportError:
     from ilorest.rdmc_helper import (
         Encryption,
-        InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         ReturnCodes,
         UnableToDecodeError,
@@ -114,17 +109,13 @@ class SetPasswordCommand:
         count = 0
         for arg in args:
             if arg:
-                if arg.lower() == "none" or arg.lower() == "null" or arg == None:
+                if arg.lower() == "none" or arg.lower() == "null" or arg is None:
                     args[count] = ""
                 elif len(arg) > 2:
-                    if ('"' in arg[0] and '"' in arg[-1]) or (
-                        "'" in arg[0] and "'" in arg[-1]
-                    ):
+                    if ('"' in arg[0] and '"' in arg[-1]) or ("'" in arg[0] and "'" in arg[-1]):
                         args[count] = arg[1:-1]
                 elif len(arg) == 2:
-                    if (arg[0] == '"' and arg[1] == '"') or (
-                        arg[0] == "'" and arg[1] == "'"
-                    ):
+                    if (arg[0] == '"' and arg[1] == '"') or (arg[0] == "'" and arg[1] == "'"):
                         args[count] = ""
             count += 1
 
@@ -140,9 +131,7 @@ class SetPasswordCommand:
                     _args.append(arg)
             args = _args
         if self.rdmc.app.typepath.defs.isgen10:
-            bodydict = self.rdmc.app.get_handler(
-                self.rdmc.app.typepath.defs.biospath, service=True, silent=True
-            ).dict
+            bodydict = self.rdmc.app.get_handler(self.rdmc.app.typepath.defs.biospath, service=True, silent=True).dict
 
             for item in bodydict["Actions"]:
                 if "ChangePassword" in item:
@@ -166,15 +155,11 @@ class SetPasswordCommand:
         else:
             if options.poweron:
                 self.auxcommands["select"].run("HpBios.")
-                self.auxcommands["set"].run(
-                    "PowerOnPassword=%s OldPowerOnPassword=%s" % (args[0], args[1])
-                )
+                self.auxcommands["set"].run("PowerOnPassword=%s OldPowerOnPassword=%s" % (args[0], args[1]))
                 self.auxcommands["commit"].run("")
             else:
                 self.auxcommands["select"].run("HpBios.")
-                self.auxcommands["set"].run(
-                    "AdminPassword=%s OldAdminPassword=%s" % (args[0], args[1])
-                )
+                self.auxcommands["set"].run("AdminPassword=%s OldAdminPassword=%s" % (args[0], args[1]))
                 self.auxcommands["commit"].run("")
                 self.rdmc.ui.printer(
                     "\nThe session will now be terminated.\n"

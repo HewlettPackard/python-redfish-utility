@@ -18,26 +18,23 @@
 """ Firmware Update Command for rdmc """
 
 import time
-import datetime
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
         IloLicenseError,
-        Encryption,
-        InvalidCommandLineErrorOPTS,
         IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
         TimeOutError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
         IloLicenseError,
-        Encryption,
-        InvalidCommandLineErrorOPTS,
         IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
         TimeOutError,
     )
 
@@ -85,9 +82,7 @@ class FirmwareIntegrityCheckCommand:
 
         self.firmwareintegritycheckvalidation(options)
         if self.rdmc.app.typepath.defs.isgen9:
-            raise IncompatibleiLOVersionError(
-                "fwintegritycheck command is " "only available on iLO 5."
-            )
+            raise IncompatibleiLOVersionError("fwintegritycheck command is " "only available on iLO 5.")
 
         licenseres = self.rdmc.app.select(selector="HpeiLOLicense.")
         try:
@@ -107,9 +102,7 @@ class FirmwareIntegrityCheckCommand:
 
         bodydict = results.resp.dict
 
-        path = bodydict["Oem"]["Hpe"]["Actions"][
-            "#HpeiLOUpdateServiceExt.StartFirmwareIntegrityCheck"
-        ]["target"]
+        path = bodydict["Oem"]["Hpe"]["Actions"]["#HpeiLOUpdateServiceExt.StartFirmwareIntegrityCheck"]["target"]
 
         self.rdmc.app.post_handler(path, {})
 
@@ -121,26 +114,18 @@ class FirmwareIntegrityCheckCommand:
             while polling > 0:
                 if not polling % 5:
                     self.rdmc.ui.printer(".")
-                get_results = self.rdmc.app.get_handler(
-                    bodydict["@odata.id"], service=True, silent=True
-                )
+                get_results = self.rdmc.app.get_handler(bodydict["@odata.id"], service=True, silent=True)
                 if get_results:
-                    curr_time = time.strptime(
-                        bodydict["Oem"]["Hpe"]["CurrentTime"], "%Y-%m-%dT%H:%M:%SZ"
-                    )
+                    curr_time = time.strptime(bodydict["Oem"]["Hpe"]["CurrentTime"], "%Y-%m-%dT%H:%M:%SZ")
                     scan_time = time.strptime(
-                        get_results.dict["Oem"]["Hpe"]["FirmwareIntegrity"][
-                            "LastScanTime"
-                        ],
+                        get_results.dict["Oem"]["Hpe"]["FirmwareIntegrity"]["LastScanTime"],
                         "%Y-%m-%dT%H:%M:%SZ",
                     )
 
                     if scan_time > curr_time:
                         self.rdmc.ui.printer(
                             "\nScan Result: %s\n"
-                            % get_results.dict["Oem"]["Hpe"]["FirmwareIntegrity"][
-                                "LastScanResult"
-                            ]
+                            % get_results.dict["Oem"]["Hpe"]["FirmwareIntegrity"]["LastScanResult"]
                         )
                         found = True
                         break

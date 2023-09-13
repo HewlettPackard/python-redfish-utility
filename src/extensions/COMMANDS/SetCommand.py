@@ -17,18 +17,17 @@
 # -*- coding: utf-8 -*-
 """ Set Command for RDMC """
 import json
-import sys
 import os
+import sys
 
 import redfish.ris
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         InvalidOrNothingChangedSettingsError,
-        UsernamePasswordRequiredError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -36,7 +35,6 @@ except ImportError:
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         InvalidOrNothingChangedSettingsError,
-        UsernamePasswordRequiredError,
     )
 
 from redfish.ris.rmc_helper import NothingSelectedError
@@ -55,10 +53,14 @@ class SetCommand:
             "property=value property=value property=value\n\n\t"
             "Setting a multi level property example:\n\tset property/"
             "subproperty=value",
-            "summary": "Changes the value of a property within the"
-            " currently selected type.",
+            "summary": "Changes the value of a property within the" " currently selected type.",
             "aliases": [],
-            "auxcommands": ["CommitCommand", "RebootCommand", "RawPatchCommand", "SelectCommand"],
+            "auxcommands": [
+                "CommitCommand",
+                "RebootCommand",
+                "RawPatchCommand",
+                "SelectCommand",
+            ],
         }
         self.cmdbase = None
         self.rdmc = None
@@ -82,28 +84,21 @@ class SetCommand:
                 raise InvalidCommandLineErrorOPTS("")
 
         if not self.rdmc.interactive and not self.rdmc.app.cache:
-            raise InvalidCommandLineError(
-                "The 'set' command is not useful in "
-                "non-interactive and non-cache modes."
-            )
+            raise InvalidCommandLineError("The 'set' command is not useful in " "non-interactive and non-cache modes.")
 
         self.setvalidation(options)
-        res = args[0].find("HighSecurity")
-        # if res != -1 and not (options.user or options.password):
-        # raise UsernamePasswordRequiredError("Please provide credential to set HighSecurity state")
+        _ = args[0].find("HighSecurity")
 
         fsel = None
         fval = None
         if args:
-
             if options.filter:
                 try:
                     (fsel, fval) = str(options.filter).strip("'\" ").split("=")
                     (fsel, fval) = (fsel.strip(), fval.strip())
                 except:
                     raise InvalidCommandLineError(
-                        "Invalid filter"
-                        " parameter format [filter_attribute]=[filter_value]"
+                        "Invalid filter" " parameter format [filter_attribute]=[filter_value]"
                     )
 
             if any([s.lower().startswith("adminpassword=") for s in args]) and not any(
@@ -118,19 +113,15 @@ class SetCommand:
             for arg in args:
                 if arg:
                     if len(arg) > 2:
-                        if ('"' in arg[0] and '"' in arg[-1]) or (
-                            "'" in arg[0] and "'" in arg[-1]
-                        ):
+                        if ('"' in arg[0] and '"' in arg[-1]) or ("'" in arg[0] and "'" in arg[-1]):
                             args[count] = arg[1:-1]
                     elif len(arg) == 2:
-                        if (arg[0] == '"' and arg[1] == '"') or (
-                            arg[0] == "'" and arg[1] == "'"
-                        ):
+                        if (arg[0] == '"' and arg[1] == '"') or (arg[0] == "'" and arg[1] == "'"):
                             args[count] = None
                 count += 1
                 if not self.rdmc.app.selector:
                     raise NothingSelectedError
-                if not "." in self.rdmc.app.selector:
+                if "." not in self.rdmc.app.selector:
                     self.rdmc.app.selector = self.rdmc.app.selector + "."
                 if self.rdmc.app.selector:
                     if self.rdmc.app.selector.lower().startswith("bios."):
@@ -145,9 +136,7 @@ class SetCommand:
                     if val.lower() == "true" or val.lower() == "false":
                         val = val.lower() in ("yes", "true", "t", "1")
                 except:
-                    raise InvalidCommandLineError(
-                        "Invalid set parameter format. [Key]=[Value]"
-                    )
+                    raise InvalidCommandLineError("Invalid set parameter format. [Key]=[Value]")
 
                 newargs = list()
 
@@ -175,20 +164,15 @@ class SetCommand:
                         if not sel.lower() == "oldadminpassword":
                             raise InvalidOrNothingChangedSettingsError(
                                 "Nothing changed "
-                                "for attribute '%s'.\nPlease check if the attribute exists or Read-only or System Unique property or the "
-                                "value trying to set is same or invalid" % sel
+                                "for attribute '%s'.\nPlease check if the attribute exists or Read-only "
+                                "or System Unique property or the value trying to set is same or invalid" % sel
                             )
                     elif contents == "No entries found":
                         raise InvalidOrNothingChangedSettingsError(
-                            "No "
-                            "entries found in the current "
-                            "selection for the setting '%s'." % sel
+                            "No " "entries found in the current " "selection for the setting '%s'." % sel
                         )
                     elif contents == "reverting":
-                        self.rdmc.ui.error(
-                            "Removing previous patch and returning to the "
-                            "original value.\n"
-                        )
+                        self.rdmc.ui.error("Removing previous patch and returning to the " "original value.\n")
                     else:
                         for content in contents:
                             self.rdmc.ui.printer("Added the following patch:\n")
@@ -207,8 +191,7 @@ class SetCommand:
                                         _ = [
                                             instance.patches.remove(patch)
                                             for patch in instance.patches
-                                            if patch.patch[0]["path"]
-                                            == "/OldAdminPassword"
+                                            if patch.patch[0]["path"] == "/OldAdminPassword"
                                         ]
 
                         if isinstance(err, redfish.ris.RegistryValidationError):
@@ -244,31 +227,24 @@ class SetCommand:
                 raise InvalidCommandLineErrorOPTS("")
 
         if not self.rdmc.interactive and not self.rdmc.app.cache:
-            raise InvalidCommandLineError(
-                "The 'set' command is not useful in "
-                "non-interactive and non-cache modes."
-            )
+            raise InvalidCommandLineError("The 'set' command is not useful in " "non-interactive and non-cache modes.")
 
-        orig_selector = self.rdmc.app.selector
+        _ = self.rdmc.app.selector
         self.setvalidation(options)
         if args:
             count = 0
             for arg in args:
                 if arg:
                     if len(arg) > 2:
-                        if ('"' in arg[0] and '"' in arg[-1]) or (
-                                "'" in arg[0] and "'" in arg[-1]
-                        ):
+                        if ('"' in arg[0] and '"' in arg[-1]) or ("'" in arg[0] and "'" in arg[-1]):
                             args[count] = arg[1:-1]
                     elif len(arg) == 2:
-                        if (arg[0] == '"' and arg[1] == '"') or (
-                                arg[0] == "'" and arg[1] == "'"
-                        ):
+                        if (arg[0] == '"' and arg[1] == '"') or (arg[0] == "'" and arg[1] == "'"):
                             args[count] = None
                 count += 1
                 if not self.rdmc.app.selector:
                     raise NothingSelectedError
-                if not "." in self.rdmc.app.selector:
+                if "." not in self.rdmc.app.selector:
                     self.rdmc.app.selector = self.rdmc.app.selector + "."
                 if self.rdmc.app.selector:
                     if self.rdmc.app.selector.lower().startswith("bios."):
@@ -283,9 +259,7 @@ class SetCommand:
                     if val.lower() == "true" or val.lower() == "false":
                         val = val.lower() in ("yes", "true", "t", "1")
                 except:
-                    raise InvalidCommandLineError(
-                        "Invalid set parameter format. [Key]=[Value]"
-                    )
+                    raise InvalidCommandLineError("Invalid set parameter format. [Key]=[Value]")
 
                 newargs = list()
 
@@ -309,9 +283,10 @@ class SetCommand:
                         patch_data.update(payload)
                         if "Oem" in key:
                             if "managernetworkprotocol." or "thermal." in self.rdmc.app.selector:
-                                from pathlib import Path
                                 import platform
                                 import tempfile
+                                from pathlib import Path
+
                                 tempdir = Path("/tmp" if platform.system() == "Darwin" else tempfile.gettempdir())
                                 temp_file = os.path.join(tempdir, "temp_patch.json")
                                 out_file = open(temp_file, "w")
@@ -338,7 +313,11 @@ class SetCommand:
         if help_disp:
             self.parser.print_help()
             return ReturnCodes.SUCCESS
-        if ("Oem/Hpe/EnhancedDownloadPerformanceEnabled" in line[0]) or ("Oem/Hpe/ThermalConfiguration" in line[0]) or ("Oem/Hpe/FanPercentMinimum" in line[0]):
+        if (
+            ("Oem/Hpe/EnhancedDownloadPerformanceEnabled" in line[0])
+            or ("Oem/Hpe/ThermalConfiguration" in line[0])
+            or ("Oem/Hpe/FanPercentMinimum" in line[0])
+        ):
             self.patchfunction(line)
         else:
             self.setfunction(line, skipprint=skipprint)
@@ -423,7 +402,6 @@ class SetCommand:
             "--uniqueoverride",
             dest="uniqueoverride",
             action="store_true",
-            help="Override the measures stopping the tool from writing "
-            "over items that are system unique.",
+            help="Override the measures stopping the tool from writing " "over items that are system unique.",
             default=None,
         )

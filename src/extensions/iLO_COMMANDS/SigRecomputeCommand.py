@@ -19,19 +19,17 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        Encryption,
-        InvalidCommandLineErrorOPTS,
         IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
-        Encryption,
-        InvalidCommandLineErrorOPTS,
         IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 
 
@@ -45,8 +43,7 @@ class SigRecomputeCommand:
             "description": "Recalculate the signature on "
             "the computers configuration.\n\texample: sigrecompute\n\n"
             "\tNote: sigrecompute command is not available on Redfish systems.",
-            "summary": "Command to recalculate the signature of the computer's "
-            "configuration.",
+            "summary": "Command to recalculate the signature of the computer's " "configuration.",
             "aliases": [],
             "auxcommands": [],
         }
@@ -84,9 +81,7 @@ class SigRecomputeCommand:
             body = {"Action": "ServerSigRecompute", "Target": "/Oem/Hp"}
             self.rdmc.app.post_handler(path, body)
         else:
-            raise IncompatibleiLOVersionError(
-                "Sigrecompute action not available on redfish.\n"
-            )
+            raise IncompatibleiLOVersionError("Sigrecompute action not available on redfish.\n")
 
         self.cmdbase.logout_routine(self, options)
         # Return code

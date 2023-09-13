@@ -17,27 +17,30 @@
 # -*- coding: utf-8 -*-
 """Module for working with global configuration options."""
 
-#---------Imports---------
+# ---------Imports---------
 
+import logging
 import os
 import re
-import logging
+
 import six
 from six.moves import configparser
 
-#---------End of imports---------
+# ---------End of imports---------
 
 
-#---------Debug logger---------
+# ---------Debug logger---------
 
 LOGGER = logging.getLogger(__name__)
 
-#---------End of debug logger---------
+# ---------End of debug logger---------
+
 
 class AutoConfigParser(object):
     """Auto configuration parser. Properties starting with _ac__ are automatically
     serialized to config file"""
-    _config_pattern = re.compile(r'_ac__(?P<confkey>.*)')
+
+    _config_pattern = re.compile(r"_ac__(?P<confkey>.*)")
 
     def __init__(self, filename=None):
         """Initialize AutoConfigParser
@@ -46,12 +49,12 @@ class AutoConfigParser(object):
         :type filename: str.
 
         """
-        self._sectionname = 'globals'
+        self._sectionname = "globals"
         self._configfile = filename
 
     @property
     def configfile(self):
-        """ The current configuration file location"""
+        """The current configuration file location"""
         return self._configfile
 
     def _get_ac_keys(self):
@@ -60,7 +63,7 @@ class AutoConfigParser(object):
         for key in six.iterkeys(self.__dict__):
             match = AutoConfigParser._config_pattern.search(key)
             if match:
-                result.append(match.group('confkey'))
+                result.append(match.group("confkey"))
         return result
 
     def _get(self, key):
@@ -70,7 +73,7 @@ class AutoConfigParser(object):
         :type key: str.
 
         """
-        ackey = '_ac__%s' % key.replace('-', '_')
+        ackey = "_ac__%s" % key.replace("-", "_")
         if ackey in self.__dict__:
             return self.__dict__[ackey]
         return None
@@ -84,7 +87,7 @@ class AutoConfigParser(object):
         :type value: str.
 
         """
-        ackey = '_ac__%s' % key.replace('-', '_')
+        ackey = "_ac__%s" % key.replace("-", "_")
         if ackey in self.__dict__:
             self.__dict__[ackey] = value
         return None
@@ -114,12 +117,12 @@ class AutoConfigParser(object):
                 except configparser.NoOptionError:
                     # also try with - instead of _
                     try:
-                        configval = config.get(self._sectionname, key.replace('_', '-'))
+                        configval = config.get(self._sectionname, key.replace("_", "-"))
                     except configparser.NoOptionError:
                         pass
 
                 if configval:
-                    ackey = '_ac__%s' % key
+                    ackey = "_ac__%s" % key
                     self.__dict__[ackey] = configval
         except configparser.NoOptionError:
             pass
@@ -145,12 +148,12 @@ class AutoConfigParser(object):
         try:
             config.add_section(self._sectionname)
         except configparser.DuplicateSectionError:
-            pass # ignored
+            pass  # ignored
 
         for key in self._get_ac_keys():
-            ackey = '_ac__%s' % key
+            ackey = "_ac__%s" % key
             config.set(self._sectionname, key, str(self.__dict__[ackey]))
 
-        fileh = open(self._configfile, 'wb')
+        fileh = open(self._configfile, "wb")
         config.write(fileh)
         fileh.close()

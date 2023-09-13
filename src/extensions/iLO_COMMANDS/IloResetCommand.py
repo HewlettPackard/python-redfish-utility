@@ -21,19 +21,15 @@ from redfish.ris.rmc_helper import IloResponseError
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        Encryption,
+        ReturnCodes,
     )
 
 
@@ -44,15 +40,12 @@ class IloResetCommand:
         self.ident = {
             "name": "iloreset",
             "usage": None,
-            "description": "Reset iLO on the current logged in"
-            " server.\n\tExample: iloreset",
+            "description": "Reset iLO on the current logged in" " server.\n\tExample: iloreset",
             "summary": "Reset iLO on the current logged in server.",
             "aliases": [],
             "auxcommands": [],
         }
-        # self.definearguments(self.parser)
-        # self.rdmc = rdmcObj
-        # self.typepath = self.rdmc.app.typepath
+
         self.cmdbase = None
         self.rdmc = None
         self.auxcommands = dict()

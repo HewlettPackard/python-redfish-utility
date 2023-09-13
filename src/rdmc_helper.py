@@ -20,29 +20,26 @@
 
 # ---------Imports---------
 from __future__ import unicode_literals
+
+import json
+import logging
 import os
 import sys
 import time
-import json
-import logging
-
 from collections import OrderedDict
-from ctypes import create_string_buffer, c_char_p, byref
+from ctypes import byref, c_char_p, create_string_buffer
 
-import six
 import pyaes
-
+import six
 from prompt_toolkit.completion import Completer, Completion
 
-import redfish.ris
 import redfish.hpilo.risblobstore2 as risblobstore2
+import redfish.ris
 
 try:
     import versioning
 except ImportError:
     from ilorest import versioning
-
-# from rdmc_base_classes import HARDCODEDLIST
 
 if os.name == "nt":
     from six.moves import winreg
@@ -52,6 +49,20 @@ if os.name == "nt":
 
 
 # ---------Debug logger---------
+# Using hard coded list until better solution is found
+HARDCODEDLIST = [
+    "name",
+    "modified",
+    "type",
+    "description",
+    "attributeregistry",
+    "links",
+    "settingsresult",
+    "actions",
+    "availableactions",
+    "id",
+    "extref",
+]
 
 
 class InfoFilter(logging.Filter):
@@ -80,6 +91,7 @@ LOUT.setLevel(logging.WARN)
 LOUT.addFilter(InfoFilter())
 # add logger handle
 LOGGER.addHandler(LOUT)
+
 
 # ---------End of debug logger---------
 
@@ -177,6 +189,7 @@ class ReturnCodes(object):
     DRIVE_MISSING_ERROR = 82
     PATH_UNAVAILABLE_ERROR = 83
     ILO_RIS_CORRUPTION_ERROR = 84
+    RESOURCE_NOT_READY_ERROR = 85
 
     # ****** RIS ERRORS ******
     RIS_RIS_BIOS_UNREGISTERED_ERROR = 100
@@ -196,6 +209,12 @@ class ReturnCodes(object):
 
     # **** scep error ****
     SCEP_ENABLED_ERROR = 121
+
+    # *** authentication error ****
+    TFA_WRONG_OTP = 131
+    TFA_OTP_TIMEDOUT = 132
+    TFA_ENABLED_ERROR = 133
+    TFA_OTP_EMAILED = 134
 
     # ****** GENERAL ERRORS ******
     GENERAL_ERROR = 255
@@ -234,6 +253,12 @@ class CloudConnectFailedError(RdmcError):
     pass
 
 
+class TfaEnablePreRequisiteError(RdmcError):
+    """Raised when pre-requisites not met while enabling TFA"""
+
+    pass
+
+
 class AlreadyCloudConnectedError(RdmcError):
     """Raised when ComputeOpsManagement is already connected"""
 
@@ -247,6 +272,11 @@ class CommandNotEnabledError(RdmcError):
 
 
 class iLORisCorruptionError(RdmcError):
+    """Raised when user tries to invoke a command that isn't enabled"""
+
+    pass
+
+class ResourceNotReadyError(RdmcError):
     """Raised when user tries to invoke a command that isn't enabled"""
 
     pass
@@ -336,10 +366,12 @@ class InvalidPasswordLengthError(RdmcError):
 
     pass
 
+
 class NoDifferencesFoundError(RdmcError):
     """Raised when no differences are found in the current configuration"""
 
     pass
+
 
 class NothingSelectedError(RdmcError):
     """Raised when type selection is reference but none have been provided"""
@@ -490,6 +522,7 @@ class TaskQueueError(RdmcError):
 
     pass
 
+
 class DeviceDiscoveryInProgress(RdmcError):
     """Raised when device discovery in progress"""
 
@@ -525,25 +558,20 @@ class UI(object):
                     sys.stdout.write(str(data))
                     if flush:
                         sys.stdout.flush()
-                except IOError as excp:
+                except IOError:
                     pass
 
     def command_not_found(self, cmd):
         """Called when command was not found"""
         self.printer(
-            (
-                "\nCommand '%s' not found. Use the help command to "
-                "see a list of available commands\n" % cmd
-            ),
+            ("\nCommand '%s' not found. Use the help command to " "see a list of available commands\n" % cmd),
             excp=True,
         )
         return ReturnCodes.UI_CLI_COMMAND_NOT_FOUND_EXCEPTION
 
     def command_not_enabled(self, cmd, excp):
         """Called when command has not been enabled"""
-        self.printer(
-            ("\nCommand '%s' has not been enabled: %s\n" % (cmd, excp)), excp=excp
-        )
+        self.printer(("\nCommand '%s' has not been enabled: %s\n" % (cmd, excp)), excp=excp)
 
     def invalid_commmand_line(self, excp):
         """Called when user entered invalid command line entries"""
@@ -555,9 +583,7 @@ class UI(object):
 
     def standard_blob_error(self, excp):
         """Called when user error encountered with blob"""
-        self.printer(
-            ("\nError: Blob operation failed with error code %s\n" % excp), excp=excp
-        )
+        self.printer(("\nError: Blob operation failed with error code %s\n" % excp), excp=excp)
 
     def invalid_file_formatting(self, excp):
         """Called when file formatting is unrecognizable"""
@@ -619,8 +645,7 @@ class UI(object):
             self.printer(".", excp=True)
 
         self.printer(
-            "\nError: Could not authenticate. Invalid "
-            "credentials, or bad username/password.\n",
+            "\nError: Could not authenticate. Invalid " "credentials, or bad username/password.\n",
             excp=True,
         )
 
@@ -670,9 +695,7 @@ class UI(object):
         :type content: str.
         """
         # stringify
-        content = json.dumps(
-            content, indent=2, cls=redfish.ris.JSONEncoder, sort_keys=True
-        )
+        content = json.dumps(content, indent=2, cls=redfish.ris.JSONEncoder, sort_keys=True)
         self.printer(content, verbose_override=True)
         self.printer("\n")
 
@@ -798,9 +821,7 @@ class Encryption(object):
         except (UnicodeDecodeError, AttributeError):
             pass  # must be encoded already
         if Encryption.check_fips_mode_os():
-            raise CommandNotEnabledError(
-                "Encrypting of files is not available" " in FIPS mode."
-            )
+            raise CommandNotEnabledError("Encrypting of files is not available" " in FIPS mode.")
         if len(key) not in [16, 24, 32]:
             raise InvalidKeyError("")
         else:
@@ -832,8 +853,7 @@ class Encryption(object):
                 json.loads(decryptedfile)
             except:
                 raise UnableToDecodeError(
-                    "Unable to decrypt the file, make "
-                    "sure the key is the same as used in encryption."
+                    "Unable to decrypt the file, make " "sure the key is the same as used in encryption."
                 )
 
         return decryptedfile
@@ -892,7 +912,7 @@ class Encryption(object):
                 enc_val = retbuff.value.decode("utf-8")  # .encode('utf-8')
             if not retbuff.value:
                 raise UnableToDecodeError("")
-        except Exception as exp:
+        except Exception:
             raise UnableToDecodeError("Unable to decode credential %s." % credential)
 
         return enc_val
@@ -952,7 +972,7 @@ class TabAndHistoryCompletionClass(Completer):
                             if nested_info:
                                 if "properties" in nested_info:
                                     nested_info = nested_info["properties"]
-                                if not "AttributeName" in nested_info[token]:
+                                if "AttributeName" not in nested_info[token]:
                                     nested_info = (
                                         nested_info["properties"][token]
                                         if "properties" in nested_info
@@ -962,18 +982,13 @@ class TabAndHistoryCompletionClass(Completer):
                                     nested_info = nested_info[token]
                         except Exception:
                             break
-                    nested_data = (
-                        list(nested_data.keys()) if isinstance(nested_data, dict) else []
-                    )
+                    nested_data = list(nested_data.keys()) if isinstance(nested_data, dict) else []
                     lstoption = nested_data
 
                     # Try to get info for help bar
                     help_text = nested_info.get("HelpText", "")
                     enum_tab = []
-                    if (
-                        "Type" in nested_info
-                        and nested_info["Type"].lower() == "enumeration"
-                    ):
+                    if "Type" in nested_info and nested_info["Type"].lower() == "enumeration":
                         help_text += "\nPossible Values:\n"
                         for value in nested_info["Value"]:
                             enum_tab.append(value["ValueName"])

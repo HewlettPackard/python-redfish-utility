@@ -20,18 +20,16 @@
 try:
     from rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
-        Encryption,
-        InvalidCommandLineErrorOPTS,
         InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
-        Encryption,
-        InvalidCommandLineErrorOPTS,
         InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 
 
@@ -79,13 +77,9 @@ class DeleteComponentCommand:
         self.deletecomponentvalidation(options)
 
         if self.rdmc.app.typepath.defs.isgen9:
-            raise IncompatibleiLOVersionError(
-                "iLO Repository commands are " "only available on iLO 5."
-            )
+            raise IncompatibleiLOVersionError("iLO Repository commands are " "only available on iLO 5.")
 
-        comps = self.rdmc.app.getcollectionmembers(
-            "/redfish/v1/UpdateService/ComponentRepository/"
-        )
+        comps = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/ComponentRepository/")
 
         if not comps:
             self.rdmc.ui.printer("No components found to delete\n")
@@ -155,9 +149,7 @@ class DeleteComponentCommand:
                     self.rdmc.ui.printer("Component " + opt + " deleted successfully.\n")
                     # self.rdmc.ui.printer("[200] The operation completed successfully.\n")
                 else:
-                    raise InvalidCommandLineError(
-                        "Cannot find or unable to delete component %s" % opt
-                    )
+                    raise InvalidCommandLineError("Cannot find or unable to delete component %s" % opt)
 
     def deletecomponentvalidation(self, options):
         """component validation function

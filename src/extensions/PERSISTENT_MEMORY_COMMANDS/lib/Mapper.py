@@ -24,9 +24,7 @@ from jsonpointer import resolve_pointer
 class Mapper(object):
     """Helper functions for getting data"""
 
-    def get_multiple_attributes(
-        self, data, attributes_list, mapping_table, output_as_json=False, **resources
-    ):
+    def get_multiple_attributes(self, data, attributes_list, mapping_table, output_as_json=False, **resources):
         """
         Method used to get data for multiple attributes
         :param data: json from which data is to be extracted
@@ -52,15 +50,11 @@ class Mapper(object):
         else:
             output = ""
             for attribute in attributes_list:
-                output += "\n" + self.get_single_attribute(
-                    data, attribute, mapping_table, resources=resources
-                )
+                output += "\n" + self.get_single_attribute(data, attribute, mapping_table, resources=resources)
         return output
 
     @staticmethod
-    def get_single_attribute(
-        data, attribute_name, mapping_table, output_as_json=False, resources=None
-    ):
+    def get_single_attribute(data, attribute_name, mapping_table, output_as_json=False, resources=None):
         """
         Method used to get data for single attribute
         :param data: json from which data is to be extracted
@@ -70,9 +64,7 @@ class Mapper(object):
         :param resources: additional resources required to compute attributes
         :return: Either string or json containing extracted information for single attribute
         """
-        output = (
-            {} if output_as_json else "No match found for '{}'".format(attribute_name)
-        )
+        output = {} if output_as_json else "No match found for '{}'".format(attribute_name)
         # finding the attribute in the mapping table
         mapping = mapping_table.get(attribute_name, None)
         if mapping:
@@ -82,9 +74,7 @@ class Mapper(object):
             if resolved_data is not None:
                 # attribute_name is present in data
                 if "compute" in mapping:
-                    resolved_data = mapping["compute"](
-                        data=resolved_data, resources=resources
-                    )
+                    resolved_data = mapping["compute"](data=resolved_data, resources=resources)
                 value = resolved_data
 
                 if output_as_json:

@@ -20,24 +20,15 @@
 
 # ---------Imports---------
 from __future__ import absolute_import
-import sys
-import json
-import os
-import time
-import versioning
-from config.rdmc_config import RdmcConfig
-from tabulate import tabulate
 
-from argparse import ArgumentParser
+from tabulate import tabulate
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        NoChangesFoundOrMadeError,
-        LOGGER,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -45,9 +36,8 @@ except ImportError:
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        NoChangesFoundOrMadeError,
-        LOGGER,
     )
+
 from .lib.RestHelpers import RestHelpers
 
 # ---------End of imports---------
@@ -108,9 +98,7 @@ class DisplaySecurityStateCommand:
             else:
                 raise InvalidCommandLineError("Failed to parse options")
         if args:
-            raise InvalidCommandLineError(
-                "Chosen flag doesn't expect additional arguments"
-            )
+            raise InvalidCommandLineError("Chosen flag doesn't expect additional arguments")
 
         # Raise exception if server is in POST
         self._rest_helpers = RestHelpers(rdmcObject=self.rdmc)

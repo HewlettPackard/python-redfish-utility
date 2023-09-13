@@ -17,22 +17,10 @@
 # -*- coding: utf-8 -*-
 """ BiosDefaultsCommand for rdmc """
 
-from argparse import SUPPRESS, ArgumentParser
-
 try:
-    from rdmc_helper import (
-        Encryption,
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
-        ReturnCodes,
-    )
+    from rdmc_helper import Encryption, InvalidCommandLineErrorOPTS, ReturnCodes
 except ImportError:
-    from ilorest.rdmc_helper import (
-        Encryption,
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
-        ReturnCodes,
-    )
+    from ilorest.rdmc_helper import Encryption, InvalidCommandLineErrorOPTS, ReturnCodes
 
 
 class BiosDefaultsCommand:
@@ -74,21 +62,15 @@ class BiosDefaultsCommand:
         self.defaultsvalidation(options)
 
         if options.manufdefaults:
-            self.rdmc.ui.printer(
-                "Resetting BIOS attributes and settings to manufacturing defaults.\n"
-            )
+            self.rdmc.ui.printer("Resetting BIOS attributes and settings to manufacturing defaults.\n")
         elif options.userdefaults:
-            self.rdmc.ui.printer(
-                "Resetting BIOS attributes and settings to user defaults.\n"
-            )
+            self.rdmc.ui.printer("Resetting BIOS attributes and settings to user defaults.\n")
 
         put_path = self.rdmc.app.typepath.defs.biospath
         body = None
 
         if self.rdmc.app.typepath.defs.isgen10 and not options.manufdefaults:
-            bodydict = self.rdmc.app.get_handler(
-                self.rdmc.app.typepath.defs.biospath, service=True, silent=True
-            ).dict
+            bodydict = self.rdmc.app.get_handler(self.rdmc.app.typepath.defs.biospath, service=True, silent=True).dict
 
             for item in bodydict["Actions"]:
                 if "ResetBios" in item:
@@ -169,7 +151,6 @@ class BiosDefaultsCommand:
             "--manufacturingdefaults",
             dest="manufdefaults",
             action="store_true",
-            help="Reset all configuration settings to manufacturing defaults, "
-            "including boot order and secure boot.",
+            help="Reset all configuration settings to manufacturing defaults, " "including boot order and secure boot.",
             default=False,
         )

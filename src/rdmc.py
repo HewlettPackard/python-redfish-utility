@@ -25,7 +25,6 @@ from __future__ import unicode_literals
 
 import collections
 import copy
-import ssl
 import ctypes
 import errno
 import glob
@@ -33,10 +32,11 @@ import importlib
 import logging
 import os
 import shlex
+import ssl
 import sys
 import traceback
 from argparse import RawTextHelpFormatter
-from builtins import str, open, super
+from builtins import open, str, super
 
 import six
 from prompt_toolkit import PromptSession
@@ -69,56 +69,58 @@ except ImportError:
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        RdmcError,
-        ConfigurationFileError,
+        LERR,
+        LOGGER,
+        LOUT,
+        UI,
+        AlreadyCloudConnectedError,
+        BirthcertParseError,
+        BootOrderMissingEntriesError,
+        CloudConnectFailedError,
+        CloudConnectTimeoutError,
         CommandNotEnabledError,
+        ConfigurationFileError,
+        DeviceDiscoveryInProgress,
+        DownloadError,
+        Encryption,
+        FailureDuringCommitError,
+        FirmwareUpdateError,
+        IloLicenseError,
+        IncompatableServerTypeError,
+        IncompatibleiLOVersionError,
+        InfoMissingEntriesError,
+        InvalidCListFileError,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        UI,
-        LOGGER,
-        LERR,
-        LOUT,
         InvalidFileFormattingError,
-        NoChangesFoundOrMadeError,
         InvalidFileInputError,
-        NoContentsFoundForOperationError,
-        InfoMissingEntriesError,
-        MultipleServerConfigError,
-        InvalidOrNothingChangedSettingsError,
-        NoDifferencesFoundError,
-        InvalidMSCfileInputError,
-        InvalidPasswordLengthError,
-        FirmwareUpdateError,
-        DeviceDiscoveryInProgress,
-        BootOrderMissingEntriesError,
-        NicMissingOrConfigurationError,
-        StandardBlobErrorHandler,
-        NoCurrentSessionEstablished,
-        InvalidCListFileError,
-        FailureDuringCommitError,
-        IncompatibleiLOVersionError,
-        PartitionMoutingError,
-        TimeOutError,
-        DownloadError,
-        UploadError,
-        BirthcertParseError,
-        ResourceExists,
-        IncompatableServerTypeError,
-        IloLicenseError,
         InvalidKeyError,
+        InvalidMSCfileInputError,
+        InvalidOrNothingChangedSettingsError,
+        InvalidPasswordLengthError,
+        MultipleServerConfigError,
+        NicMissingOrConfigurationError,
+        NoChangesFoundOrMadeError,
+        NoContentsFoundForOperationError,
+        NoCurrentSessionEstablished,
+        NoDifferencesFoundError,
+        PartitionMoutingError,
+        PathUnavailableError,
+        ProxyConfigFailedError,
+        RdmcError,
+        ResourceExists,
+        ReturnCodes,
+        StandardBlobErrorHandler,
+        TabAndHistoryCompletionClass,
+        TaskQueueError,
+        TfaEnablePreRequisiteError,
+        TimeOutError,
         UnableToDecodeError,
         UnabletoFindDriveError,
-        Encryption,
-        PathUnavailableError,
-        TaskQueueError,
+        UploadError,
         UsernamePasswordRequiredError,
-        TabAndHistoryCompletionClass,
         iLORisCorruptionError,
-        CloudConnectTimeoutError,
-        CloudConnectFailedError,
-        ProxyConfigFailedError,
-        AlreadyCloudConnectedError,
+        ResourceNotReadyError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -172,14 +174,20 @@ except ImportError:
         CloudConnectFailedError,
         ProxyConfigFailedError,
         AlreadyCloudConnectedError,
+        ResourceNotReadyError,
     )
 
 from argparse import ArgumentParser
 
 try:
-    from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser, HARDCODEDLIST
+    from rdmc_helper import HARDCODEDLIST
+except:
+    from ilorest.rdmc_helper import HARDCODEDLIST
+
+try:
+    from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
 except ImportError:
-    from ilorest.rdmc_base_classes import RdmcCommandBase, RdmcOptionParser, HARDCODEDLIST
+    from ilorest.rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
 
 import warnings
 
@@ -188,14 +196,14 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 if os.name != "nt":
     try:
         import setproctitle
-    except ImportError as error:
+    except ImportError:
         pass
 
 # always flush stdout and stderr
 
 try:
     CLI = cliutils.CLI()
-except cliutils.ResourceAllocationError as excp:
+except cliutils.ResourceAllocationError:
     RdmcError("Unable to allocate more resources.")
     RdmcError("ILOREST return code: %s\n" % ReturnCodes.RESOURCE_ALLOCATION_ISSUES_ERROR)
     sys.exit(ReturnCodes.RESOURCE_ALLOCATION_ISSUES_ERROR)
@@ -209,9 +217,7 @@ try:
     if Encryption.check_fips_mode_os() and not Encryption.check_fips_mode_ssl():
         ssl.FIPS_mode_set(int(1))
         if ssl.FIPS_mode():
-            FIPSSTR = (
-                "FIPS mode enabled using openssl version %s.\n" % ssl.OPENSSL_VERSION
-            )
+            FIPSSTR = "FIPS mode enabled using openssl version %s.\n" % ssl.OPENSSL_VERSION
             LOGGER.info("FIPS mode enabled!")
         else:
             LOGGER.info("FIPS mode can not be enabled!")
@@ -246,9 +252,7 @@ class RdmcCommand(RdmcCommandBase):
             pkgName = "extensions" + pkgName
             try:
                 if "__pycache__" not in pkgName and "Command" in cName:
-                    self.commands_dict[cName] = getattr(
-                        importlib.import_module(pkgName, __package__), cName
-                    )()
+                    self.commands_dict[cName] = getattr(importlib.import_module(pkgName, __package__), cName)()
                     sName = pkgName.split(".")[1]
                     self.add_command(cName, section=sName)
             except cliutils.ResourceAllocationError as excp:
@@ -257,7 +261,7 @@ class RdmcCommand(RdmcCommandBase):
                 self.ui.error("Unable to allocate more resources.")
                 self.ui.printer(("ILOREST return code: %s\n" % retcode))
                 sys.exit(retcode)
-            except Exception as excp:
+            except Exception:
                 self.ui.error(("loading command: %s" % cName), None)
 
         # command mapping
@@ -342,14 +346,10 @@ class RdmcCommand(RdmcCommandBase):
                     self.loaded_commands.append(auxcmd)
                     cmd.auxcommands[auxcmd.ident["name"]] = self.load_command(auxcmd)
                 else:
-                    cmd.auxcommands[auxcmd.ident["name"]] = self.commands_dict[
-                        self.comm_map[auxcmd.ident["name"]]
-                    ]
+                    cmd.auxcommands[auxcmd.ident["name"]] = self.commands_dict[self.comm_map[auxcmd.ident["name"]]]
             return cmd
         except Exception as excp:
-            raise RdmcError(
-                "Unable to load command {}: {}".format(cmd.ident["name"], excp)
-            )
+            raise RdmcError("Unable to load command {}: {}".format(cmd.ident["name"], excp))
 
     def _run_command(self, opts, args, help_disp):
         """Calls the commands run function
@@ -373,9 +373,7 @@ class RdmcCommand(RdmcCommandBase):
                 opts.nologo = True
                 break
         if not opts.nologo and not self.interactive:
-            CLI.version(
-                self._progname, versioning.__version__, versioning.__extracontent__
-            )
+            CLI.version(self._progname, versioning.__version__, versioning.__extracontent__)
         if len(args) > 1:
             return cmd.run(args[1:], help_disp)
 
@@ -521,17 +519,15 @@ class RdmcCommand(RdmcCommandBase):
             LOGGER.addHandler(lfile)
             self.app.LOGGER = LOGGER
 
-        if (
-            "login" in line or any(x.startswith("--url") for x in line) or not line
-        ) and not (any(x.startswith(("-h", "--h")) for x in nargv) or "help" in line):
+        if ("login" in line or any(x.startswith("--url") for x in line) or not line) and not (
+            any(x.startswith(("-h", "--h")) for x in nargv) or "help" in line
+        ):
             if not any(x.startswith("--sessionid") for x in line):
                 self.app.logout()
         else:
             creds, enc = self._pull_creds(nargv)
             self.app.restore(creds=creds, enc=enc)
-            self.opts.is_redfish = self.app.typepath.updatedefinesflag(
-                redfishflag=self.opts.is_redfish
-            )
+            self.opts.is_redfish = self.app.typepath.updatedefinesflag(redfishflag=self.opts.is_redfish)
 
         if nargv:
             try:
@@ -567,9 +563,7 @@ class RdmcCommand(RdmcCommandBase):
 
         if not opts.nologo:
             sys.stdout.write(FIPSSTR)
-            CLI.version(
-                self._progname, versioning.__version__, versioning.__extracontent__
-            )
+            CLI.version(self._progname, versioning.__version__, versioning.__extracontent__)
 
         if not self.app.typepath.adminpriv:
             self.ui.user_not_admin()
@@ -613,15 +607,13 @@ class RdmcCommand(RdmcCommandBase):
                 prompt_string = str(versioning.__shortname__) + " > "
                 if session:
                     if self.opts.toolbar:
-                        line = session.prompt(
-                            prompt_string, bottom_toolbar=bottom_toolbar
-                        )
+                        line = session.prompt(prompt_string, bottom_toolbar=bottom_toolbar)
                     else:
                         line = session.prompt(prompt_string)
                 else:
                     line = input(prompt_string)
 
-            except (EOFError, KeyboardInterrupt) as error:
+            except (EOFError, KeyboardInterrupt):
                 line = "quit\n"
 
             if not len(line):
@@ -636,15 +628,9 @@ class RdmcCommand(RdmcCommandBase):
             nargv = list(nargv)
             try:
                 if not (
-                    any(x.startswith("-h") for x in nargv)
-                    or any(x.startswith("--h") for x in nargv)
-                    or "help" in line
+                    any(x.startswith("-h") for x in nargv) or any(x.startswith("--h") for x in nargv) or "help" in line
                 ):
-                    if (
-                        "login " in line
-                        or line == "login"
-                        or any(x.startswith("--url") for x in nargv)
-                    ):
+                    if "login " in line or line == "login" or any(x.startswith("--url") for x in nargv):
                         self.app.logout()
                 self.retcode = self._run_command(opts, nargv, help_disp=False)
                 self.check_for_tab_lists(nargv)
@@ -666,11 +652,7 @@ class RdmcCommand(RdmcCommandBase):
         try:
             if excp:
                 errorstr = "Exception: {0}".format(excp.__class__.__name__)
-                errorstr = (
-                    errorstr + "({0})".format(excp.message)
-                    if hasattr(excp, "message")
-                    else errorstr
-                )
+                errorstr = errorstr + "({0})".format(excp.message) if hasattr(excp, "message") else errorstr
                 LOGGER.info(errorstr)
             raise
         # ****** RDMC ERRORS ******
@@ -684,8 +666,14 @@ class RdmcCommand(RdmcCommandBase):
         except NoCurrentSessionEstablished as excp:
             self.retcode = ReturnCodes.NO_CURRENT_SESSION_ESTABLISHED
             self.ui.error(excp)
+        except TfaEnablePreRequisiteError as excp:
+            self.retcode = ReturnCodes.TFA_ENABLED_ERROR
+            self.ui.error(excp)
         except iLORisCorruptionError as excp:
             self.retcode = ReturnCodes.ILO_RIS_CORRUPTION_ERROR
+            self.ui.error(excp)
+        except ResourceNotReadyError as excp:
+            self.retcode = ReturnCodes.RESOURCE_NOT_READY_ERROR
             self.ui.error(excp)
         except CloudConnectTimeoutError as excp:
             self.retcode = ReturnCodes.CLOUD_CONNECT_TIMEOUT
@@ -868,9 +856,7 @@ class RdmcCommand(RdmcCommandBase):
         except redfish.ris.ValueChangedError as excp:
             self.retcode = ReturnCodes.RIS_VALUE_CHANGED_ERROR
         except redfish.ris.ris.SchemaValidationError as excp:
-            self.ui.printer(
-                "Error found in schema, try running with the " "--latestschema flag.\n"
-            )
+            self.ui.printer("Error found in schema, try running with the " "--latestschema flag.\n")
             self.retcode = ReturnCodes.RIS_SCHEMA_PARSE_ERROR
         # ****** RMC/RIS ERRORS ******
         except redfish.rest.connections.RetriesExhaustedError as excp:
@@ -891,8 +877,7 @@ class RdmcCommand(RdmcCommandBase):
         except redfish.rest.connections.ChifDriverMissingOrNotFound as excp:
             self.retcode = ReturnCodes.V1_CHIF_DRIVER_MISSING_ERROR
             self.ui.printer(
-                "Chif driver not found, please check that the iLO channel interface"
-                " driver (Chif) is installed.\n"
+                "Chif driver not found, please check that the iLO channel interface" " driver (Chif) is installed.\n"
             )
         except redfish.rest.connections.SecurityStateError as excp:
             self.retcode = ReturnCodes.V1_SECURITY_STATE_ERROR
@@ -900,12 +885,21 @@ class RdmcCommand(RdmcCommandBase):
                 "High security mode [%s] or Host Authentication has been enabled. "
                 "Please provide valid credentials.\n" % str(excp)
             )
+        except redfish.rest.connections.OneTimePasscodeError:
+            self.retcode = ReturnCodes.TFA_OTP_EMAILED
+            self.ui.printer(
+                "One Time Passcode Sent to registered email.\n"
+                "Retry the login command by including -o/--otp tag along with the OTP received.\n"
+            )
+        except redfish.rest.connections.UnauthorizedLoginAttemptError as excp:
+            self.retcode = ReturnCodes.TFA_WRONG_OTP
+            self.ui.error(excp)
+        except redfish.rest.connections.TokenExpiredError as excp:
+            self.retcode = ReturnCodes.TFA_OTP_TIMEDOUT
+            self.ui.error(excp)
         except redfish.hpilo.risblobstore2.ChifDllMissingError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_CHIF_DLL_MISSING_ERROR
-            self.ui.printer(
-                "iLOrest Chif dll not found, please check that the "
-                "chif dll is present.\n"
-            )
+            self.ui.printer("iLOrest Chif dll not found, please check that the " "chif dll is present.\n")
         except redfish.hpilo.risblobstore2.UnexpectedResponseError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_UNEXPECTED_RESPONSE_ERROR
             self.ui.printer("Unexpected data received from iLO.\n")
@@ -976,8 +970,7 @@ class RdmcCommand(RdmcCommandBase):
         except IOError:
             self.retcode = ReturnCodes.INVALID_FILE_INPUT_ERROR
             self.ui.printer(
-                "Error accessing the file path. Verify the file path is correct and "
-                "you have proper permissions.\n"
+                "Error accessing the file path. Verify the file path is correct and " "you have proper permissions.\n"
             )
         # ****** GENERAL ERRORS ******
         except SystemExit:
@@ -1040,7 +1033,6 @@ class RdmcCommand(RdmcCommandBase):
             infovals = dict()
 
             if "select" in command:
-
                 if typestr in dictcopy:
                     (_, attributeregistry) = self.app.get_selection(setenable=True)
                     schema, reg = self.app.get_model(dictcopy, attributeregistry)
@@ -1060,9 +1052,7 @@ class RdmcCommand(RdmcCommandBase):
                         changes["nestedinfo"] = schema
 
             changes["get"] = getlist
-            changes["nestedprop"] = (
-                dictcopy["Attributes"] if "Attributes" in dictcopy else dictcopy
-            )
+            changes["nestedprop"] = dictcopy["Attributes"] if "Attributes" in dictcopy else dictcopy
             changes["set"] = getlist
             changes["info"] = getlist
             changes["val"] = []
@@ -1123,8 +1113,7 @@ class RdmcCommand(RdmcCommandBase):
                 if arg.startswith("-") or arg.startswith("--"):
                     try:
                         cmdinstance.parser.error(
-                            "The option %s is not available for %s"
-                            % (arg, cmdinstance.ident["name"])
+                            "The option %s is not available for %s" % (arg, cmdinstance.ident["name"])
                         )
                     except SystemExit:
                         raise InvalidCommandLineErrorOPTS("")
@@ -1210,9 +1199,9 @@ def ilorestcommand():
 
     if RDMC.opts:
         if RDMC.opts.verbose:
-            RDMC.ui.printer(("ILOREST return code: %s\n" % RDMC.retcode))
+            RDMC.ui.printer(("iLORest return code: %s\n" % RDMC.retcode))
     else:
-        RDMC.ui.printer(("ILOREST return code: %s\n" % RDMC.retcode))
+        RDMC.ui.printer(("iLORest return code: %s\n" % RDMC.retcode))
 
     # Return code
     sys.exit(RDMC.retcode)

@@ -18,14 +18,17 @@
 """Rdmc config"""
 
 import os
+
 try:
     from config.config import AutoConfigParser
 except ImportError:
     from ilorest.config.config import AutoConfigParser
 
+
 class RdmcConfig(AutoConfigParser):
     """Rdmc config class for loading and parsing the .conf file global configuration options.
     Uses the AutoConfigParser."""
+
     def __init__(self, filename=None):
         """Initialize RdmcConfig
 
@@ -34,22 +37,22 @@ class RdmcConfig(AutoConfigParser):
 
         """
         AutoConfigParser.__init__(self, filename=filename)
-        self._sectionname = 'redfish'
+        self._sectionname = "redfish"
         self._configfile = filename
         self._ac__logdir = os.getcwd()
         self._ac__cache = True
-        self._ac__url = ''
-        self._ac__username = ''
-        self._ac__password = ''
-        self._ac__sslcert = ''
-        self._ac__commit = ''
-        self._ac__format = ''
-        self._ac__cachedir = ''
-        self._ac__savefile = ''
-        self._ac__loadfile = ''
-        self._ac__user_cert = ''
-        self._ac__user_root_ca_key = ''
-        self._ac__user_root_ca_password = ''
+        self._ac__url = ""
+        self._ac__username = ""
+        self._ac__password = ""
+        self._ac__sslcert = ""
+        self._ac__commit = ""
+        self._ac__format = ""
+        self._ac__cachedir = ""
+        self._ac__savefile = ""
+        self._ac__loadfile = ""
+        self._ac__user_cert = ""
+        self._ac__user_root_ca_key = ""
+        self._ac__user_root_ca_password = ""
 
     @property
     def configfile(self):
@@ -68,7 +71,7 @@ class RdmcConfig(AutoConfigParser):
     @property
     def logdir(self):
         """Get the current log directory"""
-        return self._get('logdir')
+        return self._get("logdir")
 
     @logdir.setter
     def logdir(self, value):
@@ -77,16 +80,16 @@ class RdmcConfig(AutoConfigParser):
         :param value: current working directory for logging
         :type value: str
         """
-        return self._set('logdir', value)
+        return self._set("logdir", value)
 
     @property
     def cache(self):
         """Get the config file cache status"""
 
-        if isinstance(self._get('cache'), bool):
-            return self._get('cache')
+        if isinstance(self._get("cache"), bool):
+            return self._get("cache")
 
-        return self._get('cache').lower() in ("yes", "true", "t", "1")
+        return self._get("cache").lower() in ("yes", "true", "t", "1")
 
     @cache.setter
     def cache(self, value):
@@ -95,13 +98,13 @@ class RdmcConfig(AutoConfigParser):
         :param value: status of config file cache
         :type value: bool
         """
-        return self._set('cache', value)
+        return self._set("cache", value)
 
     @property
     def url(self):
         """Get the config file URL"""
-        url = self._get('url')
-        url = url[:-1] if url.endswith('/') else url
+        url = self._get("url")
+        url = url[:-1] if url.endswith("/") else url
 
         return url
 
@@ -112,12 +115,12 @@ class RdmcConfig(AutoConfigParser):
         :param value: URL path for the config file
         :type value: str
         """
-        return self._set('url', value)
+        return self._set("url", value)
 
     @property
     def username(self):
         """Get the config file user name"""
-        return self._get('username')
+        return self._get("username")
 
     @username.setter
     def username(self, value):
@@ -126,12 +129,12 @@ class RdmcConfig(AutoConfigParser):
         :param value: user name for config file
         :type value: str
         """
-        return self._set('username', value)
+        return self._set("username", value)
 
     @property
     def password(self):
         """Get the config file password"""
-        return self._get('password')
+        return self._get("password")
 
     @password.setter
     def password(self, value):
@@ -140,12 +143,12 @@ class RdmcConfig(AutoConfigParser):
         :param value: password for config file
         :type value: str
         """
-        return self._set('password', value)
+        return self._set("password", value)
 
     @property
     def commit(self):
         """Get the config file commit status"""
-        return self._get('commit')
+        return self._get("commit")
 
     @commit.setter
     def commit(self, value):
@@ -154,12 +157,12 @@ class RdmcConfig(AutoConfigParser):
         :param value: commit status
         :type value: str
         """
-        return self._set('commit', value)
+        return self._set("commit", value)
 
     @property
     def format(self):
         """Get the config file default format"""
-        return self._get('format')
+        return self._get("format")
 
     @format.setter
     def format(self, value):
@@ -168,12 +171,12 @@ class RdmcConfig(AutoConfigParser):
         :param value: set the config file format
         :type value: str
         """
-        return self._set('format', value)
+        return self._set("format", value)
 
     @property
     def cachedir(self):
         """Get the config file cache directory"""
-        return self._get('cachedir')
+        return self._get("cachedir")
 
     @cachedir.setter
     def cachedir(self, value):
@@ -182,12 +185,12 @@ class RdmcConfig(AutoConfigParser):
         :param value: config file cache directory
         :type value: str
         """
-        return self._set('cachedir', value)
+        return self._set("cachedir", value)
 
     @property
     def defaultsavefilename(self):
         """Get the config file default save name"""
-        return self._get('savefile')
+        return self._get("savefile")
 
     @defaultsavefilename.setter
     def defaultsavefilename(self, value):
@@ -196,12 +199,12 @@ class RdmcConfig(AutoConfigParser):
         :param value: config file save name
         :type value: str
         """
-        return self._set('savefile', value)
+        return self._set("savefile", value)
 
     @property
     def defaultloadfilename(self):
         """Get the config file default load name"""
-        return self._get('loadfile')
+        return self._get("loadfile")
 
     @defaultloadfilename.setter
     def defaultloadfilename(self, value):
@@ -210,51 +213,48 @@ class RdmcConfig(AutoConfigParser):
         :param value: name of config file to load by default
         :type value: str
         """
-        return self._set('loadfile', value)
+        return self._set("loadfile", value)
 
     @property
     def proxy(self):
         """Get proxy value to be set for communication"""
-        return self._get('proxy')
+        return self._get("proxy")
 
     @proxy.setter
     def proxy(self, value):
         """Set proxy value for communication"""
-        return self._set('proxy', value)
+        return self._set("proxy", value)
 
     @property
     def ssl_cert(self):
         """Get proxy value to be set for communication"""
-        return self._get('sslcert')
+        return self._get("sslcert")
 
     @ssl_cert.setter
     def ssl_cert(self, value):
         """Set proxy value for communication"""
-        return self._set('sslcert', value)
+        return self._set("sslcert", value)
 
     @property
     def user_cert(self):
-        return self._get('usercert')
+        return self._get("usercert")
 
     @user_cert.setter
     def user_cert(self, value):
-        return self._set('usercert', value)
+        return self._set("usercert", value)
 
     @property
     def user_root_ca_key(self):
-        return self._get('user_root_ca_key')
+        return self._get("user_root_ca_key")
 
     @user_root_ca_key.setter
     def user_root_ca_key(self, value):
-        return self._set('user_root_ca_key', value)
+        return self._set("user_root_ca_key", value)
 
     @property
     def user_root_ca_password(self):
-        return self._get('user_root_ca_password')
+        return self._get("user_root_ca_password")
 
     @user_root_ca_password.setter
     def user_root_ca_password(self, value):
-        return self._set('user_root_ca_password', value)
-
-
-
+        return self._set("user_root_ca_password", value)

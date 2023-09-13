@@ -19,11 +19,11 @@
 
 # ---------Imports---------
 
+import getpass
 import os
 import re
-import sys
-import getpass
 import subprocess
+import sys
 
 try:
     from rdmc_helper import UI
@@ -32,7 +32,7 @@ except ImportError:
 
 if os.name == "nt":
     import ctypes
-    from ctypes import wintypes, windll
+    from ctypes import windll, wintypes
 
 # ---------End of imports---------
 
@@ -150,9 +150,7 @@ def get_terminal_size():
         if which_stty:
             args = [which_stty, "size"]
             try:
-                procs = subprocess.Popen(
-                    args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                )
+                procs = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             except OSError as excp:
                 raise ResourceAllocationError(str(excp))
             (stdout_s, _) = procs.communicate()

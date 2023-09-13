@@ -26,32 +26,31 @@ import time
 from ctypes import create_string_buffer
 from datetime import datetime, timezone
 
-import redfish
 import six
-from redfish.hpilo.risblobstore2 import BlobStore2
 from six import BytesIO
+
+import redfish
+from redfish.hpilo.risblobstore2 import BlobStore2
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineErrorOPTS,
         InvalidFileFormattingError,
-        UnableToDecodeError,
-        Encryption,
-        PathUnavailableError,
         InvalidFileInputError,
         NoContentsFoundForOperationError,
+        PathUnavailableError,
+        ReturnCodes,
+        UnableToDecodeError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineErrorOPTS,
         InvalidFileFormattingError,
-        UnableToDecodeError,
-        Encryption,
-        PathUnavailableError,
         InvalidFileInputError,
         NoContentsFoundForOperationError,
+        PathUnavailableError,
+        ReturnCodes,
+        UnableToDecodeError,
     )
 
 
@@ -133,9 +132,7 @@ class IPProfilesCommand:
             return ReturnCodes.SUCCESS
         if options.get_hvt:
             if options.filename:
-                self.rdmc.ui.warn(
-                    "iprprofiles -D option does not support -f, please remove -f and rerun\n"
-                )
+                self.rdmc.ui.warn("iprprofiles -D option does not support -f, please remove -f and rerun\n")
                 return ReturnCodes.SUCCESS
             self.get_hvt_output()
             return ReturnCodes.SUCCESS
@@ -191,9 +188,7 @@ class IPProfilesCommand:
                     filehndl.write(output)
                     filehndl.close()
 
-                    self.rdmc.ui.printer(
-                        "Results written out to '%s'.\n" % options.filename[0]
-                    )
+                    self.rdmc.ui.printer("Results written out to '%s'.\n" % options.filename[0])
                 else:
                     self.rdmc.ui.print_out_json(results.dict)
         else:
@@ -245,9 +240,7 @@ class IPProfilesCommand:
             j2python = json.loads(results.read)
             for _, val in enumerate(list(j2python.keys())):
                 if isinstance(val, six.string_types) and "@" not in val:
-                    return_value = json.loads(
-                        self.decode_base64_string(str(j2python[val]))
-                    )
+                    return_value = json.loads(self.decode_base64_string(str(j2python[val])))
             self.rdmc.ui.print_out_json(return_value)
         else:
             self.rdmc.ui.error("No IP profiles found\n")
@@ -305,9 +298,7 @@ class IPProfilesCommand:
 
         ipjob = self.hasipjobs()
         if not ipjob:
-            raise InvalidFileFormattingError(
-                "System does not have any IP" " profile to copy to the job queue.\n"
-            )
+            raise InvalidFileFormattingError("System does not have any IP" " profile to copy to the job queue.\n")
 
         current_state = self.inipstate(ipprovider)
         if current_state is None:
@@ -343,18 +334,14 @@ class IPProfilesCommand:
         result = json.loads(get_results.read)
         if result and result.get("PowerState") == "Off":
             self.rdmc.ui.printer("Server is in OFF state. Powering on...\n")
-            self.auxcommands["bootorder"].run(
-                "--onetimeboot=Utilities " "--reboot=On --commit"
-            )
+            self.auxcommands["bootorder"].run("--onetimeboot=Utilities " "--reboot=On --commit")
         elif result and result.get("Oem").get("Hpe").get("PostState") != "FinishedPost":
             self.rdmc.ui.printer("Server is in POST state. Restarting...\n")
             # Forcefully switch off as it is stuck in POST
             self.auxcommands["reboot"].run("ForceOff")
             time.sleep(5)
             # Switch on with bootorder set
-            self.auxcommands["bootorder"].run(
-                "--onetimeboot=Utilities " "--reboot=On --commit"
-            )
+            self.auxcommands["bootorder"].run("--onetimeboot=Utilities " "--reboot=On --commit")
             # Check to find out if server in POST
             # count = 0
             # in_post = True
@@ -378,9 +365,7 @@ class IPProfilesCommand:
         else:
             self.rdmc.ui.printer("Server is in OS state. ColdBooting...\n")
             try:
-                self.auxcommands["bootorder"].run(
-                    "--onetimeboot=Utilities " "--reboot=ColdBoot --commit"
-                )
+                self.auxcommands["bootorder"].run("--onetimeboot=Utilities " "--reboot=ColdBoot --commit")
             except:
                 raise InvalidFileFormattingError("System failed to reboot")
 
@@ -478,14 +463,10 @@ class IPProfilesCommand:
                         }
                     )
                 else:
-                    raise NoContentsFoundForOperationError(
-                        "Not supported profile content"
-                    )
+                    raise NoContentsFoundForOperationError("Not supported profile content")
                 break
         if not copy_job:
-            raise NoContentsFoundForOperationError(
-                "The ID %s does not match any ipprofile" % jobkey
-            )
+            raise NoContentsFoundForOperationError("The ID %s does not match any ipprofile" % jobkey)
         payload = {"path": self.ipjobs, "body": copy_job}
 
         self.rdmc.app.put_handler(payload["path"], payload["body"])
@@ -552,9 +533,7 @@ class IPProfilesCommand:
 
         is_ipprovider = None
         try:
-            is_ipprovider = list(result["Oem"]["Hpe"]["Links"]["HpeIpProvider"].values())[
-                0
-            ]
+            is_ipprovider = list(result["Oem"]["Hpe"]["Links"]["HpeIpProvider"].values())[0]
         except KeyError:
             pass
 
@@ -601,17 +580,14 @@ class IPProfilesCommand:
         if filename:
             if not os.path.isfile(filename):
                 raise InvalidFileInputError(
-                    "File '%s' doesn't exist. "
-                    "Please create file by running 'save' command." % filename
+                    "File '%s' doesn't exist. " "Please create file by running 'save' command." % filename
                 )
 
             try:
                 with open(filename, "r") as fh:
                     contentsholder = json.loads(fh.read())
             except:
-                raise InvalidFileFormattingError(
-                    "Input file '%s' was not " "format properly." % filename
-                )
+                raise InvalidFileFormattingError("Input file '%s' was not " "format properly." % filename)
 
             try:
                 text = json.dumps(contentsholder).encode("utf-8")

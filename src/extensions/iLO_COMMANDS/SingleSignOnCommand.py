@@ -20,19 +20,17 @@ from argparse import RawDescriptionHelpFormatter
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 
 
@@ -179,20 +177,16 @@ class SingleSignOnCommand:
         import_dns_parser = subcommand_parser.add_parser(
             "importdns",
             help=save_import_dns_help,
-            description=save_import_dns_help
-            + "\n\texample singlesignon importdns dnsname",
+            description=save_import_dns_help + "\n\texample singlesignon importdns dnsname",
             formatter_class=RawDescriptionHelpFormatter,
         )
-        import_dns_parser.add_argument(
-            "dnsname", help="DNS Name to be imported", metavar="DNSNAME"
-        )
+        import_dns_parser.add_argument("dnsname", help="DNS Name to be imported", metavar="DNSNAME")
         save_import_cert_help = "Import certificate from URI or file."
         # importcert sub-parser
         import_cert_parser = subcommand_parser.add_parser(
             "importcert",
             help=save_import_cert_help,
-            description=save_import_cert_help
-            + "\n\texample singlesignon importcert cert.txt",
+            description=save_import_cert_help + "\n\texample singlesignon importcert cert.txt",
             formatter_class=RawDescriptionHelpFormatter,
         )
         import_cert_parser.add_argument(
@@ -205,8 +199,7 @@ class SingleSignOnCommand:
         delete_sso_parser = subcommand_parser.add_parser(
             "deleterecord",
             help=delete_sso_help,
-            description=delete_sso_help
-            + "\nDelete a single record:\nexample deleterecord 2\n"
+            description=delete_sso_help + "\nDelete a single record:\nexample deleterecord 2\n"
             "Delete all records:\nexample singlesignon deleterecord all",
             formatter_class=RawDescriptionHelpFormatter,
         )

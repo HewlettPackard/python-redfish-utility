@@ -21,28 +21,27 @@ from argparse import RawDescriptionHelpFormatter
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
-        IncompatibleiLOVersionError,
-        NoCurrentSessionEstablished,
-        CloudConnectTimeoutError,
         CloudConnectFailedError,
-        ProxyConfigFailedError,
-        AlreadyCloudConnectedError,
+        CloudConnectTimeoutError,
+        IncompatibleiLOVersionError,
         InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoCurrentSessionEstablished,
+        ProxyConfigFailedError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
-        IncompatibleiLOVersionError,
-        NoCurrentSessionEstablished,
-        CloudConnectTimeoutError,
         CloudConnectFailedError,
-        ProxyConfigFailedError,
-        AlreadyCloudConnectedError,
+        CloudConnectTimeoutError,
+        IncompatibleiLOVersionError,
         InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        NoCurrentSessionEstablished,
+        ProxyConfigFailedError,
+        ReturnCodes,
     )
+
 from redfish.ris.ris import SessionExpired
 
 
@@ -53,7 +52,8 @@ class ComputeOpsManagementCommand:
         self.ident = {
             "name": "computeopsmanagement",
             "usage": "computeopsmanagement\n\n",
-            "description": "Run to enable your servers to be discovered, monitored and managed through ComputeOpsManagement\n\t"
+            "description": "Run to enable your servers to be discovered, "
+            "monitored and managed through ComputeOpsManagement\n\t"
             "Example:\n\tcomputeopsmanagement connect or \n\t"
             "computeopsmanagement connect --activationkey <ACTIVATION KEY> or \n\t"
             "computeopsmanagement connect --activationkey <ACTIVATION KEY> --proxy http://proxy.abc.com:8080 or \n\t"
@@ -120,14 +120,10 @@ class ComputeOpsManagementCommand:
                 path = self.rdmc.app.getidbytype("NetworkProtocol.")
 
                 if path and body:
-                    self.rdmc.ui.printer(
-                        "Setting Proxy configuration...\n", verbose_override=True
-                    )
+                    self.rdmc.ui.printer("Setting Proxy configuration...\n", verbose_override=True)
                     self.rdmc.app.patch_handler(path[0], body, service=False, silent=True)
             except:
-                raise ProxyConfigFailedError(
-                    "Setting Proxy Server Configuration Failed.\n"
-                )
+                raise ProxyConfigFailedError("Setting Proxy Server Configuration Failed.\n")
         else:
             try:
                 body = dict()
@@ -142,14 +138,10 @@ class ComputeOpsManagementCommand:
                 path = self.rdmc.app.getidbytype("NetworkProtocol.")
 
                 if path and body:
-                    self.rdmc.ui.printer(
-                        "Clearing Proxy configuration...\n", verbose_override=True
-                    )
+                    self.rdmc.ui.printer("Clearing Proxy configuration...\n", verbose_override=True)
                     self.rdmc.app.patch_handler(path[0], body, service=False, silent=True)
             except:
-                raise ProxyConfigFailedError(
-                    "Clearing Proxy Server Configuration Failed.\n"
-                )
+                raise ProxyConfigFailedError("Clearing Proxy Server Configuration Failed.\n")
 
     def connect_cloud(self, activationkey=None):
         """cloud connect function
@@ -170,17 +162,11 @@ class ComputeOpsManagementCommand:
             body["ActivationKey"] = activationkey
         else:
             body = {}
-        path = (
-            self.rdmc.app.typepath.defs.managerpath
-            + "Actions"
-            + self.rdmc.app.typepath.defs.oempath
-        )
+        path = self.rdmc.app.typepath.defs.managerpath + "Actions" + self.rdmc.app.typepath.defs.oempath
         path = path + "/HpeiLO.EnableCloudConnect"
         try:
             if path:
-                self.rdmc.ui.printer(
-                    "Connecting to ComputeOpsManagement...", verbose_override=True
-                )
+                self.rdmc.ui.printer("Connecting to ComputeOpsManagement...", verbose_override=True)
                 self.rdmc.app.post_handler(path, body, service=False, silent=True)
         except:
             raise CloudConnectFailedError("ComputeOpsManagement connection Failed.\n")
@@ -211,9 +197,7 @@ class ComputeOpsManagementCommand:
                     status = resp.dict["Oem"]["Hpe"]["CloudConnect"]["CloudConnectStatus"]
                     if status == "Connected":
                         self.rdmc.ui.printer("\n")
-                        self.rdmc.ui.printer(
-                            "ComputeOpsManagement connection is successful.\n"
-                        )
+                        self.rdmc.ui.printer("ComputeOpsManagement connection is successful.\n")
                         break
                 else:
                     self.rdmc.ui.printer("..")
@@ -224,28 +208,18 @@ class ComputeOpsManagementCommand:
         path = self.rdmc.app.typepath.defs.managerpath
         resp = self.rdmc.app.get_handler(path, service=False, silent=True)
         if resp.status != 200:
-            raise SessionExpired(
-                "Invalid session. Please logout and log back in or include credentials."
-            )
+            raise SessionExpired("Invalid session. Please logout and log back in or include credentials.")
         cloud_status = resp.dict["Oem"]["Hpe"]["CloudConnect"]["CloudConnectStatus"]
         if cloud_status == "Connected":
-            path = (
-                self.rdmc.app.typepath.defs.managerpath
-                + "Actions"
-                + self.rdmc.app.typepath.defs.oempath
-            )
+            path = self.rdmc.app.typepath.defs.managerpath + "Actions" + self.rdmc.app.typepath.defs.oempath
             path = path + "/HpeiLO.DisableCloudConnect"
             body = dict()
             try:
                 if path:
-                    self.rdmc.ui.printer(
-                        "Disconnecting ComputeOpsManagement...\n", verbose_override=True
-                    )
+                    self.rdmc.ui.printer("Disconnecting ComputeOpsManagement...\n", verbose_override=True)
                     self.rdmc.app.post_handler(path, body)
             except:
-                raise CloudConnectFailedError(
-                    "ComputeOpsManagement is not disconnected.\n"
-                )
+                raise CloudConnectFailedError("ComputeOpsManagement is not disconnected.\n")
         else:
             self.rdmc.ui.printer(
                 "Warning: ComputeOpsManagement is not at all connected.\n",
@@ -261,16 +235,12 @@ class ComputeOpsManagementCommand:
         path = self.rdmc.app.typepath.defs.managerpath
         resp = self.rdmc.app.get_handler(path, service=False, silent=True)
         if resp.status != 200:
-            raise SessionExpired(
-                "Invalid session. Please logout and log back in or include credentials."
-            )
+            raise SessionExpired("Invalid session. Please logout and log back in or include credentials.")
         cloud_info = resp.dict["Oem"]["Hpe"]["CloudConnect"]
         output = "------------------------------------------------\n"
         output += "ComputeOpsManagement connection status\n"
         output += "------------------------------------------------\n"
-        output += "ComputeOpsManagement Status : %s\n" % (
-            cloud_info["CloudConnectStatus"]
-        )
+        output += "ComputeOpsManagement Status : %s\n" % (cloud_info["CloudConnectStatus"])
         if cloud_info["CloudConnectStatus"] != "NotEnabled":
             if "CloudActivateURL" in cloud_info:
                 output += "CloudActivateURL : %s\n" % (cloud_info["CloudActivateURL"])
@@ -325,8 +295,7 @@ class ComputeOpsManagementCommand:
                     self.connect_cloud()
                 else:
                     raise InvalidCommandLineError(
-                        "Activation Key %s is not alphanumeric or not of length 32."
-                        % str(options.activationkey)
+                        "Activation Key %s is not alphanumeric or not of length 32." % str(options.activationkey)
                     )
             elif options.command.lower() == "disconnect":
                 self.disconnect_cloud()
@@ -336,12 +305,11 @@ class ComputeOpsManagementCommand:
                 else:
                     self.cloud_status()
             else:
-                raise InvalidCommandLineError(
-                    "%s is not a valid option for this " "command." % str(options.command)
-                )
+                raise InvalidCommandLineError("%s is not a valid option for this " "command." % str(options.command))
         else:
             raise InvalidCommandLineError(
-                "Please provide either connect, disconnect or status as additional subcommand. For help or usage related information, use -h or --help"
+                "Please provide either connect, disconnect or status as additional subcommand."
+                " For help or usage related information, use -h or --help"
             )
         # logout routine
         self.cmdbase.logout_routine(self, options)
@@ -356,13 +324,8 @@ class ComputeOpsManagementCommand:
         if resp.status == 200:
             oem_actions = resp.dict["Oem"]["Hpe"]["Actions"]
             # print(oem_actions)
-            if (
-                "#HpeiLO.EnableCloudConnect" not in oem_actions
-                or "#HpeiLO.DisableCloudConnect" not in oem_actions
-            ):
-                raise CloudConnectFailedError(
-                    "ComputeOpsManagement is disabled in this iLO.\n"
-                )
+            if "#HpeiLO.EnableCloudConnect" not in oem_actions or "#HpeiLO.DisableCloudConnect" not in oem_actions:
+                raise CloudConnectFailedError("ComputeOpsManagement is disabled in this iLO.\n")
 
     def definearguments(self, customparser):
         """Wrapper function for new command main function
@@ -380,8 +343,7 @@ class ComputeOpsManagementCommand:
         connect_parser = subcommand_parser.add_parser(
             "connect",
             help=connect_help,
-            description=connect_help
-            + "\n\tExample:\n\tcomputeopsmanagement connect or"
+            description=connect_help + "\n\tExample:\n\tcomputeopsmanagement connect or"
             "\n\tcomputeopsmanagement connect --proxy http://proxy.abc.com:8080 or "
             "\n\tcomputeopsmanagement connect --proxy None or "
             "\n\tcomputeopsmanagement connect --activationkey 123456789EFGA or "
@@ -426,8 +388,7 @@ class ComputeOpsManagementCommand:
         disconnect_parser = subcommand_parser.add_parser(
             "disconnect",
             help=disconnect_help,
-            description=disconnect_help
-            + "\n\tExample:\n\tcomputeopsmanagement disconnect",
+            description=disconnect_help + "\n\tExample:\n\tcomputeopsmanagement disconnect",
             formatter_class=RawDescriptionHelpFormatter,
         )
         self.cmdbase.add_login_arguments_group(disconnect_parser)

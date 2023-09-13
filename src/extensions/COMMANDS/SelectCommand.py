@@ -20,9 +20,9 @@
 from redfish.ris import NothingSelectedError
 
 try:
-    from rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS, LOGGER, Encryption
+    from rdmc_helper import LOGGER, InvalidCommandLineErrorOPTS, ReturnCodes
 except ImportError:
-    from ilorest.rdmc_helper import ReturnCodes, InvalidCommandLineErrorOPTS, LOGGER, Encryption
+    from ilorest.rdmc_helper import LOGGER, InvalidCommandLineErrorOPTS, ReturnCodes
 
 
 class SelectCommand:
@@ -83,11 +83,7 @@ class SelectCommand:
             selector = self.rdmc.app.selector
 
             if selector:
-                sellist = [
-                    sel
-                    for sel in self.rdmc.app.monolith.typesadded
-                    if selector.lower() in sel.lower()
-                ]
+                sellist = [sel for sel in self.rdmc.app.monolith.typesadded if selector.lower() in sel.lower()]
                 self.rdmc.ui.printer("Current selection: ")
                 self.rdmc.ui.printer("%s\n" % ", ".join(map(str, sellist)))
             else:
@@ -133,7 +129,6 @@ class SelectCommand:
             "--refresh",
             dest="ref",
             action="store_true",
-            help="Optionally reload the data of selected type and clear "
-            "patches from current selection.",
+            help="Optionally reload the data of selected type and clear " "patches from current selection.",
             default=False,
         )

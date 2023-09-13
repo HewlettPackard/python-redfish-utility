@@ -22,11 +22,11 @@ from collections import OrderedDict
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        LOGGER,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        LOGGER,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -51,8 +51,7 @@ class ShowRecommendedConfigCommand:
         self.ident = {
             "name": "showrecommendedpmmconfig",
             "usage": None,
-            "description": "Show recommended configurations\n"
-            "\texample: showrecommendedpmmconfig",
+            "description": "Show recommended configurations\n" "\texample: showrecommendedpmmconfig",
             "summary": "Show Recommended Configuration",
             "aliases": [],
             "auxcommands": [],
@@ -104,9 +103,7 @@ class ShowRecommendedConfigCommand:
             else:
                 raise InvalidCommandLineError("Failed to parse options")
         if args:
-            raise InvalidCommandLineError(
-                "Chosen command doesn't expect additional arguments"
-            )
+            raise InvalidCommandLineError("Chosen command doesn't expect additional arguments")
         # Raise exception if server is in POST
         if RestHelpers(rdmcObject=self.rdmc).in_post():
             raise NoContentsFoundForOperationError(
@@ -120,9 +117,7 @@ class ShowRecommendedConfigCommand:
         """
         Show recommended pmm configuration
         """
-        members = (
-            RestHelpers(rdmcObject=self.rdmc).retrieve_memory_resources().get("Members")
-        )
+        members = RestHelpers(rdmcObject=self.rdmc).retrieve_memory_resources().get("Members")
 
         if not members:
             raise NoContentsFoundForOperationError("Failed to retrieve memory resources")
@@ -140,15 +135,11 @@ class ShowRecommendedConfigCommand:
             raise NoContentsFoundForOperationError("No DRAM DIMMs found")
 
         # retrieving Total Capacity of PMEM dimms
-        attr = self._mapper.get_single_attribute(
-            pmem_members, "TotalCapacity", MappingTable.summary.value, True
-        )
+        attr = self._mapper.get_single_attribute(pmem_members, "TotalCapacity", MappingTable.summary.value, True)
         pmem_size = attr.get("TotalCapacity", {}).get("Value", 0)
 
         # retrieving Total Capacity of DRAM dimms
-        dram_size = self._mapper.get_single_attribute(
-            dram_members, "TotalCapacity", MappingTable.summary.value, True
-        )
+        dram_size = self._mapper.get_single_attribute(dram_members, "TotalCapacity", MappingTable.summary.value, True)
         dram_size = dram_size.get("TotalCapacity", {}).get("Value", 0)
 
         display_output = list()
@@ -169,10 +160,7 @@ class ShowRecommendedConfigCommand:
         recommended_config.append(temp_dict)
 
         # Add Mixed Mode (BPS doesn't support it)
-        if (
-            "Gen10 Plus"
-            not in RestHelpers(rdmcObject=self.rdmc).retrieve_model(self.rdmc)["Model"]
-        ):
+        if "Gen10 Plus" not in RestHelpers(rdmcObject=self.rdmc).retrieve_model(self.rdmc)["Model"]:
             stepsize = 32
             appdirect_size = 0
             step = 1
@@ -189,9 +177,7 @@ class ShowRecommendedConfigCommand:
                 step += 1
 
         # Sorting based on MemoryModeTotalSize
-        recommended_config = sorted(
-            recommended_config, key=lambda x: x["MemoryModeTotalSize"]
-        )
+        recommended_config = sorted(recommended_config, key=lambda x: x["MemoryModeTotalSize"])
 
         # Adding units and formating cache ratio
         for output in recommended_config:

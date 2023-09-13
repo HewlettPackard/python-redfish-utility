@@ -21,13 +21,12 @@ from argparse import RawDescriptionHelpFormatter
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        NoContentsFoundForOperationError,
         InvalidFileInputError,
         InvalidPasswordLengthError,
-        Encryption,
+        NoContentsFoundForOperationError,
+        ReturnCodes,
         UploadError,
     )
 except ImportError:
@@ -38,9 +37,10 @@ except ImportError:
         NoContentsFoundForOperationError,
         InvalidFileInputError,
         InvalidPasswordLengthError,
-        Encryption,
         UploadError,
     )
+
+from redfish.ris.ris import SessionExpired
 
 
 class IloBackupRestoreCommand:
@@ -87,7 +87,7 @@ class IloBackupRestoreCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        #if not len(args) == 1:
+        # if not len(args) == 1:
         #    raise InvalidCommandLineError("backuprestore command takes one argument.")
 
         self.ilobackuprestorevalidation(options)
@@ -103,9 +103,7 @@ class IloBackupRestoreCommand:
         elif options.command == "restore":
             self.restoreserver(options, sessionkey)
         else:
-            raise InvalidCommandLineError(
-                "Only options are backup or restore\n"
-            )
+            raise InvalidCommandLineError("Only options are backup or restore\n")
 
         self.cmdbase.logout_routine(self, options)
         # Return code
@@ -131,9 +129,7 @@ class IloBackupRestoreCommand:
         if results:
             service = results.resp.dict
         else:
-            raise NoContentsFoundForOperationError(
-                "%s not found.It may not " "be available on this system.\n" % select
-            )
+            raise NoContentsFoundForOperationError("%s not found.It may not " "be available on this system.\n" % select)
 
         backuplocation = service["BackupFileLocation"]
         backupname = backuplocation.split("/")[-1]
@@ -146,11 +142,12 @@ class IloBackupRestoreCommand:
                 raise InvalidPasswordLengthError("Length of password cannot be greater than 32 characters.")
             postdata.append(("password", options.fpass))
         self.rdmc.ui.printer("Downloading backup file %s...\n" % backupname)
-        backupfile = self.rdmc.app.post_handler(
-            backuplocation, postdata, service=True, silent=True
-        )
+        backupfile = self.rdmc.app.post_handler(backuplocation, postdata, service=True, silent=True)
 
         if backupfile:
+            if (backupfile.status != 200) and backupfile.read != "":
+                if "Invalid Session" in backupfile.read:
+                    raise SessionExpired("Invalid session. Please logout and log back in or include credentials.")
             self.rdmc.ui.printer("Download complete.\n")
             outfile = open(backupname, "wb")
             outfile.write(backupfile.ori)
@@ -173,9 +170,7 @@ class IloBackupRestoreCommand:
             filename = options.filename[0]
         else:
             files = []
-            files = [
-                f for f in os.listdir(".") if os.path.isfile(f) and f.endswith(".bak")
-            ]
+            files = [f for f in os.listdir(".") if os.path.isfile(f) and f.endswith(".bak")]
             if files and len(files) > 1:
                 raise InvalidFileInputError(
                     "More than one .bak file found in "
@@ -184,8 +179,7 @@ class IloBackupRestoreCommand:
                 )
             elif not files:
                 raise InvalidFileInputError(
-                    "No .bak file found in current "
-                    "directory. Please specify a file using the -f option."
+                    "No .bak file found in current " "directory. Please specify a file using the -f option."
                 )
             else:
                 filename = files[0]
@@ -200,9 +194,7 @@ class IloBackupRestoreCommand:
         if results:
             service = results.resp.dict
         else:
-            raise NoContentsFoundForOperationError(
-                "%s not found.It may not " "be available on this system." % select
-            )
+            raise NoContentsFoundForOperationError("%s not found.It may not " "be available on this system." % select)
         restorelocation = service["HttpPushUri"]
         postdata = []
 
@@ -225,7 +217,7 @@ class IloBackupRestoreCommand:
         if not resp.status == 200:
             resp_ori = resp.ori
             if isinstance(resp_ori, bytes):
-                resp_ori = resp_ori.decode('utf-8')
+                resp_ori = resp_ori.decode("utf-8")
             if resp_ori == "invalid_restore_password":
                 raise UploadError(
                     "Invalid or no password supplied during restore. Please "
@@ -259,16 +251,14 @@ class IloBackupRestoreCommand:
 
         self.cmdbase.add_login_arguments_group(customparser)
 
-        subcommand_parser = customparser.add_subparsers(dest="command", required=True)
-        backup_help = (
-            "Create a backup of a server. This option is iLO5 Onwards"
-        )
+        subcommand_parser = customparser.add_subparsers(dest="command")
+        subcommand_parser.required = True
+        backup_help = "Create a backup of a server. This option is iLO5 Onwards"
         # backup sub-parser
         backup_parser = subcommand_parser.add_parser(
             "backup",
             help=backup_help,
-            description=backup_help + "\n\texample: backuprestore backup "
-                                  "--f <backup_file>  --filepass <password>",
+            description=backup_help + "\n\texample: backuprestore backup " "--f <backup_file>  --filepass <password>",
             formatter_class=RawDescriptionHelpFormatter,
         )
 
@@ -290,15 +280,12 @@ class IloBackupRestoreCommand:
             default=None,
         )
 
-        restore_help = (
-            "Restore a server with backup file. This option is for iLO5 Onwards"
-        )
+        restore_help = "Restore a server with backup file. This option is for iLO5 Onwards"
         # backup sub-parser
         restore_parser = subcommand_parser.add_parser(
             "restore",
             help=restore_help,
-            description=restore_help + "\n\texample: backuprestore restore "
-                                  "--f <backup_file>  --filepass <password>",
+            description=restore_help + "\n\texample: backuprestore restore " "--f <backup_file>  --filepass <password>",
             formatter_class=RawDescriptionHelpFormatter,
         )
 

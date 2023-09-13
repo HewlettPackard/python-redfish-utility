@@ -17,39 +17,43 @@
 # -*- coding: utf-8 -*-
 """ Help Command for RDMC """
 
-import sys
-
-from argparse import ArgumentParser
 try:
     from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
 except ImportError:
     from ilorest.rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
 try:
-    from rdmc_helper import ReturnCodes, InvalidCommandLineError, InvalidCommandLineErrorOPTS
+    from rdmc_helper import (
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
+    )
 except ImportError:
-    from ilorest.rdmc_helper import ReturnCodes, InvalidCommandLineError, InvalidCommandLineErrorOPTS
+    from ilorest.rdmc_helper import (
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
+    )
 
 
 class HelpCommand(RdmcCommandBase):
-    """ Constructor """
+    """Constructor"""
 
     def __init__(self):
         self.ident = {
-            'name': 'help',
-            'usage': None,
-            'description': 'help [COMMAND]\n\tFor more detailed command descriptions'
-                     ' use the help command feature\n\texample: help login\n',
-            'summary': 'Displays command line syntax and help menus for individual commands.'
-                       ' Example: help login\n',
-            'aliases': [],
-            'auxcommands': []
+            "name": "help",
+            "usage": None,
+            "description": "help [COMMAND]\n\tFor more detailed command descriptions"
+            " use the help command feature\n\texample: help login\n",
+            "summary": "Displays command line syntax and help menus for individual commands." " Example: help login\n",
+            "aliases": [],
+            "auxcommands": [],
         }
         self.cmdbase = None
         self.rdmc = None
         self.auxcommands = dict()
 
     def run(self, line, help_disp=False):
-        """ Wrapper function for help main function
+        """Wrapper function for help main function
         :param line: command line input
         :type line: string.
         """
@@ -71,13 +75,18 @@ class HelpCommand(RdmcCommandBase):
                 sorted_keys = sorted(list(cmddict.keys()))
 
                 for key in sorted_keys:
-                    if key[0] == '_':
+                    if key[0] == "_":
                         continue
                     else:
-                        self.rdmc.ui.printer('\n%s\n' % key)
+                        self.rdmc.ui.printer("\n%s\n" % key)
                     for cmd in cmddict[key]:
-                        self.rdmc.ui.printer("%-25s - %s\n" % (self.rdmc.commands_dict[cmd].ident['name'],
-                                                               self.rdmc.commands_dict[cmd].ident['summary']))
+                        self.rdmc.ui.printer(
+                            "%-25s - %s\n"
+                            % (
+                                self.rdmc.commands_dict[cmd].ident["name"],
+                                self.rdmc.commands_dict[cmd].ident["summary"],
+                            )
+                        )
         else:
             if self.rdmc:
                 cmddict = self.rdmc.get_commands()
@@ -88,14 +97,14 @@ class HelpCommand(RdmcCommandBase):
                         cmd_s = cmd.split("Command")
                         cmd_s = cmd_s[0]
                         if args[0].lower() == cmd_s.lower():
-                            self.rdmc.ui.printer(self.rdmc.commands_dict[cmd].ident['description'] + "\n")
+                            self.rdmc.ui.printer(self.rdmc.commands_dict[cmd].ident["description"] + "\n")
                             return ReturnCodes.SUCCESS
                 raise InvalidCommandLineError("Command '%s' not found." % args[0])
         # Return code
         return ReturnCodes.SUCCESS
 
     def definearguments(self, customparser):
-        """ Wrapper function for new command main function
+        """Wrapper function for new command main function
 
         :param customparser: command line input
         :type customparser: parser.

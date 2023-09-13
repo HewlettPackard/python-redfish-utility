@@ -19,25 +19,21 @@
 
 import json
 
-from argparse import ArgumentParser, SUPPRESS
-
 try:
     from rdmc_helper import (
-        ReturnCodes,
+        IncompatableServerTypeError,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        IncompatableServerTypeError,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
+        IncompatableServerTypeError,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
-        IncompatableServerTypeError,
-        Encryption,
+        ReturnCodes,
     )
 
 
@@ -84,9 +80,7 @@ class DisableIloFunctionalityCommand:
                 raise InvalidCommandLineErrorOPTS("")
 
         if args:
-            raise InvalidCommandLineError(
-                "disableilofunctionality command takes no arguments."
-            )
+            raise InvalidCommandLineError("disableilofunctionality command takes no arguments.")
 
         self.ilofunctionalityvalidation(options)
 
@@ -126,7 +120,6 @@ class DisableIloFunctionalityCommand:
             body = {"Action": "iLOFunctionality", "Target": "/Oem/Hp"}
 
         if self.ilodisablechecks(options):
-
             self.rdmc.ui.warn(
                 "Disabling iLO functionality. iLO will be unavailable on the logged "
                 " in server until it is re-enabled manually.\n"
@@ -135,24 +128,14 @@ class DisableIloFunctionalityCommand:
             results = self.rdmc.app.post_handler(path, body, silent=True, service=True)
 
             if results.status == 200:
-                self.rdmc.ui.printer(
-                    "[%d] The operation completed successfully.\n" % results.status
-                )
+                self.rdmc.ui.printer("[%d] The operation completed successfully.\n" % results.status)
             else:
-                self.rdmc.ui.printer(
-                    "[%d] iLO responded with the following info: \n" % results.status
-                )
+                self.rdmc.ui.printer("[%d] iLO responded with the following info: \n" % results.status)
                 json_payload = json.loads(results._http_response.data)
                 try:
-                    self.rdmc.ui.error(
-                        "%s"
-                        % json_payload["error"]["@Message.ExtendedInfo"][0]["MessageId"]
-                    )
+                    self.rdmc.ui.error("%s" % json_payload["error"]["@Message.ExtendedInfo"][0]["MessageId"])
                 except:
-                    self.rdmc.ui.error(
-                        "An invalid or incomplete response was received: %s\n"
-                        % json_payload
-                    )
+                    self.rdmc.ui.error("An invalid or incomplete response was received: %s\n" % json_payload)
 
         else:
             self.rdmc.ui.error(
@@ -172,9 +155,7 @@ class DisableIloFunctionalityCommand:
         """
 
         if options.force:
-            self.rdmc.ui.warn(
-                "Force Enabled: Ignoring critical operation/mode checking.\n"
-            )
+            self.rdmc.ui.warn("Force Enabled: Ignoring critical operation/mode checking.\n")
             return True
 
         else:

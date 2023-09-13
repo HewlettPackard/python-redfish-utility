@@ -17,25 +17,23 @@
 # -*- coding: utf-8 -*-
 """ Commit Command for RDMC """
 
-from argparse import SUPPRESS
-
 from redfish.ris.rmc_helper import NothingSelectedError
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
         FailureDuringCommitError,
+        InvalidCommandLineErrorOPTS,
         NoChangesFoundOrMadeError,
         NoCurrentSessionEstablished,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
-        InvalidCommandLineErrorOPTS,
         FailureDuringCommitError,
+        InvalidCommandLineErrorOPTS,
         NoChangesFoundOrMadeError,
         NoCurrentSessionEstablished,
+        ReturnCodes,
     )
 
 
@@ -78,9 +76,7 @@ class CommitCommand:
                 if next(commit_opp):
                     failure = True
         except NothingSelectedError:
-            raise NoChangesFoundOrMadeError(
-                "No changes found or made during commit operation."
-            )
+            raise NoChangesFoundOrMadeError("No changes found or made during commit operation.")
         else:
             if failure:
                 raise FailureDuringCommitError(
@@ -122,9 +118,7 @@ class CommitCommand:
         try:
             _ = self.rdmc.app.current_client
         except:
-            raise NoCurrentSessionEstablished(
-                "Please login and make setting" " changes before using commit command."
-            )
+            raise NoCurrentSessionEstablished("Please login and make setting" " changes before using commit command.")
 
     def definearguments(self, customparser):
         """Wrapper function for new command main function

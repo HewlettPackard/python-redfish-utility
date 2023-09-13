@@ -17,23 +17,20 @@
 # -*- coding: utf-8 -*-
 """ Clear Rest API State Command for rdmc """
 
-from argparse import ArgumentParser, SUPPRESS
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 
 

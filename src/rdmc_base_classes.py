@@ -19,18 +19,17 @@
 
 # ---------Imports---------
 from __future__ import unicode_literals
-from builtins import bytes, str, open, super, range, input, int, object
-import os
-import six
-import sys
 
+import os
+import sys
 from argparse import (
-    ArgumentParser,
-    _ArgumentGroup,
-    Action,
     SUPPRESS,
+    Action,
+    ArgumentParser,
     RawDescriptionHelpFormatter,
+    _ArgumentGroup,
 )
+from builtins import bytes, int, object, str, super
 
 from redfish.ris import NothingSelectedError
 
@@ -53,24 +52,10 @@ try:
 except ImportError:
     from ilorest.rdmc_helper import InvalidCommandLineErrorOPTS
 
+
 # from extensions.COMMANDS import LoginCommand, SelectCommand
 
 # ---------End of imports---------
-
-# Using hard coded list until better solution is found
-HARDCODEDLIST = [
-    "name",
-    "modified",
-    "type",
-    "description",
-    "attributeregistry",
-    "links",
-    "settingsresult",
-    "actions",
-    "availableactions",
-    "id",
-    "extref",
-]
 
 
 class _Verbosity(Action):
@@ -129,13 +114,7 @@ class RdmcCommandBase(CommandBase):
     def __init__(self, name, usage, summary, aliases, argparser=None, **kwargs):
         """Constructor"""
         CommandBase.__init__(
-            self,
-            name=name,
-            usage=usage,
-            summary=summary,
-            aliases=aliases,
-            argparser=argparser,
-            **kwargs
+            self, name=name, usage=usage, summary=summary, aliases=aliases, argparser=argparser, **kwargs
         )
         self.json = False
         self.cache = False
@@ -155,12 +134,8 @@ class RdmcCommandBase(CommandBase):
         :type skipbuild: bool.
         """
 
-        logobj = cmdinstance.rdmc.load_command(
-            cmdinstance.rdmc.search_commands("LoginCommand")
-        )
-        selobj = cmdinstance.rdmc.load_command(
-            cmdinstance.rdmc.search_commands("SelectCommand")
-        )
+        logobj = cmdinstance.rdmc.load_command(cmdinstance.rdmc.search_commands("LoginCommand"))
+        selobj = cmdinstance.rdmc.load_command(cmdinstance.rdmc.search_commands("SelectCommand"))
         inputline = list()
         client = None
         loggedin = False
@@ -176,17 +151,13 @@ class RdmcCommandBase(CommandBase):
                     inputline.extend([options.url])
                 if options.user:
                     if options.encode:
-                        options.user = rdmc_helper.Encryption.decode_credentials(
-                            options.user
-                        )
+                        options.user = rdmc_helper.Encryption.decode_credentials(options.user)
                         if isinstance(options.user, bytes):
                             options.user = options.user.decode("utf-8")
                     inputline.extend(["-u", options.user])
                 if options.password:
                     if options.encode:
-                        options.password = rdmc_helper.Encryption.decode_credentials(
-                            options.password
-                        )
+                        options.password = rdmc_helper.Encryption.decode_credentials(options.password)
                         if isinstance(options.password, bytes):
                             options.password = options.password.decode("utf-8")
                     inputline.extend(["-p", options.password])
@@ -250,12 +221,7 @@ class RdmcCommandBase(CommandBase):
                 loggedin = True
             except NothingSelectedError:
                 raise NothingSelectedError
-        if (
-            not loggedin
-            and not client
-            and not options.url
-            and not cmdinstance.rdmc.app.typepath.url
-        ):
+        if not loggedin and not client and not options.url and not cmdinstance.rdmc.app.typepath.url:
             try:
                 if cmdinstance.rdmc.opts.verbose:
                     sys.stdout.write("Local login initiated...\n")
@@ -267,7 +233,6 @@ class RdmcCommandBase(CommandBase):
             logobj.loginfunction(inputline, skipbuild=skipbuild)
 
     def logout_routine(self, cmdinstance, options):
-
         """Routine to logout of a server automatically at the completion of a command.
 
         :param commandinstance: the command object instance
@@ -276,9 +241,7 @@ class RdmcCommandBase(CommandBase):
         :type options: list.
         """
 
-        logoutobj = cmdinstance.rdmc.load_command(
-            cmdinstance.rdmc.search_commands("LogoutCommand")
-        )
+        logoutobj = cmdinstance.rdmc.load_command(cmdinstance.rdmc.search_commands("LogoutCommand"))
 
         if getattr(options, "logout", False):
             logoutobj.run("")
@@ -289,12 +252,8 @@ class RdmcCommandBase(CommandBase):
         :param parser: The parser to add the login option group to
         :type parser: ArgumentParser
         """
-        group = parser.add_argument_group(
-            "LOGIN OPTIONS", "Options for logging in to a system."
-        )
-        group.add_argument(
-            "--url", dest="url", help="Use the provided iLO URL to login.", default=None
-        )
+        group = parser.add_argument_group("LOGIN OPTIONS", "Options for logging in to a system.")
+        group.add_argument("--url", dest="url", help="Use the provided iLO URL to login.", default=None)
         group.add_argument(
             "--sessionid",
             dest="sessionid",
@@ -314,6 +273,13 @@ password and URL flags can be used to login to a server in the same command.""",
             "--password",
             dest="password",
             help="""Use the provided iLO password to log in.""",
+            default=None,
+        )
+        group.add_argument(
+            "-o",
+            "--otp",
+            dest="login_otp",
+            help="""Use the provided iLO OTP to log in.""",
             default=None,
         )
         group.add_argument(
@@ -417,8 +383,7 @@ class RdmcOptionParser(ArgumentParser):
 
     def __init__(self):
         super().__init__(
-            usage="%s [GLOBAL OPTIONS] [COMMAND] [COMMAND ARGUMENTS] "
-            "[COMMAND OPTIONS]" % versioning.__shortname__,
+            usage="%s [GLOBAL OPTIONS] [COMMAND] [COMMAND ARGUMENTS] " "[COMMAND OPTIONS]" % versioning.__shortname__,
             description="iLOrest is a command-line or interactive interface that allows users "
             "to manage Hewlett Packard Enterprise products that take advantage"
             " of RESTful APIs.\n\nIn order to view or manage a system you must"
@@ -444,9 +409,7 @@ class RdmcOptionParser(ArgumentParser):
             metavar="FILE",
         )
 
-        config_dir_default = os.path.join(
-            cliutils.get_user_config_dir(), ".%s" % versioning.__shortname__
-        )
+        config_dir_default = os.path.join(cliutils.get_user_config_dir(), ".%s" % versioning.__shortname__)
         self.add_argument(
             "--cache-dir",
             dest="config_dir",

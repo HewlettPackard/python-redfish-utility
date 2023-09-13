@@ -23,17 +23,17 @@ import redfish
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ResourceNotReadyError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ResourceNotReadyError,
+        ReturnCodes,
     )
 
 
@@ -74,11 +74,10 @@ class RawGetCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        url = None
         headers = {}
 
         if hasattr(options, "sessionid") and options.sessionid:
-            url = self.sessionvalidation(options)
+            _ = self.sessionvalidation(options)
         else:
             self.getvalidation(options)
 
@@ -161,9 +160,7 @@ class RawGetCommand:
                     filehndl.write(output)
                     filehndl.close()
 
-                    self.rdmc.ui.printer(
-                        "Results written out to '%s'.\n" % options.filename[0]
-                    )
+                    self.rdmc.ui.printer("Results written out to '%s'.\n" % options.filename[0])
                 else:
                     if not result:
                         result = results.dict
@@ -172,6 +169,14 @@ class RawGetCommand:
                     else:
                         self.rdmc.ui.print_out_json(result)
         else:
+            json_payload = json.loads(results._http_response.data)
+            try:
+                message_id = json_payload["error"]["@Message.ExtendedInfo"][0]["MessageId"]
+                self.rdmc.ui.error("%s" % message_id)
+                if "ResourceNotReadyRetry" in message_id:
+                    raise ResourceNotReadyError("Resources are not ready in iLO, Please wait for some time and retry")
+            except:
+                self.rdmc.ui.error("An invalid or incomplete response was received: %s\n" % json_payload)
             return ReturnCodes.NO_CONTENTS_FOUND_FOR_OPERATION
 
         self.cmdbase.logout_routine(self, options)
@@ -237,8 +242,7 @@ class RawGetCommand:
         customparser.add_argument(
             "--headers",
             dest="headers",
-            help="Use this flag to add extra headers to the request."
-            " example: --headers=HEADER:VALUE,HEADER:VALUE",
+            help="Use this flag to add extra headers to the request." " example: --headers=HEADER:VALUE,HEADER:VALUE",
             default=None,
         )
         customparser.add_argument(
@@ -275,7 +279,6 @@ class RawGetCommand:
             "--expand",
             dest="expand",
             action="store_true",
-            help="""Use this flag to expand the path specified using the """
-            """expand notation '?$expand=.'""",
+            help="""Use this flag to expand the path specified using the """ """expand notation '?$expand=.'""",
             default=False,
         )

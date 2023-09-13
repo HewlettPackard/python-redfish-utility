@@ -18,23 +18,18 @@
 """ RawDelete Command for rdmc """
 
 import sys
-import json
-
-from argparse import ArgumentParser
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
+        ReturnCodes,
     )
 
 
@@ -75,11 +70,10 @@ class RawDeleteCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        url = None
         headers = {}
 
         if hasattr(options, "sessionid") and options.sessionid:
-            url = self.sessionvalidation(options)
+            self.sessionvalidation(options)
         else:
             self.deletevalidation(options)
 
@@ -108,8 +102,7 @@ class RawDeleteCommand:
         if currentsess and (options.path in currentsess):
             self.rdmc.app.logout()
             self.rdmc.ui.printer(
-                "Your session has been terminated (deleted).\nPlease log "
-                "back in if you wish to continue.\n"
+                "Your session has been terminated (deleted).\nPlease log " "back in if you wish to continue.\n"
             )
         else:
             returnresponse = False
@@ -130,6 +123,7 @@ class RawDeleteCommand:
 
                 if options.response:
                     sys.stdout.write(results.read)
+                    self.rdmc.ui.printer("\n")
             elif results.status == 404:
                 return ReturnCodes.NO_CONTENTS_FOUND_FOR_OPERATION
             elif results.status != 200:
@@ -161,7 +155,7 @@ class RawDeleteCommand:
         else:
             if self.rdmc.app.config.get_url():
                 url = self.rdmc.app.config.get_url()
-        if url and not "https://" in url:
+        if url and "https://" not in url:
             url = "https://" + url
 
         return url
@@ -220,7 +214,6 @@ class RawDeleteCommand:
             "--expand",
             dest="expand",
             action="store_true",
-            help="""Use this flag to expand the path specified using the """
-            """expand notation '?$expand=.'""",
+            help="""Use this flag to expand the path specified using the """ """expand notation '?$expand=.'""",
             default=False,
         )

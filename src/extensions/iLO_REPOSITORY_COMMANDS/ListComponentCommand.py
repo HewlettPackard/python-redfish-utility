@@ -17,21 +17,17 @@
 # -*- coding: utf-8 -*-
 """ List Component Command for rdmc """
 
-import json
-
 try:
     from rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         IncompatibleiLOVersionError,
-        ReturnCodes,
         InvalidCommandLineErrorOPTS,
-        Encryption,
+        ReturnCodes,
     )
 
 
@@ -42,8 +38,7 @@ class ListComponentCommand:
         self.ident = {
             "name": "listcomp",
             "usage": None,
-            "description": "Run to list the components of "
-            "the currently logged in system.\n\texample: listcomp",
+            "description": "Run to list the components of " "the currently logged in system.\n\texample: listcomp",
             "summary": "Lists components/binaries from the iLO Repository.",
             "aliases": [],
             "auxcommands": [],
@@ -74,13 +69,9 @@ class ListComponentCommand:
         self.listcomponentvalidation(options)
 
         if self.rdmc.app.typepath.defs.isgen9:
-            raise IncompatibleiLOVersionError(
-                "iLO Repository commands are " "only available on iLO 5."
-            )
+            raise IncompatibleiLOVersionError("iLO Repository commands are " "only available on iLO 5.")
 
-        comps = self.rdmc.app.getcollectionmembers(
-            "/redfish/v1/UpdateService/ComponentRepository/"
-        )
+        comps = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/ComponentRepository/")
 
         if comps:
             self.printcomponents(comps, options)

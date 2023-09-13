@@ -19,19 +19,17 @@
 
 try:
     from rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
-        ReturnCodes,
         InvalidCommandLineError,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         NoContentsFoundForOperationError,
+        ReturnCodes,
     )
 
 
@@ -42,8 +40,7 @@ class ServerStateCommand:
         self.ident = {
             "name": "serverstate",
             "usage": None,
-            "description": "Returns the current state of the"
-            " server\n\n\tExample: serverstate",
+            "description": "Returns the current state of the" " server\n\n\tExample: serverstate",
             "summary": "Returns the current state of the server.",
             "aliases": [],
             "auxcommands": [],
@@ -71,8 +68,7 @@ class ServerStateCommand:
 
         if args:
             raise InvalidCommandLineError(
-                "Invalid number of parameters, "
-                "serverstate command does not take any parameters."
+                "Invalid number of parameters, " "serverstate command does not take any parameters."
             )
 
         self.serverstatevalidation(options)
