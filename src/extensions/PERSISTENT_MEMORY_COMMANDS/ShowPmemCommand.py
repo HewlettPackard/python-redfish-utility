@@ -16,8 +16,6 @@
 
 # -*- coding: utf-8 -*-
 """Command to display information about Persistent Memory modules"""
-from __future__ import absolute_import, division
-
 import re
 from argparse import Action
 from enum import Enum

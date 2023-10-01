@@ -19,12 +19,10 @@
 
 # ---------Imports---------
 
+import configparser
 import logging
 import os
 import re
-
-import six
-from six.moves import configparser
 
 # ---------End of imports---------
 
@@ -36,7 +34,7 @@ LOGGER = logging.getLogger(__name__)
 # ---------End of debug logger---------
 
 
-class AutoConfigParser(object):
+class AutoConfigParser:
     """Auto configuration parser. Properties starting with _ac__ are automatically
     serialized to config file"""
 
@@ -60,7 +58,7 @@ class AutoConfigParser(object):
     def _get_ac_keys(self):
         """Retrieve parse option keys"""
         result = []
-        for key in six.iterkeys(self.__dict__):
+        for key in self.__dict__.keys():
             match = AutoConfigParser._config_pattern.search(key)
             if match:
                 result.append(match.group("confkey"))

@@ -29,7 +29,6 @@ from argparse import RawDescriptionHelpFormatter
 from collections import OrderedDict
 
 import jsonpath_rw
-from six.moves import input
 
 import redfish.ris
 from redfish.ris.rmc_helper import IdTokenError, IloResponseError, InstanceNotFoundError

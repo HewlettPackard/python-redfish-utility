@@ -19,8 +19,6 @@
 import json
 from collections import OrderedDict
 
-import six
-
 import redfish.ris
 from redfish.ris.utils import iterateandclear
 
@@ -148,7 +146,7 @@ class GetCommand:
         arg = None
 
         # For rest redfish compatibility of bios.
-        args = [args] if args and isinstance(args, six.string_types) else args
+        args = [args] if args and isinstance(args, str) else args
         if self.rdmc.app.selector and "." not in self.rdmc.app.selector:
             self.rdmc.app.selector = self.rdmc.app.selector + "."
         args = (

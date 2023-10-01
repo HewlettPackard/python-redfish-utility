@@ -16,8 +16,6 @@
 
 # -*- coding: utf-8 -*-
 """There are the helper functions for displaying data on the console"""
-from __future__ import absolute_import
-
 from enum import Enum
 
 from tabulate import tabulate
@@ -36,7 +34,7 @@ class OutputFormats(Enum):
     json = "json"
 
 
-class DisplayHelpers(object):
+class DisplayHelpers:
     """Helper functions for printing data to display on the console"""
 
     output_dict = dict()

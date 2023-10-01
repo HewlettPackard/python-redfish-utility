@@ -16,12 +16,10 @@
 
 # -*- coding: utf-8 -*-
 """There are helper functions used to get required data using mapping table"""
-from __future__ import absolute_import
-
 from jsonpointer import resolve_pointer
 
 
-class Mapper(object):
+class Mapper:
     """Helper functions for getting data"""
 
     def get_multiple_attributes(self, data, attributes_list, mapping_table, output_as_json=False, **resources):

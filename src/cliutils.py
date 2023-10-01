@@ -166,7 +166,7 @@ def get_terminal_size():
     return _tuple
 
 
-class CLI(object):
+class CLI:
     """Class for building command line interfaces."""
 
     def __init__(self, verbosity=1, out=sys.stdout):

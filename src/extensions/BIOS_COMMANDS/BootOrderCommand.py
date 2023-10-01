@@ -22,8 +22,6 @@ import copy
 import fnmatch
 from functools import reduce
 
-import six
-
 try:
     from rdmc_helper import (
         UI,
@@ -336,7 +334,7 @@ class BootOrderCommand:
             if entry.lower() in (
                 item.lower() for item in onetimebootsettings["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype]
             ):
-                if entry and isinstance(entry, six.string_types):
+                if entry and isinstance(entry, str):
                     entry = entry.upper()
 
                 entry = self.searchcasestring(
@@ -367,7 +365,7 @@ class BootOrderCommand:
                 and uefionetimebootsettings["Boot"]["UefiTargetBootSourceOverrideSupported"]
                 and entry in (item for item in uefionetimebootsettings["Boot"]["UefiTargetBootSourceOverrideSupported"])
             ):
-                if entry and isinstance(entry, six.string_types):
+                if entry and isinstance(entry, str):
                     entry = entry.upper()
 
                 entry = self.searchcasestring(
@@ -593,7 +591,6 @@ class BootOrderCommand:
                     if not item:
                         item = str("null")
 
-                    # if isinstance(item, six.string_types):
                     bootstring = False
                     try:
                         for source in bootsources:

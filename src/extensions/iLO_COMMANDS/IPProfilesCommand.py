@@ -25,9 +25,7 @@ import re
 import time
 from ctypes import create_string_buffer
 from datetime import datetime, timezone
-
-import six
-from six import BytesIO
+from io import BytesIO
 
 import redfish
 from redfish.hpilo.risblobstore2 import BlobStore2
@@ -169,7 +167,7 @@ class IPProfilesCommand:
         if results and results.status == 200:
             j2python = json.loads(results.read)
             for _, val in enumerate(j2python.keys()):
-                if isinstance(val, six.string_types):
+                if isinstance(val, str):
                     result = self.decode_base64_string(str(j2python[val]))
                     if result is not None:
                         j2python[val] = result
@@ -211,7 +209,7 @@ class IPProfilesCommand:
         if results and results.status == 200:
             j2python = json.loads(results.read)
             for _, val in enumerate(list(j2python.keys())):
-                if isinstance(val, six.string_types):
+                if isinstance(val, str):
                     result = self.decode_base64_string(str(j2python[val]))
                     if result is not None:
                         j2python[val] = result
@@ -239,7 +237,7 @@ class IPProfilesCommand:
         if results and results.status == 200:
             j2python = json.loads(results.read)
             for _, val in enumerate(list(j2python.keys())):
-                if isinstance(val, six.string_types) and "@" not in val:
+                if isinstance(val, str) and "@" not in val:
                     return_value = json.loads(self.decode_base64_string(str(j2python[val])))
             self.rdmc.ui.print_out_json(return_value)
         else:
@@ -275,7 +273,7 @@ class IPProfilesCommand:
         j2python = json.loads(get_results.read)
         all_keys = options.del_key[0].split(",")
         for key in all_keys:
-            if isinstance(key, six.string_types) and j2python.get(key.strip(), False):
+            if isinstance(key, str) and j2python.get(key.strip(), False):
                 del j2python[key.strip()]
             else:
                 raise InvalidFileFormattingError("%s was not found .\n" % key)
@@ -505,7 +503,7 @@ class IPProfilesCommand:
 
         j2python = json.loads(results.read)
         for _, val in enumerate(j2python.keys()):
-            if isinstance(val, six.string_types):
+            if isinstance(val, str):
                 result = self.decode_base64_string(str(j2python[val]))
                 if result is not None:
                     j2python[val] = result
@@ -555,7 +553,7 @@ class IPProfilesCommand:
         """
 
         read_data = None
-        if isinstance(str_b64, six.string_types) and str_b64:
+        if isinstance(str_b64, str) and str_b64:
             try:
                 decoded_str = base64.decodebytes(str_b64.encode("utf-8"))
                 inbuffer = BytesIO(decoded_str)

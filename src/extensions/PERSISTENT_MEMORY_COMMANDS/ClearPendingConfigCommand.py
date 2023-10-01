@@ -16,8 +16,6 @@
 
 # -*- coding: utf-8 -*-
 """Command to clear pending tasks"""
-from __future__ import absolute_import
-
 try:
     from rdmc_helper import (
         LOGGER,

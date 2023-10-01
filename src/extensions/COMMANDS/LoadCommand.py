@@ -19,12 +19,11 @@
 
 import json
 import os
+import queue
 import shlex
 import subprocess
 import sys
 from datetime import datetime
-
-from six.moves import queue
 
 import redfish.ris
 from redfish.ris.rmc_helper import LoadSkipSettingError

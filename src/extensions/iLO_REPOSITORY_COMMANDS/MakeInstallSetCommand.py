@@ -20,8 +20,6 @@
 import json
 import os
 
-from six.moves import input
-
 try:
     from rdmc_helper import (
         IncompatibleiLOVersionError,

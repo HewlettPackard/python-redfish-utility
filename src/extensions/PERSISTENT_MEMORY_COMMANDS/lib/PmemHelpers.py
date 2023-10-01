@@ -18,7 +18,7 @@
 """This module contains common helper functions used by several pmem commands"""
 
 
-class PmemHelpers(object):
+class PmemHelpers:
     """
     Class containing common helper functions used by several pmem commands
     """

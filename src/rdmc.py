@@ -21,8 +21,6 @@ This is the main module for Redfish Utility which handles all of the CLI and UI 
 
 # ---------Imports---------
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import collections
 import copy
 import ctypes
@@ -36,14 +34,11 @@ import ssl
 import sys
 import traceback
 from argparse import RawTextHelpFormatter
-from builtins import open, str, super
 
-import six
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import CompleteStyle
-from six.moves import input
 
 import redfish.hpilo
 import redfish.rest.v1
@@ -1123,7 +1118,7 @@ class RdmcCommand(RdmcCommandBase):
             return checkargs(cmdinstance.parser.parse_known_args(line))
 
         arglist = []
-        if isinstance(line, six.string_types):
+        if isinstance(line, str):
             arglist = shlex.split(line, posix=False)
 
             for ind, val in enumerate(arglist):

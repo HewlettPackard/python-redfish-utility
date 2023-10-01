@@ -17,8 +17,6 @@
 # -*- coding: utf-8 -*-
 """Command to show the pending configuration for PMM"""
 
-from __future__ import absolute_import
-
 try:
     from rdmc_helper import (
         LOGGER,

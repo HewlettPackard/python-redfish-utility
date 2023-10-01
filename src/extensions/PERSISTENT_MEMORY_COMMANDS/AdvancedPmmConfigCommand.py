@@ -16,8 +16,6 @@
 
 # -*- coding: utf-8 -*-
 """Command to apply specified configuration to PMM"""
-from __future__ import absolute_import  # verify if python3 libs can handle
-
 from argparse import Action
 from copy import deepcopy
 

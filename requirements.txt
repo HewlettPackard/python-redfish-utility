@@ -2,7 +2,6 @@ urllib3 >= 1.26.2
 pyaes >= 1.6.1
 colorama >= 0.4.4
 jsonpointer >= 2.0
-six >= 1.15.0
 ply >= 3.11
 decorator >= 4.4.2
 jsonpatch >= 1.28

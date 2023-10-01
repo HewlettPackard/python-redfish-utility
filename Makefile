@@ -184,7 +184,6 @@ define freeze-chroot
 	#python-ilorest-library    4.0.0.0
 	#pyudev                    0.23.2
 	#setuptools                58.1.0
-	#six                       1.16.0
 	#tabulate                  0.8.9
 	#urllib3                   1.26.9
 	#wcwidth                   0.2.5
@@ -205,8 +204,6 @@ define freeze-chroot
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /wheel-0.37.1 && /usr/local/python3.8/bin/python3.8 setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/jsonpointer-2.2.tar.gz -C $(DEBCHROOTD)
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /jsonpointer-2.2 && /usr/local/python3.8/bin/python3.8 setup.py install'
-	tar xfz $(SRCROOT)/packaging/ext/six-1.16.0.tar.gz -C $(DEBCHROOTD)
-	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /six-1.16.0 && /usr/local/python3.8/bin/python3.8 setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/ply-3.11.tar.gz -C $(DEBCHROOTD)
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /ply-3.11 && /usr/local/python3.8/bin/python3.8 setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/decorator-5.1.1.tar.gz -C $(DEBCHROOTD)

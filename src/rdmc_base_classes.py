@@ -18,7 +18,6 @@
 """This is the helper module for RDMC"""
 
 # ---------Imports---------
-from __future__ import unicode_literals
 
 import os
 import sys
@@ -29,7 +28,6 @@ from argparse import (
     RawDescriptionHelpFormatter,
     _ArgumentGroup,
 )
-from builtins import bytes, int, object, str, super
 
 from redfish.ris import NothingSelectedError
 
@@ -76,7 +74,7 @@ class _Verbosity(Action):
             raise InvalidCommandLineErrorOPTS("Invalid verbosity selection ('-v').")
 
 
-class CommandBase(object):
+class CommandBase:
     """Abstract base class for all Command objects.
 
     This class is used to build complex command line programs

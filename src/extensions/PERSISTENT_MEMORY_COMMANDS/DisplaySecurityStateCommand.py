@@ -19,8 +19,6 @@
 """  Command to Display Security State of Dimms """
 
 # ---------Imports---------
-from __future__ import absolute_import
-
 from tabulate import tabulate
 
 try:

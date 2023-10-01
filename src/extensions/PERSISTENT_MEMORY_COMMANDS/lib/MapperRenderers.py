@@ -16,15 +16,13 @@
 
 # -*- coding: utf-8 -*-
 """These are helper functions used to render different attributes"""
-from __future__ import absolute_import, division
-
 from enum import Enum
 
 from .Mapper import Mapper
 from .PmemHelpers import PmemHelpers
 
 
-class MapperRenderers(object):
+class MapperRenderers:
     """Methods used to render different attributes"""
 
     @staticmethod

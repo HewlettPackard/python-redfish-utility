@@ -16,14 +16,12 @@
 
 # -*- coding: utf-8 -*-
 """This is the helper class with functions that manipulate REST data"""
-from __future__ import absolute_import  # check if python3 supported
-
 import json
 import multiprocessing
 from multiprocessing.dummy import Pool as ThreadPool
 
 
-class RestHelpers(object):
+class RestHelpers:
     """This is the helper class with functions that manipulate REST data"""
 
     def __init__(self, rdmcObject):

@@ -16,8 +16,6 @@
 
 # -*- coding: utf-8 -*-
 """Command to apply a pre-defined configuration to PMM"""
-from __future__ import absolute_import
-
 from copy import deepcopy
 
 try:

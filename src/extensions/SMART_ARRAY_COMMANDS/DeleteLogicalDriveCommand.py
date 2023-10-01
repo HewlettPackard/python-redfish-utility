@@ -17,8 +17,6 @@
 # -*- coding: utf-8 -*-
 """ Delete Logical Drive Command for rdmc """
 
-from six.moves import input
-
 try:
     from rdmc_helper import (
         ReturnCodes,

@@ -20,7 +20,6 @@ import time
 from collections import OrderedDict
 
 import colorama
-from six.moves import input
 
 try:
     from rdmc_helper import (

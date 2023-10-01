@@ -16,8 +16,6 @@
 
 # -*- coding: utf-8 -*-
 """Command to show recommended configurations"""
-from __future__ import absolute_import, division
-
 from collections import OrderedDict
 
 try:

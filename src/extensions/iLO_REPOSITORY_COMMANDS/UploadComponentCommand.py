@@ -25,7 +25,6 @@ import shutil
 from random import choice
 from string import ascii_lowercase
 import ctypes
-from six.moves import input
 from ctypes import (
     c_char_p,
     c_void_p,
@@ -36,6 +35,7 @@ from ctypes import (
     POINTER,
     create_string_buffer,
 )
+
 from redfish.hpilo.rishpilo import (
     HpIloInitialError,
     HpIloChifAccessDeniedError,

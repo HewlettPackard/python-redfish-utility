@@ -23,14 +23,13 @@ import itertools
 import json
 import os
 import platform
+import queue
 import shlex
 import string
 import subprocess
 import sys
 import tempfile
 import time
-
-from six.moves import queue
 
 import redfish.hpilo.risblobstore2 as risblobstore2
 from redfish.rest.connections import SecurityStateError

@@ -19,8 +19,6 @@
 """This is the helper module for RDMC"""
 
 # ---------Imports---------
-from __future__ import unicode_literals
-
 import json
 import logging
 import os
@@ -30,7 +28,6 @@ from collections import OrderedDict
 from ctypes import byref, c_char_p, create_string_buffer
 
 import pyaes
-import six
 from prompt_toolkit.completion import Completer, Completion
 
 import redfish.hpilo.risblobstore2 as risblobstore2
@@ -42,7 +39,6 @@ except ImportError:
     from ilorest import versioning
 
 if os.name == "nt":
-    from six.moves import winreg
     from win32.lib.win32con import HKEY_LOCAL_MACHINE
 
 # ---------End of imports---------
@@ -96,7 +92,7 @@ LOGGER.addHandler(LOUT)
 # ---------End of debug logger---------
 
 
-class ReturnCodes(object):
+class ReturnCodes:
     """Return code class to be used by all functions"""
 
     SUCCESS = 0
@@ -541,7 +537,7 @@ class FallbackChifUse(RdmcError):
     pass
 
 
-class UI(object):
+class UI:
     """UI class handles all of our printing etc so we have
     consistency across the project"""
 
@@ -745,7 +741,7 @@ class UI(object):
                 self.printer((str(key) + "="))
                 self.pretty_human_readable(value, indent, (start + len(key) + 2))
         else:
-            content = content if isinstance(content, six.string_types) else str(content)
+            content = content if isinstance(content, str) else str(content)
 
             content = '""' if not content else content
             # Changed to support py3, verify if there is a unicode prit issue.
@@ -753,7 +749,7 @@ class UI(object):
             self.printer(content)
 
 
-class Encryption(object):
+class Encryption:
     """Encryption/Decryption object"""
 
     @staticmethod
@@ -906,10 +902,7 @@ class Encryption(object):
 
         risblobstore2.BlobStore2.unloadchifhandle(lib)
         try:
-            if six.PY2:
-                enc_val = retbuff.value.encode("utf-8")
-            elif six.PY3:
-                enc_val = retbuff.value.decode("utf-8")  # .encode('utf-8')
+            enc_val = retbuff.value.decode("utf-8")  # .encode('utf-8')
             if not retbuff.value:
                 raise UnableToDecodeError("")
         except Exception:
@@ -992,7 +985,7 @@ class TabAndHistoryCompletionClass(Completer):
                         help_text += "\nPossible Values:\n"
                         for value in nested_info["Value"]:
                             enum_tab.append(value["ValueName"])
-                            help_text += six.u(str(value["ValueName"])) + " "
+                            help_text += str(value["ValueName"]) + " "
 
                     if not help_text:
                         try:
@@ -1004,7 +997,7 @@ class TabAndHistoryCompletionClass(Completer):
                             help_text += "\nPossible Values:\n"
                             for value in nested_info["enum"]:
                                 enum_tab.append(value)
-                                help_text += six.u(str(value)) + " "
+                                help_text += str(value) + " "
                     if isinstance(help_text, str):
                         help_text = help_text.replace(". ", ".\n")
                     self.toolbar_text = help_text
