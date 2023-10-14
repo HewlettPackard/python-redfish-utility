@@ -80,6 +80,24 @@ class DriveSanitizeCommand:
         self.drivesanitizevalidation(options)
 
         ilo_ver = self.rdmc.app.getiloversion()
+
+        if ilo_ver < 6.110:
+            try:
+                controllers = self.auxcommands["storagecontroller"].controllers(options, single_use=True)
+                if len(controllers) == 0:
+                    if not options.storageid:
+                        raise InvalidCommandLineError(
+                            "--storageid option is mandatory. Please input storageid as well so that "
+                            "controllers/volumes can be identified.\n"
+                        )
+                ilo_ver = 6.110
+            except:
+                if not options.storageid:
+                    raise InvalidCommandLineError(
+                        "--storageid option is mandatory. Please input storageid as well so that "
+                        "controllers/volumes can be identified.\n"
+                    )
+
         if ilo_ver >= 6.110:
             if not options.storageid:
                 raise InvalidCommandLineError(

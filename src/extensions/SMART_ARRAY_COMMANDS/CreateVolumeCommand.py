@@ -1076,21 +1076,18 @@ class CreateVolumeCommand:
             "--DisplayName",
             dest="DisplayName",
             help="""Optionally include to set the drive name """,
-            action="append",
             default=None,
         )
         v_parser.add_argument(
             "--iOPerfModeEnabled",
             dest="iOPerfModeEnabled",
             help="""Optionally include to choose the IOPerfModeEnabled . Allowed values are 'True', 'False'""",
-            action="append",
             default=None,
         )
         v_parser.add_argument(
             "--ReadCachePolicy",
             dest="ReadCachePolicy",
             help="""Optionally include to choose the ReadCachePolicy. """ """Allowed values are 'Off', 'ReadAhead'""",
-            action="append",
             default=None,
         )
         v_parser.add_argument(
@@ -1098,7 +1095,6 @@ class CreateVolumeCommand:
             dest="WriteCachePolicy",
             help="Optionally include to set the WriteCachePolicy "
             "Allowed values are 'Off', 'WriteThrough','ProtectedWriteBack','UnprotectedWriteBack'",
-            action="append",
             default=None,
         )
         v_parser.add_argument(
@@ -1106,7 +1102,6 @@ class CreateVolumeCommand:
             dest="WriteHoleProtectionPolicy",
             help="""Optionally include to choose the WriteHoleProtectionPolicy """
             """this is applicable only for VROC, You can send either Yes or No as values""",
-            action="append",
             default=None,
         )
         v_parser.add_argument(

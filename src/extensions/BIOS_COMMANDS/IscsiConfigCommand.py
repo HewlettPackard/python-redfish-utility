@@ -710,17 +710,17 @@ class IscsiConfigCommand:
                         if item["CorrelatableID"] == pcidevice["UEFIDevicePath"]:
                             if "Name" not in pcidevice:
                                 pcidevice["Name"] = pcidevice["StructuredName"]
-                            self.rdmc.ui.printer(
-                                "[%s] %s %s Port %s : %s\n"
-                                % (
-                                    count,
-                                    pcidevice["DeviceType"],
-                                    pcidevice["DeviceInstance"],
-                                    pcidevice["DeviceSubInstance"],
-                                    pcidevice["Name"],
+                            if "Storage" not in pcidevice["DeviceType"]:
+                                self.rdmc.ui.printer(
+                                    "[%s] %s %s Port %s : %s\n"
+                                    % (
+                                        count,
+                                        pcidevice["DeviceType"],
+                                        pcidevice["DeviceInstance"],
+                                        pcidevice["DeviceSubInstance"],
+                                        pcidevice["Name"],
+                                    )
                                 )
-                            )
-
                             if not disabled:
                                 count += 1
             else:

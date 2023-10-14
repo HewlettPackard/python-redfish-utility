@@ -164,7 +164,7 @@ class SetCommand:
                         if not sel.lower() == "oldadminpassword":
                             raise InvalidOrNothingChangedSettingsError(
                                 "Nothing changed "
-                                "for attribute '%s'.\nPlease check if the attribute exists or Read-only "
+                                "for attribute '%s'.\nPlease check if the attribute is Oem/Hpe Attribute or Read-only "
                                 "or System Unique property or the value trying to set is same or invalid" % sel
                             )
                     elif contents == "No entries found":
@@ -273,8 +273,8 @@ class SetCommand:
                     if val:
                         if val[0] == "[" and val[-1] == "]":
                             val = val[1:-1].split(",")
-                if val.isnumeric():
-                    val = int(val)
+                    if val.isnumeric():
+                        val = int(val)
                 patch_data = dict()
                 payload = {newargs[-1]: val} if newargs else {sel: val}
                 if newargs:

@@ -76,13 +76,13 @@ class _DirectoryParse(Action):
             setattr(namespace, self.dest, True)
         elif option_strings == "--removerolemap":
             setattr(namespace, self.dest, {"remove": []})
-            for role in next(iter(values)).split(","):
+            for role in next(iter(values)).split(";"):
                 role = role.replace('"', "")
                 if role:
                     namespace.roles["remove"].append(role)
         elif option_strings == "--addrolemap":
             setattr(namespace, self.dest, {"add": []})
-            for role in next(iter(values)).split(","):
+            for role in next(iter(values)).split(";"):
                 role = role.replace('"', "")
                 if role and re.match(".*:.*", role):
                     privs = role.split(":")[0].split(";")

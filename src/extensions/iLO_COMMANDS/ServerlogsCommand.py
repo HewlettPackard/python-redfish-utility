@@ -841,9 +841,9 @@ class ServerlogsCommand:
             raise IncompatibleiLOVersionError("Need at least iLO 4 for this program to run!\n")
 
         if sys.platform == "darwin":
-            raise InvalidCommandLineError("AHS loacal download is not supported on MacOS")
+            raise InvalidCommandLineError("AHS local download is not supported on MacOS")
         elif "VMkernel" in platform.uname():
-            raise InvalidCommandLineError("AHS loacal download is not supported on VMWare")
+            raise InvalidCommandLineError("AHS local download is not supported on VMWare")
 
         if options.filename:
             raise InvalidCommandLineError(

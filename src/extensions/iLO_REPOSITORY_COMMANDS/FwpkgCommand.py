@@ -118,8 +118,8 @@ class FwpkgCommand:
         tempdir = ""
         if (
                 not options.fwpkg.endswith(".fwpkg")
-                and not options.fwpkg.endswith(".fup")
-                and not options.fwpkg.endswith(".hpb")
+                and not options.fwpkg.lower().endswith(".fup")
+                and not options.fwpkg.lower().endswith(".hpb")
         ):
             LOGGER.error("Invalid file type. Please make sure the file provided is a valid .fwpkg file type.")
             raise InvalidFileInputError(
@@ -246,10 +246,15 @@ class FwpkgCommand:
                     type_set = True
                 if type_set is None:
                     LOGGER.error("Component type is not identified, Please check if the particular H/W is present")
-                    raise IncompatibleiLOVersionError(
-                        "Cannot flash the component on this server, check whether the component is fwpkg-v2 or "
-                        "check whether the server is iLO5 FW is above 2.30 or the particular drive HW is present\n"
-                    )
+                    ilo_ver_int = self.rdmc.app.getiloversion()
+                    ilo_ver = str(ilo_ver_int)
+                    error_msg = "Cannot flash the component on this server, check whether the component is fwpkg-v2 " \
+                                "or check whether the server is iLO"
+                    if ilo_ver_int >= 6:
+                        error_msg = error_msg + ilo_ver[0] + ", FW is above 1.50 or the particular drive HW is present\n"
+                    else:
+                        error_msg = error_msg + ilo_ver[0] + ", FW is above 2.30 or the particular drive HW is present\n"
+                    raise IncompatibleiLOVersionError(error_msg)
         else:
             for device in payload["Devices"]["Device"]:
                 for image in device["FirmwareImages"]:
@@ -283,7 +288,7 @@ class FwpkgCommand:
         payloaddata = None
         tempdir = tempfile.mkdtemp()
         pldmflag = False
-        if not pkgfile.endswith(".fup") and not pkgfile.endswith(".hpb"):
+        if not pkgfile.lower().endswith(".fup") and not pkgfile.lower().endswith(".hpb"):
             try:
                 zfile = zipfile.ZipFile(pkgfile)
                 zfile.extractall(tempdir)
@@ -300,7 +305,7 @@ class FwpkgCommand:
             else:
                 raise InvalidFileInputError("Unable to find payload.json in fwpkg file.")
 
-        if not pkgfile.endswith(".fup") and not pkgfile.endswith(".hpb"):
+        if not pkgfile.lower().endswith(".fup") and not pkgfile.lower().endswith(".hpb"):
             comptype = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata)
         else:
             comptype = "A"
@@ -309,7 +314,7 @@ class FwpkgCommand:
         if comptype in ["C", "BC"]:
             imagefiles = [self.auxcommands["flashfwpkg"].type_c_change(tempdir, pkgfile)]
         else:
-            if not pkgfile.endswith("fup") and not pkgfile.endswith(".hpb"):
+            if not pkgfile.lower().endswith("fup") and not pkgfile.lower().endswith(".hpb"):
                 for device in payloaddata["Devices"]["Device"]:
                     for firmwareimage in device["FirmwareImages"]:
                         if firmwareimage["PLDMImage"]:
@@ -334,7 +339,7 @@ class FwpkgCommand:
             if dll.isFwpkg20(fwpkg_buffer, 2048):
                 imagefiles = [pkgfile]
                 tempdir = ""
-        if pkgfile.endswith(".fup") or pkgfile.endswith(".hpb"):
+        if pkgfile.lower().endswith(".fup") or pkgfile.lower().endswith(".hpb"):
             imagefiles = [pkgfile]
         elif (
                 self.rdmc.app.getiloversion() > 5.230
@@ -382,7 +387,7 @@ class FwpkgCommand:
             taskqueuecommand = " create %s " % os.path.basename(component)
             if options.tover:
                 taskqueuecommand = " create %s --tpmover" % os.path.basename(component)
-            if component.endswith(".fwpkg") or component.endswith(".zip"):
+            if component.endswith(".fwpkg") or component.lower().endswith(".hpb") or component.lower().endswith(".fup") or component.endswith(".zip"):
                 uploadcommand = "--component %s" % component
             else:
                 uploadcommand = "--component %s" % os.path.join(tempdir, component)

@@ -47,14 +47,14 @@ class ServerConfigurationLockCommand:
             "name": "serverconfiglock",
             "usage": None,
             "description": "To to perform validation checks on raw JSON data "
-            "server.\n\texample: serverconfiglock\n\t"
-            "example: serverconfiglock enable --serverconfiglockpassword=AWS@123456789 "
-            "--serverconfiglockexcludefwrevs=True\n\t"
-            "example: serverconfiglock disable --serverconfiglockpassword=AWS@1234 "
-            "--serverconfiglockdisable=True\n\t"
-            "example: serverconfiglock display",
+                           "server.\n\texample: serverconfiglock\n\t"
+                           "example: serverconfiglock enable --serverconfiglockpassword=AWS@123456789 "
+                           "--serverconfiglockexcludefwrevs=True\t serverconfiglockexcludefwrevs set True or False\n\t"
+                           "example: serverconfiglock disable --serverconfiglockpassword=AWS@1234 "
+                           "--serverconfiglockdisable=True\t serverconfiglockdisable set True or False\n\t"
+                           "example: serverconfiglock display",
             "summary": "The BIOS feature “Server Configuration Lock” supports certain parameters,"
-            "including a password. This password has a 15 character limit. "
+            "including a password. This password has a 16 to 31 character limit. "
             "“Server Configuration Lock” is not one of the special commands in iLO REST.",
             "aliases": [],
             "auxcommands": [],
@@ -75,9 +75,13 @@ class ServerConfigurationLockCommand:
                 return ReturnCodes.SUCCESS
             else:
                 raise InvalidCommandLineErrorOPTS("")
-
         bios_path = self.rdmc.app.typepath.defs.biospath
-        scs_path = bios_path + "oem/hpe/serverconfiglock/settings/"
+        resp = self.rdmc.app.get_handler(bios_path, silent=True, service=True).dict
+        match_url = resp["Oem"]["Hpe"]["Links"]["ServerConfigLock"]["@odata.id"]
+        if "oem" in match_url:
+            scs_path = bios_path + "oem/hpe/serverconfiglock/settings/"
+        else:
+            scs_path = bios_path + "serverconfiglock/settings/"
         self.serverconfiglockvalidation(options)
         if options.command:
             if options.command.lower() == "enable":
@@ -101,11 +105,16 @@ class ServerConfigurationLockCommand:
         """
         Enable/Disable the SCL config function
         """
+        import re
         if options.serverconfiglockpassword:
             ser_cf_password = options.serverconfiglockpassword
         self.serverconfiglockpassword_validation(options)
-        if options.serverconfiglockexcludefwrevs:
-            serverconfrevs = options.serverconfiglockexcludefwrevs
+        if options.serverconfiglockexcludefwrevs.lower() == "true":
+            serverconfrevs = True
+        elif options.serverconfiglockexcludefwrevs.lower() == "false":
+            serverconfrevs = False
+        else:
+            raise InvalidCommandLineError("ServerConfigLockExcludeFwRevs value invalid set only true or false")
         body = {"ServerConfigLockPassword": ser_cf_password, "ServerConfigLockExcludeFwRevs": serverconfrevs}
         try:
             self.rdmc.ui.printer("payload: %s \n" % body)
@@ -114,6 +123,7 @@ class ServerConfigurationLockCommand:
             if resp.status == 200:
                 self.rdmc.ui.printer("SCS enabled successfully\n")
                 LOGGER.info("SCS enabled successfully")
+                self.rdmc.ui.printer("Help: System Reboot is required after changing the serverconfiglock settings \n")
                 return ReturnCodes.SUCCESS
         except IncompatibleiLOVersionError:
             self.rdmc.ui.error("iLO FW version on this server doesnt support SCS")
@@ -127,8 +137,12 @@ class ServerConfigurationLockCommand:
         if options.serverconfiglockpassword:
             ser_cf_password = options.serverconfiglockpassword
         self.serverconfiglockpassword_validation(options)
-        if options.serverconfiglockdisable:
-            sclockdisable = options.serverconfiglockdisable
+        if options.serverconfiglockdisable.lower() == "true":
+            sclockdisable = True
+        elif options.serverconfiglockdisable.lower() == "false":
+            sclockdisable = False
+        else:
+            raise InvalidCommandLineError("ServerConfigLockDisable value invalid set only true or false")
         body = {"ServerConfigLockPassword": ser_cf_password, "ServerConfigLockDisable": sclockdisable}
         try:
             self.rdmc.ui.printer("payload: %s \n" % body)
@@ -137,6 +151,7 @@ class ServerConfigurationLockCommand:
             if resp.status == 200:
                 self.rdmc.ui.printer("SCS Disabled successfully\n")
                 LOGGER.info("SCS Disabled successfully")
+                self.rdmc.ui.printer("Help: System Reboot is required after changing the serverconfiglock settings \n")
                 return ReturnCodes.SUCCESS
         except IncompatibleiLOVersionError:
             self.rdmc.ui.error("iLO FW version on this server doesnt support SCS")
@@ -178,15 +193,16 @@ class ServerConfigurationLockCommand:
 
         if options.serverconfiglockpassword:
             password = options.serverconfiglockpassword
-        if len(password) > 15:
-            raise InvalidPasswordLengthError("Length of password cannot be greater than 15 characters.\n")
-            LOGGER.error("Length of password cannot be greater than 15 characters.\n")
+        if len(password) < 16 or len(password) > 31:
+            LOGGER.info("Length of password requires min of 16 and max of 31 character "
+                        "excluding '/' character.\n")
+            raise InvalidPasswordLengthError("Length of password requires min of 16 and max of 31 character "
+                                             "excluding '/' character.\n")
         elif re.search("[0-9]", password) is None:
             print("Make sure your password has a number in it\n")
         elif re.search("[A-Z]", password) is None:
             print("Make sure your password has a capital letter in it\n")
-        else:
-            pass
+
 
     def serverconfiglockvalidation(self, options):
         """new command method validation function"""
@@ -225,6 +241,7 @@ class ServerConfigurationLockCommand:
             dest="serverconfiglockexcludefwrevs",
             help="to set/enable serverconfiglockexcludefwrevs",
             default=False,
+            required=True,
         )
         self.cmdbase.add_login_arguments_group(enable_parser)
 
@@ -258,7 +275,7 @@ class ServerConfigurationLockCommand:
             "--serverconfiglockdisable",
             dest="serverconfiglockdisable",
             help="Select this option to disable Server Configuration Lock.",
-            required=False,
+            required=True,
             default=False,
         )
         self.cmdbase.add_login_arguments_group(disable_parser)

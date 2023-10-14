@@ -190,7 +190,7 @@ class IloLicenseCommand:
             results = self.rdmc.app.post_handler(path, body)
             if results.status == 201:
                 return ReturnCodes.SUCCESS
-        except IloLicenseError:
+        except rmc_helper.IloLicenseError:
             self.rdmc.ui.error("Error Occured while install")
             return ReturnCodes.ILO_LICENSE_ERROR
         except rmc_helper.IdTokenError:

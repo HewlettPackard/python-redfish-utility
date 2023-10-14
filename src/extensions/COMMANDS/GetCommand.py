@@ -54,13 +54,13 @@ class GetCommand:
             "name": "get",
             "usage": None,
             "description": "To retrieve all"
-            " the properties run without arguments. \n\t*Note*: "
-            "a type will need to be selected or this will return an "
-            "error.\n\texample: get\n\n\tTo retrieve multiple "
-            "properties use the following example\n\texample: "
-            "get Temperatures/ReadingCelsius Fans/Name --selector=Thermal."
-            "\n\n\tTo change output style format provide"
-            " the json flag\n\texample: get --json",
+                           " the properties run without arguments. \n\t*Note*: "
+                           "a type will need to be selected or this will return an "
+                           "error.\n\texample: get\n\n\tTo retrieve multiple "
+                           "properties use the following example\n\texample: "
+                           "get Temperatures/ReadingCelsius Fans/Name --selector=Thermal."
+                           "\n\n\tTo change output style format provide"
+                           " the json flag\n\texample: get --json",
             "summary": "Displays the current value(s) of a" " property(ies) within a selected type.",
             "aliases": [],
             "auxcommands": ["LogoutCommand"],
@@ -117,13 +117,13 @@ class GetCommand:
         return ReturnCodes.SUCCESS
 
     def getworkerfunction(
-        self,
-        args,
-        options,
-        readonly=False,
-        filtervals=(None, None),
-        results=None,
-        uselist=False,
+            self,
+            args,
+            options,
+            readonly=False,
+            filtervals=(None, None),
+            results=None,
+            uselist=False,
     ):
         """main get worker function
 
@@ -175,6 +175,9 @@ class GetCommand:
                 del content["Attributes"]
             contents[ind] = OrderedDict(sorted(list(content.items()), key=lambda x: x[0]))
         if uselist:
+            if not contents:
+                raise NoContentsFoundForOperationError("No get contents found for entry: %s, Check if it "
+                                                       "Oem/Hpe Attribute" % args[0])
             contents = contents[0]
             contents = {
                 key: val for key, val in contents.items() if key not in HARDCODEDLIST and "@odata" not in key.lower()
@@ -301,10 +304,10 @@ class GetCommand:
             "--selector",
             dest="selector",
             help="Optionally include this flag to select a type to run"
-            " the current command on. Use this flag when you wish to"
-            " select a type without entering another command, or if you"
-            " wish to work with a type that is different from the one"
-            " you currently have selected.",
+                 " the current command on. Use this flag when you wish to"
+                 " select a type without entering another command, or if you"
+                 " wish to work with a type that is different from the one"
+                 " you currently have selected.",
             default=None,
         )
 
@@ -312,13 +315,13 @@ class GetCommand:
             "--filter",
             dest="filter",
             help="Optionally set a filter value for a filter attribute."
-            " This uses the provided filter for the currently selected"
-            " type. Note: Use this flag to narrow down your results. For"
-            " example, selecting a common type might return multiple"
-            " objects that are all of that type. If you want to modify"
-            " the properties of only one of those objects, use the filter"
-            " flag to narrow down results based on properties."
-            "\t\t\t\t\t Usage: --filter [ATTRIBUTE]=[VALUE]",
+                 " This uses the provided filter for the currently selected"
+                 " type. Note: Use this flag to narrow down your results. For"
+                 " example, selecting a common type might return multiple"
+                 " objects that are all of that type. If you want to modify"
+                 " the properties of only one of those objects, use the filter"
+                 " flag to narrow down results based on properties."
+                 "\t\t\t\t\t Usage: --filter [ATTRIBUTE]=[VALUE]",
             default=None,
         )
         customparser.add_argument(
@@ -327,8 +330,8 @@ class GetCommand:
             dest="json",
             action="store_true",
             help="Optionally include this flag if you wish to change the"
-            " displayed output to JSON format. Preserving the JSON data"
-            " structure makes the information easier to parse.",
+                 " displayed output to JSON format. Preserving the JSON data"
+                 " structure makes the information easier to parse.",
             default=False,
         )
         customparser.add_argument(
@@ -336,8 +339,8 @@ class GetCommand:
             dest="noreadonly",
             action="store_true",
             help="Optionally include this flag if you wish to only show"
-            " properties that are not read-only. This is useful to see what "
-            "is configurable with the selected type(s).",
+                 " properties that are not read-only. This is useful to see what "
+                 "is configurable with the selected type(s).",
             default=False,
         )
         customparser.add_argument(

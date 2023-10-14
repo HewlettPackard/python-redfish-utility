@@ -414,6 +414,10 @@ class UploadComponentCommand:
                 service=False,
             )
 
+            if res.status == 400 and res.dict is None:
+                self.rdmc.ui.error("Component " + filename + " was not uploaded , iLO returned 400 error code. Check if the user has all privileges to perform the operation.\n")
+                return ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
+
             if res.status != 200:
                 return ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
             else:

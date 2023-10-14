@@ -1514,7 +1514,8 @@ class StorageControllerCommand:
 
             if "Identifiers" in tmp:
                 durablename = tmp["Identifiers"]
-                d_name = [name["DurableName"] for name in durablename]
+                if durablename is not None:
+                    d_name = [name["DurableName"] for name in durablename]
                 found_entries = True
 
                 drives = []
