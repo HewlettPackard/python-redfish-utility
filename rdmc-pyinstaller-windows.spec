@@ -10,7 +10,7 @@ def hiddenImportGet():
 	classNames = []
 	_Commands = {}
 
-	extensionDir = os.path.dirname(os.getcwd()+ '\\src')
+	extensionDir = os.path.dirname(os.getcwd()+ '\\ilorest')
 
 	if os.name != 'nt':
 		replacement = '/'
@@ -36,17 +36,17 @@ def hiddenImportGet():
 
 def getData():
 	datalist = []
-	extensionDir = os.path.dirname(os.getcwd()+ '\\src\\extensions\\')
+	extensionDir = os.path.dirname(os.getcwd()+ '\\ilorest\\extensions\\')
 	for (cwd, dirs, _) in os.walk(extensionDir):
 		for dir in dirs:
-			tempstr = cwd.split('\\src\\')[-1]+'\\'+dir+'\\'
-			datalist.append(('.\\src\\' + tempstr + '*.pyc', tempstr))
+			tempstr = cwd.split('\\ilorest\\')[-1]+'\\'+dir+'\\'
+			datalist.append(('.\\ilorest\\' + tempstr + '*.pyc', tempstr))
 	return datalist
 
 compileall.compile_dir('.', force=True, quiet=True, legacy=True)
 
-a = Analysis(['.\\src\\rdmc.py'],
-             pathex=['.\\src'],
+a = Analysis(['.\\ilorest\\rdmc.py'],
+             pathex=['.\\ilorest'],
              binaries=None,
              datas=getData(),
              hiddenimports=hiddenImportGet(),

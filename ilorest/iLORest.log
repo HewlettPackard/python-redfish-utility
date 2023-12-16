@@ -1,0 +1,40 @@
+2023-12-01 15:34:58,559 INFO	: Initializing no proxy.
+2023-12-01 15:34:58,559 DEBUG	: HTTP REQUEST: GET
+	PATH: /redfish/v1
+	HEADERS: {'OData-Version': '4.0', 'Accept-Encoding': 'gzip'}
+	BODY: None
+2023-12-01 15:34:58,559 INFO	: Exception: TypeError(PoolKey.__new__() got an unexpected keyword argument 'key_log_dir')
+2023-12-01 15:49:17,422 INFO	: Initializing no proxy.
+2023-12-01 15:49:17,423 DEBUG	: HTTP REQUEST: GET
+	PATH: /redfish/v1
+	HEADERS: {'OData-Version': '4.0', 'Accept-Encoding': 'gzip'}
+	BODY: None
+2023-12-01 15:49:52,868 INFO	: Exception: TypeError(PoolKey.__new__() got an unexpected keyword argument 'key_log_dir')
+2023-12-01 15:55:39,458 INFO	: Initializing no proxy.
+2023-12-01 15:58:40,164 INFO	: Initializing no proxy.
+2023-12-01 15:58:40,164 DEBUG	: HTTP REQUEST: GET
+	PATH: /redfish/v1
+	HEADERS: {'OData-Version': '4.0', 'Accept-Encoding': 'gzip'}
+	BODY: None
+2023-12-01 15:58:40,165 DEBUG	: Starting new HTTPS connection (1): 10.132.144.205:443
+2023-12-01 15:58:40,200 DEBUG	: Incremented Retry for (url='/redfish/v1'): Retry(total=9, connect=50, read=50, redirect=50, status=None)
+2023-12-01 15:58:40,201 WARNING	: Retrying (Retry(total=9, connect=50, read=50, redirect=50, status=None)) after connection broken by 'SSLError(SSLError(109, '[CONF: MODULE_INITIALIZATION_ERROR] module initialization error (_ssl.c:4004)'))': /redfish/v1
+2023-12-01 15:58:40,201 DEBUG	: Starting new HTTPS connection (2): 10.132.144.205:443
+2023-12-01 15:59:01,338 INFO	: Initializing no proxy.
+2023-12-01 15:59:01,339 DEBUG	: HTTP REQUEST: GET
+	PATH: /redfish/v1
+	HEADERS: {'OData-Version': '4.0', 'Accept-Encoding': 'gzip'}
+	BODY: None
+2023-12-01 15:59:01,339 DEBUG	: Starting new HTTPS connection (1): 10.132.144.205:443
+2023-12-01 15:59:01,358 DEBUG	: Incremented Retry for (url='/redfish/v1'): Retry(total=9, connect=50, read=50, redirect=50, status=None)
+2023-12-01 15:59:01,359 WARNING	: Retrying (Retry(total=9, connect=50, read=50, redirect=50, status=None)) after connection broken by 'SSLError(SSLError(109, '[CONF: MODULE_INITIALIZATION_ERROR] module initialization error (_ssl.c:4004)'))': /redfish/v1
+2023-12-01 15:59:01,359 DEBUG	: Starting new HTTPS connection (2): 10.132.144.205:443
+2023-12-01 16:13:44,849 INFO	: Initializing no proxy.
+2023-12-01 16:13:44,849 DEBUG	: HTTP REQUEST: GET
+	PATH: /redfish/v1
+	HEADERS: {'OData-Version': '4.0', 'Accept-Encoding': 'gzip'}
+	BODY: None
+2023-12-01 16:13:44,850 DEBUG	: Starting new HTTPS connection (1): 10.132.144.205:443
+2023-12-01 16:13:44,863 DEBUG	: Incremented Retry for (url='/redfish/v1'): Retry(total=9, connect=50, read=50, redirect=50, status=None)
+2023-12-01 16:13:44,863 WARNING	: Retrying (Retry(total=9, connect=50, read=50, redirect=50, status=None)) after connection broken by 'SSLError(SSLError(109, '[CONF: MODULE_INITIALIZATION_ERROR] module initialization error (_ssl.c:4004)'))': /redfish/v1
+2023-12-01 16:13:44,863 DEBUG	: Starting new HTTPS connection (2): 10.132.144.205:443

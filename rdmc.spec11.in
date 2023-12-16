@@ -1,4 +1,3 @@
-%global __os_install_post %{nil}
 #
 # spec file for package ilorest (Version %VERSION%)
 #
@@ -24,6 +23,8 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %description
 Command line interface for managing HPE ProLiant Servers
 
+%global __os_install_post %{nil}
+
 Authors:
 --------
     Hewlett Packard Enterprise
@@ -33,8 +34,8 @@ Authors:
 
 %build
 mv rdmc-pyinstaller-lin.spc rdmc-pyinstaller-lin.spec
-/usr/local/python3.8/bin/pyinstaller rdmc-pyinstaller-lin.spec
-#cp dist/ilorest ilorest
+/usr/local/python3.11/bin/pyinstaller rdmc-pyinstaller-lin.spec
+cp dist/ilorest ilorest
 
 %install
 install -D -m 0755 dist/ilorest $RPM_BUILD_ROOT%{_sbindir}/ilorest
@@ -42,20 +43,14 @@ install -D -m 0755 dist/ilorest $RPM_BUILD_ROOT%{_sbindir}/ilorest
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/ilorest
 install -D -m 0644 rdmc-linux.conf $RPM_BUILD_ROOT%{_sysconfdir}/ilorest/redfish.conf
 
-#mkdir -p $RPM_BUILD_ROOT%{_mandir}/man8
-#install -D -m 0644 docs/sphinx/_build/man/ilorest.8.gz $RPM_BUILD_ROOT%{_mandir}/man8
-
-#mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/bash_completion.d/*
-#install -D -m 0644 etc/bash_completion.d/ilorest.bash $RPM_BUILD_ROOT%{_sysconfdir}/bash_completion.d/
-
 mkdir -p $RPM_BUILD_ROOT%{_libdir}/
 install -D -m 0666 ./externals/*.so $RPM_BUILD_ROOT%{_libdir}/
 
 %post
-#rm -f %{_sbindir}/hprest
+#rm -f %{_sbindir}/ilorest
 
 %postun
-#rm -f %{_sbindir}/hprest
+#rm -f %{_sbindir}/ilorest
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -65,10 +60,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/%{name}
 %attr(644, root, root) %{_libdir}/ilorest_chif.so
 %config %{_sysconfdir}/%{name}/*
-#%doc README
-#%doc %_mandir/man8/ilorest.8.gz
 %dir %{_sysconfdir}/%{name}
-#%{_sysconfdir}/bash_completion.d/*
 %defattr(444, root, root)
 
 %changelog

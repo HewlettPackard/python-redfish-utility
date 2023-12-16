@@ -10,7 +10,12 @@ jsonpath-rw >= 1.4.0
 setproctitle >= 1.1.8; platform_system == "Linux"
 jsondiff >= 1.2.0
 tabulate >= 0.8.7
-prompt_toolkit >= 3.0.10
+prompt_toolkit
 certifi >= 2020.12.5
-pywin32 >= 300; platform_system == "Windows"
+pywin32; platform_system == "Windows"
+pypiwin32; python_version <= '2.7.19'
 wcwidth >= 0.2.5
+enum; python_version <= '2.7.19'
+pre-commit
+future
+futures; python_version <= '2.7.19'
