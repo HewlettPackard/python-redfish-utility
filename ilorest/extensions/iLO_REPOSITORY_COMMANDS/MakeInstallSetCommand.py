@@ -137,9 +137,10 @@ class MakeInstallSetCommand:
                 else:
                     self.rdmc.ui.printer("\n" + self.helptext[reqdprops[count]] + "\n")
                     if self.loggedin and reqdprops[count].lower() == "filename":
-                        filenm, updateby = self.checkfiles()
+                        filenm, updateby, target = self.checkfiles(options)
                         comps["Filename"] = filenm
                         comps["UpdatableBy"] = updateby
+                        comps["Targets"] = target
                         break
                     else:
                         line = input("Enter " + reqdprops[count] + " for " + comps["Name"] + ": ")
@@ -253,8 +254,19 @@ class MakeInstallSetCommand:
                 validated_property = givenvalue
 
         return validated_property
+    def get_target(self, target):
+        target_list = target.split(",")
+        for target in target_list:
+            try:
+                target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + target
+                dd = self.rdmc.app.get_handler(target_url, service=True, silent=True)
+                if dd.status == 404:
+                    return False
+            except:
+                return False
+        return True
 
-    def checkfiles(self):
+    def checkfiles(self, options):
         count = 0
         self.rdmc.ui.printer("Components currently in the repository that have not " "been added to the installset:\n")
         for comp in self.comps:
@@ -271,8 +283,22 @@ class MakeInstallSetCommand:
                 self.rdmc.ui.warn("Input is not a valid number.\n")
         filename = self.comps[userinput - 1]["Filename"]
         updatableby = self.comps[userinput - 1]["UpdatableBy"]
+        if options.targets:
+            targets = []
+            target_list = options.targets.split(",")
+            for target in target_list:
+                target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + str(target) + "/"
+                targets.append(target_url)
+            verified = self.get_target(options.targets)
+            if not verified:
+                self.rdmc.ui.error("Provided target was not available, Please provide valid target id\n")
+                return ReturnCodes.INVALID_TARGET_ERROR
+            target = targets
+            return filename, updatableby, target
+        else:
+            target = self.comps[userinput - 1]["Targets"]
         del self.comps[userinput - 1]
-        return filename, updatableby
+        return filename, updatableby, target
 
     def minstallsetvalidation(self):
         """makeinstallset validation function"""
@@ -304,4 +330,9 @@ class MakeInstallSetCommand:
             " filename than the default one. The default filename is"
             " myinstallset.json",
             default="myinstallset.json",
+        )
+        customparser.add_argument(
+            "--targets",
+            help="If targets value specify a comma separated" "firmwareinventory id only",
+            metavar="targets_indices",
         )

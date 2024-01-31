@@ -91,7 +91,9 @@ class ListCommand:
             contents = self.rdmc.app.get_handler(url, service=True, silent=True).dict
             security_contents = []
 
-            if not args:
+            if options and options.json and contents:
+                UI().print_out_json(contents)
+            elif not args:
                 UI().print_out_human_readable(contents)
             else:
                 attr = args[0]

@@ -145,10 +145,10 @@ class UploadComponentCommand:
                 device_discovery_status = results["Oem"]["Hpe"]["DeviceDiscoveryComplete"]["DeviceDiscovery"]
                 LOGGER.info("Device Discovery Status is {}".format(device_discovery_status))
                 # check for device discovery
-                if ("DeviceDiscoveryComplete" not in device_discovery_status):
-                    raise DeviceDiscoveryInProgress(
-                        "Device Discovery in progress...Please retry flashing firmware after 10 minutes"
-                    )
+                #if ("DeviceDiscoveryComplete" not in device_discovery_status):
+                #    raise DeviceDiscoveryInProgress(
+                #        "Device Discovery in progress...Please retry flashing firmware after 10 minutes"
+                #    )
             if ctype in ["C", "BC"]:
                 options.component = comp[0]
             # else:
@@ -179,8 +179,10 @@ class UploadComponentCommand:
                 if os.path.exists(loc):
                     shutil.rmtree(loc)
         elif not validation and options.forceupload:
-            self.rdmc.ui.printer("Component " +filestoupload[0][0] +" is already present in repository ,Hence skipping the re upload\n")
-            ret= ReturnCodes.SUCCESS
+            self.rdmc.ui.printer(
+                "Component " + filestoupload[0][0] + " is already present in repository ,Hence skipping the re upload\n"
+            )
+            ret = ReturnCodes.SUCCESS
         else:
             ret = ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
         self.cmdbase.logout_routine(self, options)
@@ -230,12 +232,16 @@ class UploadComponentCommand:
                             validation = False
                             break
                     elif (
-                            comp["Filename"].upper() == str(filehndl[0]).upper()
-                            and options.forceupload
-                            and prevfile != filehndl[0].upper()
+                        comp["Filename"].upper() == str(filehndl[0]).upper()
+                        and options.forceupload
+                        and prevfile != filehndl[0].upper()
                     ):
-                        options.update_repository = True
-                        validation = False
+                        if comp["Locked"]:
+                            options.update_repository = False
+                        else:
+                            options.update_repository = True
+                        if not options.update_target:
+                            validation = False
                         break
                     if options.update_repository:
                         if (
@@ -252,9 +258,9 @@ class UploadComponentCommand:
                             validation = False
                             break
                         elif (
-                                comp["Filename"].upper() == str(filehndl[0]).upper()
-                                and prevfile != filehndl[0].upper()
-                                and comp["Locked"]
+                            comp["Filename"].upper() == str(filehndl[0]).upper()
+                            and prevfile != filehndl[0].upper()
+                            and comp["Locked"]
                             and options.forceupload
                         ):
                             validation = False
@@ -433,7 +439,11 @@ class UploadComponentCommand:
             )
 
             if res.status == 400 and res.dict is None:
-                self.rdmc.ui.error("Component " + filename + " was not uploaded , iLO returned 400 error code. Check if the user has all privileges to perform the operation.\n")
+                self.rdmc.ui.error(
+                    "Component "
+                    + filename
+                    + " was not uploaded , iLO returned 400 error code. Check if the user has all privileges to perform the operation.\n"
+                )
                 return ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
 
             if res.status != 200:
@@ -790,4 +800,3 @@ class UploadComponentCommand:
             help="If set then the TPMOverrideFlag is passed in on the associated flash operations",
             default=False,
         )
-

@@ -1163,7 +1163,7 @@ class ServerlogsCommand:
         try:
             context = pyudev.Context()
             for device in context.list_devices(subsystem="block", DEVTYPE='partition'):
-                if device.get("ID_FS_LABEL") == "BLACKBOX" or "iLO" in device.parent.get("ID_VENDOR"):
+                if device.get("ID_FS_LABEL") == "BLACKBOX" or (device.parent and device.parent.get("ID_VENDOR") == "iLO"):
                     dirpath = os.path.join(tempfile.gettempdir(), "BLACKBOX")
 
                     if not os.path.exists(dirpath):

@@ -10,7 +10,7 @@ def hiddenImportGet():
 	classNames = []
 	_Commands = {}
 
-	extensionDir = os.path.dirname(os.getcwd()+ '/ilorest/extensions/')
+	extensionDir = os.path.dirname(os.getcwd()+ '/ilorest')
 
 	replacement = '/'
 
@@ -46,7 +46,7 @@ def getData():
 compileall.compile_dir('.', force=True, quiet=True, legacy=True)
 
 a = Analysis(['.//ilorest//rdmc.py'],
-             pathex=[],
+             pathex=['./ilorest'],
              binaries=None,
              datas=getData(),
              hiddenimports=hiddenImportGet(),

@@ -707,10 +707,10 @@ class DirectoryCommand:
             description=ldap_help + "\n\n\tSimply show LDAP configuration:\n\t\tdirectory ldap\n\n"
             "To modify the LDAP username, password, service address, search strings or "
             "enable/disable LDAP.\n\t\tdirectory ldap <username> <password> "
-            "--serviceaddress x.x.y.z --addsearch string1, string2 --enable.\n\n\tTo add role "
+            "--serviceaddress x.x.y.z --addsearch \"string1; string2\" --enable.\n\n\tTo add role "
             'mapping.\n\t\tdirectory ldap <username> <password> --addrolemap "LocalRole1:"'
-            '"RemoteGroup3,LocalRole2:RemoteGroup4:SID.\n\n\tTo remove role mapping.\n\t\t'
-            "directory ldap <username> <password> --removerolemap LocalRole1, LocalRole2." + privilege_help,
+            '"RemoteGroup3;LocalRole2:RemoteGroup4:SID.\n\n\tTo remove role mapping.\n\t\t'
+            "directory ldap <username> <password> --removerolemap LocalRole1; LocalRole2." + privilege_help,
             formatter_class=RawDescriptionHelpFormatter,
         )
         ldap_parser.add_argument(
@@ -768,9 +768,9 @@ class DirectoryCommand:
             nargs="*",
             action=_DirectoryParse,
             help="Optionally add this flag to add or remove Role Mapping(s) for the LDAP and "
-            "Kerberos services. Remove EX: --removerolemap LocalRole1,LocalRole2 "
-            'Add EX: --addrolemap "LocalRole1:RemoteGroup3,LocalRole2:RemoteGroup4\n\n"'
-            'SID EX: --addrolemap "LocalRole1:RemoteGroup2:SID,LocalRole2:RemoteGroup5:SID'
+            "Kerberos services. Remove EX: --removerolemap LocalRole1;LocalRole2 "
+            'Add EX: --addrolemap "LocalRole1:RemoteGroup3;LocalRole2:RemoteGroup4\n\n"'
+            'SID EX: --addrolemap "LocalRole1:RemoteGroup2;SID,LocalRole2:RemoteGroup5:SID'
             "\n\nNOTE 1: Create a custom local role group (and subsequently assign to a role map)"
             "by adding the numbers associated with privilege(s) desired separated by a semicolon"
             "(;)\n\nNOTE 2: SID is optional",

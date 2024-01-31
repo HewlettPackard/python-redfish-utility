@@ -1,4 +1,4 @@
-%global __os_install_post %{nil}
+%global debug_package %{nil}
 #
 # spec file for package ilorest (Version %VERSION%)
 #

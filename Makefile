@@ -6,7 +6,7 @@ CHROOT_LOCAL_DIR:= $(shell pwd)
 NAME:=ilorest
 VERSION:=2.4.0
 RELEASE:=1
-SPHINXBUILD:=$(BUILD_DIR)/pylib/Sphinx-1.0.7/sphinx-build.py
+#SPHINXBUILD:=$(BUILD_DIR)/pylib/Sphinx-1.0.7/sphinx-build.py
 BLOFLY := /net
 #CREATE_CHROOT := /net/blofly.us.rdlabs.hpecorp.net/data/blofly/iss-linux-sdk/chrootbuilder/create_chroot.sh
 CREATE_CHROOT := $(CHROOT_LOCAL_DIR)/chrootbuilder/create_chroot.sh
@@ -30,12 +30,12 @@ all: rpm
 export PYTHONPATH=$(BUILD_DIR)/pylib/docutils-0.16:$(BUILD_DIR)/pylib/roman-3.3/src:$(BUILD_DIR)/pylib/Jinja2-2.11.2:$(BUILD_DIR)/pylib/Sphinx-1.0.7
 # export http_proxy=proxy.houston.hp.com:8080
 tbz:
-	rm -rf $(BUILD_DIR)/pylib
-	mkdir -p $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/roman/roman-3.3.tar.gz -C $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/sphinx/Sphinx-1.0.7.tar.gz -C $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/docutils/docutils-0.16.tar.gz -C $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/jinja/Jinja2-2.11.2.tar.gz -C $(BUILD_DIR)/pylib
+	#rm -rf $(BUILD_DIR)/pylib
+	#mkdir -p $(BUILD_DIR)/pylib
+	#tar xfz $(SRCROOT)/packaging/packages/roman/roman-3.3.tar.gz -C $(BUILD_DIR)/pylib
+	#tar xfz $(SRCROOT)/packaging/packages/sphinx/Sphinx-1.0.7.tar.gz -C $(BUILD_DIR)/pylib
+	#tar xfz $(SRCROOT)/packaging/packages/docutils/docutils-0.16.tar.gz -C $(BUILD_DIR)/pylib
+	#tar xfz $(SRCROOT)/packaging/packages/jinja/Jinja2-2.11.2.tar.gz -C $(BUILD_DIR)/pylib
 
 	rm -rf "$(NAME)-$(VERSION)"
 	rm -f  "$(NAME)-$(VERSION).tar.bz2"
@@ -45,16 +45,15 @@ tbz:
             ( tar -C $(NAME)-$(VERSION) -xf -)
 	sed -e "s/\%VERSION\%/$(VERSION)/g"  -e "s/\%RELEASE\%/$(RELEASE)/g"\
             rdmc.spec.in > "$(NAME)-$(VERSION)/rdmc.spec"
-	sed -i -e "s/\%VERSION\%/$(VERSION)/g" -e "s/\%RELEASE\%/$(RELEASE)/g" \
-            docs/sphinx/conf.py
+	#sed -i -e "s/\%VERSION\%/$(VERSION)/g" -e "s/\%RELEASE\%/$(RELEASE)/g" docs/sphinx/conf.py
 
 	#make -C "$(NAME)-$(VERSION)/docs/sphinx" man  SPHINXBUILD=$(SPHINXBUILD)
 	#gzip -c "$(NAME)-$(VERSION)/docs/sphinx/_build/man/ilorest.8" > "$(NAME)-$(VERSION)/docs/sphinx/_build/man/ilorest.8.gz"
 
-	rm -rf "$(NAME)-$(VERSION)/Sphinx-1.0.7"
-	rm -rf "$(NAME)-$(VERSION)/docutils-0.16"
-	rm -rf "$(NAME)-$(VERSION)/Jinja2-2.11.2"
-	rm -rf "$(NAME)-$(VERSION)/scexe_src/scexe.spec"
+	#rm -rf "$(NAME)-$(VERSION)/Sphinx-1.0.7"
+	#rm -rf "$(NAME)-$(VERSION)/docutils-0.16"
+	#rm -rf "$(NAME)-$(VERSION)/Jinja2-2.11.2"
+	#rm -rf "$(NAME)-$(VERSION)/scexe_src/scexe.spec"
 	cp -r $(MTX_STAGING_PATH)/externals "$(NAME)-$(VERSION)"
 	tar cfj "$(NAME)-$(VERSION).tar.bz2" "$(NAME)-$(VERSION)"
 	rm -rf "$(NAME)-$(VERSION)"
@@ -87,7 +86,9 @@ rpms:
 	$(CHROOT) $(DEBCHROOTD) bash -c 'useradd -m monkey'
 	cp "$(NAME)-$(VERSION).tar.bz2" $(DEBCHROOTD)/home/monkey
 	$(CHROOT) $(DEBCHROOTD) bash -c 'su - monkey -c "mkdir -p ~/build && cd ~/build && mkdir -p BUILD RPMS SOURCES SPECS SRPMS"'
-
+	echo "%_binary_filedigest_algorithm 8" > $(DEBCHROOTD)/home/monkey/.rpmmacros
+	echo "%_source_filedigest_algorithm 8" >> $(DEBCHROOTD)/home/monkey/.rpmmacros
+	echo "%__gpg_sign_cmd %{__gpg} gpg --force-v3-sigs --batch --verbose --no-armor --passphrase-fd 3 --no-secmem-warning -u %{_gpg_name} -sbo %{__signature_filename} --digest-algo sha256 %{__plaintext_filename}" >> $(DEBCHROOTD)/home/monkey/.rpmmacros
 	echo "rpmbuild -ta --define '_topdir /home/monkey/build/' /home/monkey/$(NAME)-$(VERSION).tar.bz2 " >> $(DEBCHROOTD)/home/monkey/c.sh
 	$(CHROOT) $(DEBCHROOTD) bash -c 'chmod a+x /home/monkey/c.sh'
 	$(CHROOT) $(DEBCHROOTD) bash -c 'su - monkey -c "/home/monkey/c.sh"'
@@ -99,7 +100,8 @@ rpms:
 ifdef MTX_COLLECTION_PATH
 	cp -r ./RPMS $(MTX_COLLECTION_PATH)/
 	# hpesign will error out if signing not successful
-	hpesign --signonly `find /opt/mxdk/buildagent/work/MTX_COLLECTION_PATH -type f -name '*.rpm'`
+	hpesign --project SDR_RPM_2048 --signonly `find /opt/mxdk/buildagent/work/MTX_COLLECTION_PATH -type f -name '*.rpm'`
+	#hpesign --signonly `find /opt/mxdk/buildagent/work/MTX_COLLECTION_PATH -type f -name '*.rpm'`
 endif
 
 
@@ -138,7 +140,7 @@ define freeze-chroot
 	tar -xvf $(SRCROOT)/packaging/python3/openssl-1.0.2zf.tar.gz -C $(DEBCHROOTD)
 	tar -xvf $(SRCROOT)/packaging/python3/openssl-fips-2.0.16.tar.gz -C $(DEBCHROOTD)
 
-	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /openssl-fips-2.0.16 && ./config && make && make install && cd ..'
+	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /openssl-fips-2.0.16 && ./config && make all && make install && cd ..'
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /openssl-1.0.2zf && ./config fips shared --with-fipsdir=/usr/local/ssl/fips-2.0 --prefix=/usr/local/openssl1.0 --openssldir=/usr/local/openssl1.0 -m64 -Wa,--noexecstack threads no-idea no-mdc2 no-rc5 no-krb5 no-ssl2 no-ssl3 enable-asm enable-camellia enable-seed enable-tlsext enable-rfc3779 enable-cms && make depend && make install'
 	#$(CHROOT) $(DEBCHROOTD) bash -c 'cd /openssl-openssl-3.0.2 && ./Configure --prefix=/usr/local/openssl3.0 --openssldir=/usr/local/openssl3.0 enable-fips && make && make install'
 	echo "/usr/local/openssl1.0/lib" > $(DEBCHROOTD)/etc/ld.so.conf.d/openssl1.0.conf
@@ -193,12 +195,8 @@ define freeze-chroot
 
 	tar xfz $(SRCROOT)/packaging/ext/setuptools-58.1.0.tar.gz -C $(DEBCHROOTD)
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /setuptools-58.1.0 && /usr/local/python3.8/bin/python3.8 setup.py install'
-	#unzip $(SRCROOT)/packaging/ext/setuptools-58.1.0.zip -d $(DEBCHROOTD)
-	#$(CHROOT) $(DEBCHROOTD) bash -c 'cd /setuptools-58.1.0 && /usr/local/python3.8/bin/python3.8 setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/pyinstaller-hooks-contrib-2022.3.tar.gz -C $(DEBCHROOTD)
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /pyinstaller-hooks-contrib-2022.3 && /usr/local/python3.8/bin/python3.8 setup.py install'
-	#tar xfz $(SRCROOT)/packaging/ext/python-dotenv-0.19.2.tar.gz -C $(DEBCHROOTD)
-	#$(CHROOT) $(DEBCHROOTD) bash -c 'cd /python-dotenv-0.19.2 && /usr/local/python3.8/bin/python3.8 setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/altgraph-0.17.2.tar.gz -C $(DEBCHROOTD)
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /altgraph-0.17.2 && /usr/local/python3.8/bin/python3.8 setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/wheel-0.37.1.tar.gz -C $(DEBCHROOTD)
@@ -215,8 +213,6 @@ define freeze-chroot
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /jsonpatch-1.32 && /usr/local/python3.8/bin/python3.8 setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/jsonpath-rw-1.4.0.tar.gz -C $(DEBCHROOTD)
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /jsonpath-rw-1.4.0 && /usr/local/python3.8/bin/python3.8 setup.py install'
-	#tar xfz $(SRCROOT)/packaging/ext/setproctitle-1.2.2.tar.gz -C $(DEBCHROOTD)
-	#$(CHROOT) $(DEBCHROOTD) bash -c 'cd /setproctitle-1.2.2 && /usr/local/python3.8/bin/python3.8 setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/pyudev-0.23.2.tar.gz -C $(DEBCHROOTD)
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /pyudev-0.23.2 && /usr/local/python3.8/bin/python3.8 setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/jsondiff-1.3.1.tar.gz -C $(DEBCHROOTD)

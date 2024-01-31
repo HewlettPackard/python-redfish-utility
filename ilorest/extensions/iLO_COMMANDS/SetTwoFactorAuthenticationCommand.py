@@ -71,7 +71,7 @@ class SetTwoFactorAuthenticationCommand:
     def twofactorauth(self, options):
         """two authentication function
 
-        :param enable\disable
+        :param enable or disable
         """
 
         # pre requisite checks
@@ -83,7 +83,7 @@ class SetTwoFactorAuthenticationCommand:
         if not status:
             self.rdmc.ui.error("SMTP for TFA is not enabled\n")
             raise TfaEnablePreRequisiteError(
-                "\nTo be able to enable\disable TFA\nKindly enable and set the SMTP details prior to enabling TFA "
+                "\nTo be able to enable or disable TFA\nKindly enable and set the SMTP details prior to enabling TFA "
                 "for the server . You can use our command as given below for enabling  smtp for tfa \n\n"
                 "SetTwoFactorAuthentication smtp --smtpfortfaenabled true --alertmailsenderdomain 'testuser@test.com' "
                 "--alertmailsmtpserver 'smtp.server.com' \n"
@@ -97,7 +97,7 @@ class SetTwoFactorAuthenticationCommand:
         if not resp.dict["LDAP"]["ServiceEnabled"]:
             self.rdmc.ui.error("Ldap service is not enabled\n")
             raise TfaEnablePreRequisiteError(
-                "\nTo be able to enable\disable TFA\nKindly enable LDAP Directory Authentication to use Directory "
+                "\nTo be able to enable or disable TFA\nKindly enable LDAP Directory Authentication to use Directory "
                 "Default Schema. Same can be set using below command\n\ndirectory ldap enable "
                 "--authentication=DefaultSchema\n"
             )
@@ -113,10 +113,10 @@ class SetTwoFactorAuthenticationCommand:
             self.rdmc.app.patch_handler(path, body)
             return ReturnCodes.SUCCESS
         except IloLicenseError:
-            self.rdmc.ui.error("Error Occured while enable\disable operation for TFA")
+            self.rdmc.ui.error("Error Occured while enable or disable operation for TFA")
             return ReturnCodes.ILO_LICENSE_ERROR
         except IdTokenError:
-            self.rdmc.ui.error("Insufficient Privilege to enable \ disable TFA ")
+            self.rdmc.ui.error("Insufficient Privilege to enable or disable TFA ")
             return ReturnCodes.RIS_MISSING_ID_TOKEN
         except IloResponseError:
             self.rdmc.ui.error("Provided values are invalid , iLO threw error")

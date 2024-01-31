@@ -552,7 +552,7 @@ class EthernetCommand:
                         continue
                     elif "ethernetinterface" in _type.lower() or "ethernetnetworkinterface" in _type.lower():
                         if "managers" in _path.lower():
-                            self.load_ethernet_aux(_type, _path, data[ilotype][_path])
+                            self.load_ethernet_aux(_type, _path, d[ilotype][_path])
                         elif "systems" in _path.lower():
                             self.rdmc.ui.warn("Systems Ethernet Interfaces '%s' " "cannot be modified." % _path)
                             continue
@@ -899,9 +899,13 @@ class EthernetCommand:
                 flags["DHCPv4"] = {"UseDNSServers": False}
 
         # verify dependencies on those flags which are to be applied are eliminated
-
+        if "IPv4Addresses" in flags:
+            del flags["IPv4Addresses"]
         try:
-            self.rdmc.app.patch_handler(_path, flags, silent=True)
+            if not flags:
+                self.rdmc.ui.warn("No change in configurations in "+_path)
+            else:
+                self.rdmc.app.patch_handler(_path, flags, silent=True)
         except IloResponseError as excp:
             errors.append("iLO Responded with the following errors setting DHCP: %s.\n" % excp)
 

@@ -32,7 +32,7 @@ all: vmware tbz chroot freeze-ilorest
 vmware:
 	rm -rf /tmp/vmware-sdk/
 	mkdir -p /tmp/vmware-sdk/
-	#tar xfz $(MTX_STAGING_PATH)/externals/hexdk-8.0.0-20143090-20180879.tar.gz -C /tmp/vmware-sdk/
+	#tar xfz $(MTX_STAGING_PATH)/externals/hexdk-8.0.0-20613240-20615511.tar.gz -C /tmp/vmware-sdk/
 
 export PYTHONPATH=$(BUILD_DIR)/pylib/docutils-0.8:$(BUILD_DIR)/pylib/roman-2.0.0/src:$(BUILD_DIR)/pylib/Jinja2-2.5.5:$(BUILD_DIR)/pylib/Sphinx-1.0.7
 
@@ -41,15 +41,15 @@ tbz:
 	git clone git@github.hpe.com:ess-morpheus/chrootbuilder.git $(CHROOT_LOCAL_DIR)/chrootbuilder
 	rm -rf $(BUILD_DIR)/pylib
 	mkdir -p $(BUILD_DIR)/pylib
-	cd $(BUILD_DIR)/pylib && unzip $(SRCROOT)/packaging/packages/roman/roman-2.0.0.zip
-	tar xfz $(SRCROOT)/packaging/packages/sphinx/Sphinx-1.0.7.tar.gz -C $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/docutils/docutils-0.8.tar.gz -C $(BUILD_DIR)/pylib
-	tar xfz $(SRCROOT)/packaging/packages/jinja/Jinja2-2.5.5.tar.gz -C $(BUILD_DIR)/pylib
+	#cd $(BUILD_DIR)/pylib && unzip $(SRCROOT)/packaging/packages/roman/roman-2.0.0.zip
+	#tar xfz $(SRCROOT)/packaging/packages/sphinx/Sphinx-1.0.7.tar.gz -C $(BUILD_DIR)/pylib
+	#tar xfz $(SRCROOT)/packaging/packages/docutils/docutils-0.8.tar.gz -C $(BUILD_DIR)/pylib
+	#tar xfz $(SRCROOT)/packaging/packages/jinja/Jinja2-2.5.5.tar.gz -C $(BUILD_DIR)/pylib
 
 	rm -rf "$(NAME)-$(VERSION)"
 	rm -f  "$(NAME)-$(VERSION).tar.bz2"
 	mkdir -p "$(NAME)-$(VERSION)"
-	cp -r src docs rdmc-pyinstaller-lin.spc rdmc-linux.conf  "$(NAME)-$(VERSION)"
+	cp -r ilorest docs rdmc-pyinstaller-lin.spc rdmc-linux.conf  "$(NAME)-$(VERSION)"
 	sed -e "s/\%VERSION\%/$(VERSION)/g"  -e "s/\%RELEASE\%/$(RELEASE)/g"\
             rdmc.spec.in > "$(NAME)-$(VERSION)/rdmc.spec"
 	sed -i -e "s/\%VERSION\%/$(VERSION)/g" -e "s/\%RELEASE\%/$(RELEASE)/g" \
@@ -86,7 +86,7 @@ freeze-ilorest:
 	cp -r $(DEBCHROOTD)/home/monkey/build/ilorest-$(VERSION)/rdmc-linux.conf /tmp/dist/etc/redfish.conf
 	cd /tmp/dist/ && tar --format=gnu -cvf /tmp/ilorest_vmware.tar *
 	cp /tmp/ilorest_vmware.tar $(DEBCHROOTD)/tmp
-	$(CHROOT) $(DEBCHROOTD) /opt/vmware/esxpackagingkit-8.0-20172892/epkLib/vmtar -c /tmp/ilorest_vmware.tar -v -o /tmp/ilorest_vmware.vmtar
+	$(CHROOT) $(DEBCHROOTD) /opt/vmware/esxpackagingkit-8.0-20615152/epkLib/vmtar -c /tmp/ilorest_vmware.tar -v -o /tmp/ilorest_vmware.vmtar
 	cp $(DEBCHROOTD)/tmp/ilorest_vmware.vmtar /tmp/ilorest_vmware.vmtar
 	gzip -9 < /tmp/ilorest_vmware.vmtar > /tmp/ilorest_vmware.v00
 	gzip -9 < /tmp/ilorest_vmware.tar > /tmp/ilorest_vmware.tgz
@@ -113,10 +113,10 @@ chroot:
 	#$(CHROOT) $(DEBCHROOTD) yum install -y libxml2-devel libxslt-devel ncurses-devel expat-devel sqlite-devel readline-devel bzip2-devel
 	#$(CHROOT) $(DEBCHROOTD) yum install -y openssl-devel which util-linux glibc.i686
 
-	tar -zxvf $(MTX_STAGING_PATH)/externals/hexdk-8.0.0-20143090-20180879.tar.gz -C $(DEBCHROOTD)
+	tar -zxvf $(MTX_STAGING_PATH)/externals/hexdk-8.0.0-20613240-20615511.tar.gz -C $(DEBCHROOTD)
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /rpms && ls -al && rpm -ivh --force vmware*.rpm'
 
-	echo "/opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/lib" >> $(DEBCHROOTD)/etc/ld.so.conf.d/opt-python3.5.conf
+	echo "/opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/lib64" >> $(DEBCHROOTD)/etc/ld.so.conf.d/opt-python3.5.conf
 	$(CHROOT) $(DEBCHROOTD) ldconfig -v
 
 	unzip $(SRCROOT)/packaging/ext/setuptools-50.3.2.zip -d $(DEBCHROOTD)
@@ -129,7 +129,7 @@ chroot:
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /python-dotenv-0.19.2 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
 	tar xfz $(SRCROOT)/packaging/ext/altgraph-0.17.2.tar.gz -C $(DEBCHROOTD)
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /altgraph-0.17.2 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'
-	tar xfz $(SRCROOT)/packaging/pyinstaller/PyInstaller-3.6.tar.gz -C $(DEBCHROOTD)
+	tar xfz $(SRCROOT)/packaging/ext/PyInstaller-3.6.tar.gz -C $(DEBCHROOTD)
 	cp $(SRCROOT)/vmware_bootloader/64bit/run* $(DEBCHROOTD)/PyInstaller-3.6/PyInstaller/bootloader/Linux-64bit/
 	cp $(SRCROOT)/vmware_bootloader/32bit/run* $(DEBCHROOTD)/PyInstaller-3.6/PyInstaller/bootloader/Linux-32bit/
 	$(CHROOT) $(DEBCHROOTD) bash -c 'cd /PyInstaller-3.6 && /opt/vmware/toolchain/lin64/python-3.5.1-openssl1.0.2/bin/python setup.py install'

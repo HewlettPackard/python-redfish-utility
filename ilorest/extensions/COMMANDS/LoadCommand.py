@@ -192,6 +192,12 @@ class LoadCommand:
                             import tempfile
 
                             patchpath = "/redfish/v1/Managers/1/EthernetInterfaces/1/"
+
+                            try:
+                                payload = loadcontent[content][patchpath]
+                            except KeyError:
+                                continue
+
                             payload = loadcontent[content][patchpath]
                             remove_odata = self.securebootremovereadonly(payload)
                             payload.update(remove_odata)

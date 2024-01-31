@@ -88,13 +88,15 @@ class CreateVolumeCommand:
         ilo_ver = self.rdmc.app.getiloversion()
         if ilo_ver < 6.110:
             try:
-                self.auxcommands["select"].selectfunction("SmartStorageConfig.")
-            except Exception:
+                self.auxcommands["select"].selectfunction("StorageController.")
+                content = self.rdmc.app.getprops()
                 if options.command == "quickdrive":
                     raise InvalidCommandLineError("This controller is not compatible with quickdrive option. "
                                                   "Please use customdrive or volume option\n")
                 ilo_ver = 6.110
                 options.command = "volume"
+            except Exception:
+                pass
 
         if ilo_ver >= 6.110:
             if options.command == "customdrive" or options.command == "quickdrive":
@@ -166,8 +168,8 @@ class CreateVolumeCommand:
                             newdrive1 = {"Links": {"DedicatedSpareDrives": [{}]}}
                             volume_path1 = volume_path + result.session_location.split("Volumes")[1]
 
-                            sparedrives = options.sparedrives[0].split(",")
-
+                            sparedrives = options.sparedrives.split(",")
+                            s_array = []
                             if len(controller["physical_drives"]) > 0:
                                 for p_id in controller["physical_drives"]:
                                     p_loc = self.convertloc(
@@ -177,14 +179,14 @@ class CreateVolumeCommand:
                                     )
                                     l_loc = p_loc.split(":")[1:]
                                     p_loc = ":".join(l_loc)
+
                                     for sdrive in sparedrives:
                                         if sdrive == p_loc and sdrive not in array:
-                                            newdrive1["Links"]["DedicatedSpareDrives"] = [
-                                                {
+                                            s_array.append({
                                                     "@odata.id": controller["physical_drives"][str(p_id)]["@odata.id"],
-                                                }
-                                            ]
+                                                })
                                             set_spare = True
+                            newdrive1["Links"]["DedicatedSpareDrives"] = s_array
                             if not set_spare:
                                 raise InvalidCommandLineError(
                                     "Invalid spare drive given, check whether given spare drive is different from "
@@ -192,7 +194,7 @@ class CreateVolumeCommand:
                                 )
 
                             self.rdmc.app.patch_handler(volume_path1, newdrive1)
-                            self.rdmc.ui.printer("Successfully added the %s sparedrive\n" % (newdrive1))
+                            self.rdmc.ui.printer("Successfully added the sparedrives %s\n" % (newdrive1))
 
                         return ReturnCodes.SUCCESS
 

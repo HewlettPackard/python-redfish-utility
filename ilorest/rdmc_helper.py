@@ -204,6 +204,7 @@ class ReturnCodes(object):
     TASKQUEUE_ERROR = 104
     DEVICE_DISCOVERY_IN_PROGRESS = 105
     INSTALLSET_ERROR = 106
+    INVALID_TARGET_ERROR = 107
 
     # **** ComputeOpsManagement Errors****
     CLOUD_CONNECT_TIMEOUT = 111

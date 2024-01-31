@@ -1,11 +1,20 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-
 src/ilorest.log
 /build
 /dist
-
 .settings
 .idea/
 .cache/
+ilorest_chif.dll
+ilorest.egg-info
+.eggs
+docs/slate/ubuntu-*-console.log
+*.log
+*.json
+venv
+pip-wheel-metadata
+ilorest/redfish
+src
+

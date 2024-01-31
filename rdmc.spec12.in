@@ -23,18 +23,18 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %description
 Command line interface for managing HPE ProLiant Servers
 
-%global debug_package %{nil}
-
 Authors:
 --------
     Hewlett Packard Enterprise
+
+%global debug_package %{nil}
 
 %prep
 %setup -n ilorest-%{version}
 
 %build
 mv rdmc-pyinstaller-lin.spc rdmc-pyinstaller-lin.spec
-/usr/local/python3.10/bin/pyinstaller rdmc-pyinstaller-lin.spec
+/usr/local/python3.12/bin/pyinstaller rdmc-pyinstaller-lin.spec
 cp dist/ilorest ilorest
 
 %install

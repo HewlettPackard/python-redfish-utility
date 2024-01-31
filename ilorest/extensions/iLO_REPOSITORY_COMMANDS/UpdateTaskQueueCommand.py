@@ -179,7 +179,16 @@ class UpdateTaskQueueCommand:
         for task in tasks:
             usedcomp = None
             newtask = None
-
+            if options.targets:
+                targets = []
+                target_list = options.targets.split(",")
+                for target in target_list:
+                    target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + str(target) + "/"
+                    targets.append(target_url)
+                verified = self.verify_targets(options.targets)
+                if not verified:
+                    self.rdmc.ui.error("Provided target was not available, Please provide valid target id\n")
+                    return ReturnCodes.INVALID_TARGET_ERROR
             try:
                 usedcomp = int(task)
                 newtask = {
@@ -188,6 +197,8 @@ class UpdateTaskQueueCommand:
                     "WaitTimeSeconds": usedcomp,
                     "UpdatableBy": ["Bmc"],
                 }
+                if options.targets:
+                    newtask["Targets"] = targets
             except ValueError:
                 pass
 
@@ -231,7 +242,6 @@ class UpdateTaskQueueCommand:
                     raise NoContentsFoundForOperationError(
                         "Component " "referenced is not present on iLO Drive: %s" % task
                     )
-
                 newtask = {
                     "Name": "Update-%s %s"
                     % (
@@ -243,10 +253,24 @@ class UpdateTaskQueueCommand:
                     "UpdatableBy": usedcomp["UpdatableBy"],
                     "TPMOverride": tpmflag,
                 }
+                if options.targets:
+                    newtask["Targets"] = targets
 
             self.rdmc.ui.printer('Creating task: "%s"\n' % newtask["Name"])
-
+            self.rdmc.ui.printer('payload: "%s"\n' % newtask)
             self.rdmc.app.post_handler(path, newtask)
+
+    def verify_targets(self, target):
+        target_list = target.split(",")
+        for target in target_list:
+            try:
+                target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + target
+                dd = self.rdmc.app.get_handler(target_url, service=True, silent=True)
+                if dd.status == 404:
+                    return False
+            except:
+                return False
+        return True
 
     def printqueue(self, options):
         """Prints the update task queue
@@ -316,7 +340,6 @@ class UpdateTaskQueueCommand:
             help="If set then the TPMOverrideFlag is passed in on the " "associated flash operations",
             default=False,
         )
-
     def definearguments(self, customparser):
         """Wrapper function for new command main function
 
@@ -372,9 +395,10 @@ class UpdateTaskQueueCommand:
             help=create_help,
             description=create_help + "\n\n\tCreate a new task for 30 secs:\n\t\ttaskqueue "
             "create 30\n\n\tCreate a new reboot task.\n\t\ttaskqueue create reboot"
-            "\n\n\tCreate a new component task.\n\t\ttaskqueue create compname.exe"
+            "\n\n\tCreate a new component task.\n\t\ttaskqueue create compname"
             "\n\n\tCreate multiple tasks at once.\n\t\ttaskqueue create 30 "
-            '"compname.exe compname2.exe reboot"',
+            '"compname compname2 reboot"'
+            "\n\n\tCreate a new task using targets: \n\t\t taskqueue create compname --targets <id>\n\n\t",
             formatter_class=RawDescriptionHelpFormatter,
         )
         create_parser.add_argument(
@@ -386,6 +410,12 @@ class UpdateTaskQueueCommand:
             nargs="+",
             default="",
         )
+        create_parser.add_argument(
+            "--targets",
+            help="If targets value specify a comma separated\t" "firmwareinventory id only",
+            metavar="targets_indices",
+        )
+
         self.cmdbase.add_login_arguments_group(create_parser)
         self.options_argument_group(create_parser)
 

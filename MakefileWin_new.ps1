@@ -9,74 +9,52 @@ if (!"$build_number") {
     $build_number = "999"
 }
 
-#& $START_DIR\packaging\vc\VC_redist.x64.exe /q
+Get-WinSystemLocale
+Get-Command python.exe | Select-Object -ExpandProperty Definition
+
+if (-Not (Test-Path "$HOME\appdata\local\programs\python\python310")) {
+    Write-Host "Python Not Installed"
+    Set-Location -Path "${START_DIR}\packaging\python3"
+    #& .\python-3.10.9-amd64.exe /quiet TargetDir="C:\python3109_ilorest" PrependPath=1 Include_test=0 Include_launcher=0
+    Start-Process .\python-3.10.9-amd64.exe -ArgumentList '/quiet Include_test=0 Include_launcher=0 InstallAllUsers=0 PrependPath=1' -Wait
+    #Start-Process .\python-3.10.9-amd64.exe -ArgumentList '/quiet TargetDir=C:\python3109_ilorest Include_test=0 Include_launcher=0 PrependPath=1' -Wait
+    if ( $LastExitCode ) { exit 1 }
+    Start-Sleep -Seconds 120
+    Write-Host "Python Installed Now"
+} else {
+    Write-Host "Python Already Installed"
+}
+Get-ChildItem -Path $HOME\appdata\local\programs\python\python310
+
+if (-Not (Test-Path "$HOME\appdata\local\programs\python\python310")) {
+    exit 1
+}
+
+$PYTHON_AMD64 = "$HOME\appdata\local\programs\python\python310\python.exe"
+$PIP_AMD64 = "$HOME\appdata\local\programs\python\python310\Scripts\pip.exe"
+$PYINST_AMD64 = "$HOME\appdata\local\programs\python\python310\Scripts\pyinstaller.exe"
 
 Get-Command python.exe | Select-Object -ExpandProperty Definition
 
-#Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like "*Python*"} | Remove-WmiObject
 
-#Start-Sleep -Seconds 20
-#if( Test-Path $START_DIR\python311 ) { Remove-Item $START_DIR\python311 -Recurse -Force }
-Remove-Item -Path Env:PYTHONPATH -Force -ErrorAction Ignore
-Remove-Item -Path Env:PYTHONHOME -Force -ErrorAction Ignore
+#$PYTHON_AMD64 -m venv venv
+#& venv\Scripts\activate
 
-#$app = Get-WmiObject -Class Win32_Product | Where-Object {
-#    $_.Name -match "Python*"
-#}
-#$app.Uninstall()
-
-#if ( $LastExitCode ) { exit 1 }
-#Restart-Computer -Force
-
-#Start-Sleep -Seconds 60
-#Set-Location -Path $START_DIR
-#if( Test-Path $START_DIR\python311 ) { Remove-Item $START_DIR\python311 -Recurse -Force }
-#Set-Location -Path $START_DIR
-#New-Item -ItemType directory -Path .\python311
-Set-Location -Path "${START_DIR}\packaging\python3"
-##& .\python-3.10.9-amd64.exe /quiet TargetDir=${START_DIR}\python311 InstallAllUsers=1 PrependPath=1 Include_test=0 Include_launcher=0 /log "%WINDIR%\Temp\python311-Install.log"
-& .\python-3.10.9-amd64.exe /quiet TargetDir=${START_DIR}\python311 InstallAllUsers=1 PrependPath=1 Include_test=0 Include_launcher=0
-if ( $LastExitCode ) { exit 1 }
-Start-Sleep -Seconds 240
 Set-Location -Path "${START_DIR}"
-if (-Not (Test-Path "${START_DIR}\python311")) {
-    Write-Host "Python Not Installed"
-    exit 1
-} else {
-    Write-Host "Python Installed"
-}
 
-# Create an exe from the python script
-$Env:PYTHONHOME="${START_DIR}\python311"
-#$Env:PYTHONPATH="${START_DIR}\python311\Lib;${START_DIR}\python311\Lib\site-packages;${START_DIR}\python311\Scripts;${START_DIR}\python311"
-$PYTHON_AMD64 = "${START_DIR}\python311\python.exe"
-$PIP_AMD64 = "${START_DIR}\python311\Scripts\pip.exe"
-$PYINST_AMD64 = "${START_DIR}\python311\Scripts\pyinstaller.exe"
-
-Set-Location -Path $START_DIR
-#if( Test-Path .\pywin32amd64 ) { Remove-Item .\pywin32amd64 -Recurse -Force }
-#New-Item -ItemType directory -Path .\pywin32amd64
-#& 7z x -y -opywin32amd64 .\packaging\pywin32\pywin32-305.win-amd64-py3.11.exe
-#& 7z x -y -opywin32amd64 .\packaging\pywin32\pywin32-304.win-amd64-py3.10.exe
-
-#Copy-Item "${START_DIR}\pywin32amd64\PLATLIB\*"  "$(get-location)\python311\Lib\site-packages" -Recurse -Force
-#Copy-Item "${START_DIR}\pywin32amd64\SCRIPTS\*"  "$(get-location)\python311\Scripts" -Recurse -Force
-#Set-Location -Path "${START_DIR}\python311\Scripts"
-#& $PYTHON_AMD64 pywin32_postinstall.py "-install"
+$Env:PYTHONHOME="$HOME\appdata\local\programs\python\python310"
 
 # Add FIPS requirements
-
+#$Env:PYTHONIOENCODING = "UTF-8"
 # Add ssl, _ssl, and _hashlib which point to morpheus project OPENSSL
-Copy-Item "${START_DIR}\packaging\python3\windows\*.pyd" "${START_DIR}\python311\DLLs" -Recurse -Force
-Copy-Item "${START_DIR}\packaging\python3\windows\*.dll" "${START_DIR}\python311\DLLs" -Recurse -Force
-Copy-Item "${START_DIR}\packaging\python3\windows\*.cnf" "${START_DIR}\python311\DLLs" -Recurse -Force
-Copy-Item "${START_DIR}\packaging\python3\windows\ssl.py" "${START_DIR}\python311\Lib" -Recurse -Force
+Copy-Item "${START_DIR}\packaging\python3\windows\*.pyd" "$HOME\appdata\local\programs\python\python310\DLLs" -Recurse -Force
+Copy-Item "${START_DIR}\packaging\python3\windows\*.dll" "$HOME\appdata\local\programs\python\python310\DLLs" -Recurse -Force
+Copy-Item "${START_DIR}\packaging\python3\windows\*.cnf" "$HOME\appdata\local\programs\python\python310\DLLs" -Recurse -Force
+Copy-Item "${START_DIR}\packaging\python3\windows\ssl.py" "$HOME\appdata\local\programs\python\python310\Lib" -Recurse -Force
 Write-Host "OpenSSL 3 Copied"
+& $PYTHON_AMD64 --version
 
 Set-Location -Path $START_DIR
-& ${START_DIR}\python311\python -m venv venv
-& venv\Scripts\activate
-#& $PYTHON_AMD64 -m ensurepip
 
 Copy-Item "${START_DIR}\packaging\python3\windows\print_ssl_version.py"  "$(get-location)" -Recurse -Force
 & $PYTHON_AMD64 print_ssl_version.py
@@ -132,7 +110,7 @@ Function InstallPythonModuleBin($python, $name, $version) {
     New-Item -ItemType directory -Path "${START_DIR}\${name}"
     & 7z x -y "-o${name}" .\packaging\ext\${name}-${version}.exe
     Set-Location -Path "${START_DIR}\${name}"
-    Copy-Item "${START_DIR}\${name}\PLATLIB\*"  "${START_DIR}\python311\Lib\site-packages" -Recurse -Force
+    Copy-Item "${START_DIR}\${name}\PLATLIB\*"  "$HOME\appdata\local\programs\python\python310\Lib\site-packages" -Recurse -Force
     Set-Location -Path "${START_DIR}"
 }
 
@@ -145,44 +123,36 @@ Function InstallUPX() {
     Set-Location -Path "${START_DIR}"
 }
 
-InstallPythonModule "$PYTHON_AMD64" "setuptools" "65.6.3"
+InstallPythonModule "$PYTHON_AMD64" "setuptools" "63.1.0"
 InstallPythonModule "$PYTHON_AMD64" "pip" "22.3.1"
 InstallPythonModule "$PYTHON_AMD64" "wheel" "0.38.4"
-InstallPythonModule "$PYTHON_AMD64" "jsonpointer" "2.3"
-InstallPythonModule "$PYTHON_AMD64" "python-dotenv" "0.21.0"
-InstallPythonModule "$PYTHON_AMD64" "six" "1.16.0"
-InstallPythonModule "$PYTHON_AMD64" "ply" "3.11"
-InstallPythonModule "$PYTHON_AMD64" "future" "0.18.2"
-InstallPythonModule "$PYTHON_AMD64" "altgraph" "0.17.3"
-InstallPythonModule "$PYTHON_AMD64" "decorator" "5.1.1"
-InstallPythonModule "$PYTHON_AMD64" "jsonpatch" "1.32"
-InstallPythonModule "$PYTHON_AMD64" "jsonpath-rw" "1.4.0"
-InstallPythonModule "$PYTHON_AMD64" "jsondiff" "2.0.0"
-InstallPythonModule "$PYTHON_AMD64" "pyaes" "1.6.1"
-InstallPythonModule "$PYTHON_AMD64" "urllib3" "1.26.12"
 Set-Location -Path "${START_DIR}\packaging\ext"
+& $PIP_AMD64 install jsonpointer-2.3.tar.gz
+& $PIP_AMD64 install python-dotenv-0.21.0.tar.gz
+& $PIP_AMD64 install six-1.16.0.tar.gz
+& $PIP_AMD64 install ply-3.11.tar.gz
+& $PIP_AMD64 install future-0.18.2.tar.gz
+& $PIP_AMD64 install altgraph-0.17.3.tar.gz
+& $PIP_AMD64 install decorator-5.1.1.tar.gz
+& $PIP_AMD64 install jsonpatch-1.32.tar.gz
+& $PIP_AMD64 install jsonpath-rw-1.4.0.tar.gz
+& $PIP_AMD64 install jsondiff-2.0.0.tar.gz
+& $PIP_AMD64 install pyaes-1.6.1.tar.gz
+& $PIP_AMD64 install urllib3-1.26.12.tar.gz
 & $PIP_AMD64 install colorama-0.4.4.tar.gz
 & $PIP_AMD64 install tabulate-0.8.9.tar.gz
-Set-Location -Path "${START_DIR}"
-#InstallPythonModule "$PYTHON_AMD64" "colorama" "0.4.6"
-#InstallPythonModule "$PYTHON_AMD64" "tabulate" "0.9.0"
-InstallPythonModule "$PYTHON_AMD64" "wcwidth" "0.2.5"
-InstallPythonModule "$PYTHON_AMD64" "pefile" "2022.5.30"
-InstallPythonModule "$PYTHON_AMD64" "prompt_toolkit" "3.0.36"
-InstallPythonModule "$PYTHON_AMD64" "pywin32-ctypes" "0.2.0"
-InstallPythonModule "$PYTHON_AMD64" "certifi" "2022.12.7"
-InstallPythonModule "$PYTHON_AMD64" "idna" "3.4"
-InstallPythonModule "$PYTHON_AMD64" "requests" "2.28.1"
-InstallPythonModule "$PYTHON_AMD64" "pypiwin32" "223"
-Set-Location -Path "${START_DIR}\packaging\ext"
+& $PIP_AMD64 install wcwidth-0.2.5.tar.gz
+& $PIP_AMD64 install pefile-2022.5.30.tar.gz
+& $PIP_AMD64 install prompt_toolkit-3.0.36.tar.gz
+& $PIP_AMD64 install pywin32-ctypes-0.2.0.tar.gz
+& $PIP_AMD64 install certifi-2022.12.7.tar.gz
+& $PIP_AMD64 install pywin32-ctypes-0.2.0.tar.gz
+& $PIP_AMD64 install requests-2.28.1.tar.gz
+& $PIP_AMD64 install pypiwin32-223.tar.gz
 & $PIP_AMD64 install pywin32-305-cp310-cp310-win_amd64.whl
-Set-Location -Path "${START_DIR}"
-InstallPythonModule "$PYTHON_AMD64" "pyinstaller-hooks-contrib" "2022.10"
-#InstallPythonModule "$PYTHON_AMD64" "pyinstaller" "5.7.0"
-Set-Location -Path "${START_DIR}\packaging\ext"
+& $PIP_AMD64 install pyinstaller-hooks-contrib-2022.10.tar.gz
 & $PIP_AMD64 install pyinstaller-5.7.0.tar.gz
 Set-Location -Path "${START_DIR}"
-
 Copy-Item "$Env:MTX_STAGING_PATH\externals\*.zip" "${START_DIR}\packaging\ext"
 InstallPythonModuleZip "$PYTHON_AMD64" "python-ilorest-library" "$Env:MX_ILOREST_LIB_VERSION"
 Set-Location -Path $START_DIR
@@ -204,7 +174,6 @@ Function CreateMSI($python, $pyinstaller, $pythondir, $arch) {
     [System.IO.File]::WriteAllLines("${START_DIR}\rdmc-pyinstaller.spec", $MyFile, $Utf8NoBomEncoding)
 
     Set-Location -Path "${START_DIR}\src"
-    #& $python "${START_DIR}\PyInstaller\PyInstaller-3.6\pyinstaller.py" --onefile $START_DIR\rdmc-pyinstaller.spec
     & $pyinstaller $START_DIR\rdmc-pyinstaller.spec
     perl C:\ABSbuild\CodeSigning\SignFile.pl "${START_DIR}\src\dist\ilorest.exe"
     Copy-Item "${START_DIR}\src\dist\ilorest.exe" "${START_DIR}\ilorest.exe"
@@ -228,11 +197,4 @@ Function CreateMSI($python, $pyinstaller, $pythondir, $arch) {
 }
 
 Set-Location -Path "${START_DIR}"
-#Copy-Item "${START_DIR}\pywin32amd64\PLATLIB\pywin32_system32\*" .
-CreateMSI "$PYTHON_AMD64" "$PYINST_AMD64" "${START_DIR}\python311" "x86_64"
-
-#Uninstall Python finally
-$app = Get-WmiObject -Class Win32_Product | Where-Object {
-    $_.Name -match "Python*"
-}
-$app.Uninstall()
+CreateMSI "$PYTHON_AMD64" "$PYINST_AMD64" "$HOME\appdata\local\programs\python\python310" "x86_64"

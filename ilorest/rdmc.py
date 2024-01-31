@@ -199,15 +199,15 @@ try:
     # enable fips mode if our special functions are available in _ssl and OS is
     # in FIPS mode
     FIPSSTR = ""
-    # if Encryption.check_fips_mode_os():
-    #    LOGGER.info("FIPS mode is already enabled in openssl 3.0!")
-    if Encryption.check_fips_mode_os() and not Encryption.check_fips_mode_ssl():
-        ssl.FIPS_mode_set(int(1))
-        if ssl.FIPS_mode():
-            FIPSSTR = "FIPS mode enabled using openssl version %s.\n" % ssl.OPENSSL_VERSION
-            LOGGER.info("FIPS mode enabled!")
-        else:
-            LOGGER.info("FIPS mode can not be enabled!")
+    if Encryption.check_fips_mode_os():
+        LOGGER.info("FIPS mode is enabled in OS!")
+    #if Encryption.check_fips_mode_os() and not Encryption.check_fips_mode_ssl():
+    #    ssl.FIPS_mode_set(int(1))
+    #    if ssl.FIPS_mode():
+    #        FIPSSTR = "FIPS mode enabled using openssl version %s.\n" % ssl.OPENSSL_VERSION
+    #        LOGGER.info("FIPS mode enabled!")
+    #    else:
+    #        LOGGER.info("FIPS mode can not be enabled!")
 except AttributeError:
     pass
 

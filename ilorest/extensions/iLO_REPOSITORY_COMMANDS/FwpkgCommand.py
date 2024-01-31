@@ -69,11 +69,14 @@ class FwpkgCommand:
             "name": "flashfwpkg",
             "usage": None,
             "description": "Run to upload and flash "
-                           "components from fwpkg files.\n\n\tUpload component and flashes it or sets a task"
-                           "queue to flash.\n\texample: flashfwpkg component.fwpkg.\n\n\t"
-                           "Skip extra checks before adding taskqueue. (Useful when adding "
-                           "many flashfwpkg taskqueue items in sequence.)\n\texample: flashfwpkg "
-                           "component.fwpkg --ignorechecks",
+            "components from fwpkg files.\n\n\tUpload component and flashes it or sets a task"
+            "queue to flash.\n\texample: flashfwpkg component.fwpkg.\n\n\t"
+            "Skip extra checks before adding taskqueue. (Useful when adding "
+            "many flashfwpkg taskqueue items in sequence.)\n\texample: flashfwpkg "
+            "component.fwpkg --ignorechecks"
+            "\n\n\t Uploading component "
+            "flashfwpkg create taskqueue using target and flashes.\n\texample: flashfwpkg "
+            "component.fwpkg --targets <id>",
             "summary": "Flashes fwpkg components using the iLO repository.",
             "aliases": ["fwpkg"],
             "auxcommands": [
@@ -118,9 +121,9 @@ class FwpkgCommand:
             )
         tempdir = ""
         if (
-                not options.fwpkg.endswith(".fwpkg")
-                and not options.fwpkg.lower().endswith(".fup")
-                and not options.fwpkg.lower().endswith(".hpb")
+            not options.fwpkg.endswith(".fwpkg")
+            and not options.fwpkg.lower().endswith(".fup")
+            and not options.fwpkg.lower().endswith(".hpb")
         ):
             LOGGER.error("Invalid file type. Please make sure the file provided is a valid .fwpkg file type.")
             raise InvalidFileInputError(
@@ -132,6 +135,59 @@ class FwpkgCommand:
             if comptype == "D":
                 LOGGER.error("Component Type D, Unable to flash this fwpkg file.")
                 raise InvalidFileInputError("Unable to flash this fwpkg file.")
+
+            elif options.targets:
+                for component in components:
+                    if (
+                        component.endswith(".fwpkg")
+                        or component.lower().endswith(".hpb")
+                        or component.lower().endswith(".fup")
+                        or component.endswith(".zip")
+                    ):
+                        uploadcommand = "--component %s" % component
+                    else:
+                        uploadcommand = "--component %s" % os.path.join(tempdir, component)
+                    if options.forceupload:
+                        uploadcommand += " --forceupload"
+                    self.rdmc.ui.printer("Uploading firmware: %s\n" % os.path.basename(component))
+                    self.auxcommands["uploadcomp"].run(uploadcommand)
+                    targets = []
+                    target_list = options.targets.split(",")
+                    for target in target_list:
+                        target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + str(target) + "/"
+                        targets.append(target_url)
+                    verified = self.verify_targets(options.targets)
+                    if not verified:
+                        self.rdmc.ui.error("Provided target was not available, Please provide valid target id\n")
+                        return ReturnCodes.INVALID_TARGET_ERROR
+                    path = "/redfish/v1/UpdateService/UpdateTaskQueue/"
+                    try:
+                        self.taskqueuecheck()
+                    except TaskQueueError as excp:
+                        if options.ignore:
+                            self.rdmc.ui.warn(str(excp) + "\n")
+                        else:
+                            raise excp
+
+                    comp = "%s" % os.path.basename(component)
+                    try:
+                        newtask = {
+                            "Name": "Update-%s" % (str(randint(0, 1000000)),),
+                            "Command": "ApplyUpdate",
+                            "Filename": os.path.basename(comp),
+                            "UpdatableBy": ["Bmc"],
+                            "TPMOverride": options.tover,
+                            "Targets": targets,
+                        }
+                        self.rdmc.ui.printer('payload: "%s"\n' % newtask)
+                    except ValueError:
+                        pass
+                    self.rdmc.ui.printer('Creating task: "%s"\n' % newtask["Name"])
+                    self.rdmc.app.post_handler(path, newtask)
+                    self.cmdbase.logout_routine(self, options)
+                    # Return code
+                    return ReturnCodes.SUCCESS
+
             elif comptype in ["C", "BC"]:
                 try:
                     self.taskqueuecheck()
@@ -237,24 +293,30 @@ class FwpkgCommand:
                                 elif "Slot=" not in fw["Oem"]["Hpe"]["DeviceContext"]:
                                     da_flag = True
                 if cc_flag and da_flag:
-                    ctype = 'BC'
+                    ctype = "BC"
                     type_set = True
                 elif cc_flag and not da_flag:
-                    ctype = 'B'
+                    ctype = "B"
                     type_set = True
                 elif not cc_flag and da_flag:
-                    ctype = 'C'
+                    ctype = "C"
                     type_set = True
                 if type_set is None:
                     LOGGER.error("Component type is not identified, Please check if the particular H/W is present")
                     ilo_ver_int = self.rdmc.app.getiloversion()
                     ilo_ver = str(ilo_ver_int)
-                    error_msg = "Cannot flash the component on this server, check whether the component is fwpkg-v2 " \
-                                "or check whether the server is iLO"
+                    error_msg = (
+                        "Cannot flash the component on this server, check whether the component is fwpkg-v2 "
+                        "or check whether the server is iLO"
+                    )
                     if ilo_ver_int >= 6:
-                        error_msg = error_msg + ilo_ver[0] + ", FW is above 1.50 or the particular drive HW is present\n"
+                        error_msg = (
+                            error_msg + ilo_ver[0] + ", FW is above 1.50 or the particular drive HW is present\n"
+                        )
                     else:
-                        error_msg = error_msg + ilo_ver[0] + ", FW is above 2.30 or the particular drive HW is present\n"
+                        error_msg = (
+                            error_msg + ilo_ver[0] + ", FW is above 2.30 or the particular drive HW is present\n"
+                        )
                     raise IncompatibleiLOVersionError(error_msg)
         else:
             for device in payload["Devices"]["Device"]:
@@ -318,16 +380,16 @@ class FwpkgCommand:
             if not pkgfile.lower().endswith("fup") and not pkgfile.lower().endswith(".hpb"):
                 for device in payloaddata["Devices"]["Device"]:
                     for firmwareimage in device["FirmwareImages"]:
-                        if firmwareimage["PLDMImage"]:
+                        if "PLDMImage" in firmwareimage and firmwareimage["PLDMImage"]:
                             pldmflag = True
                         if firmwareimage["FileName"] not in imagefiles:
                             imagefiles.append(firmwareimage["FileName"])
 
         if (
-                "blobstore" in self.rdmc.app.redfishinst.base_url
-                and comptype in ["A", "B", "BC"]
-                and results
-                and "UpdateFWPKG" in results[0]["Oem"]["Hpe"]["Capabilities"]
+            "blobstore" in self.rdmc.app.redfishinst.base_url
+            and comptype in ["A", "B", "BC"]
+            and results
+            and "UpdateFWPKG" in results[0]["Oem"]["Hpe"]["Capabilities"]
         ):
             dll = BlobStore2.gethprestchifhandle()
             dll.isFwpkg20.argtypes = [c_char_p, c_int]
@@ -342,10 +404,7 @@ class FwpkgCommand:
                 tempdir = ""
         if pkgfile.lower().endswith(".fup") or pkgfile.lower().endswith(".hpb"):
             imagefiles = [pkgfile]
-        elif (
-                self.rdmc.app.getiloversion() > 5.230
-                and payloaddata.get("PackageFormat") == "FWPKG-v2"
-        ):
+        elif self.rdmc.app.getiloversion() > 5.230 and payloaddata.get("PackageFormat") == "FWPKG-v2":
             imagefiles = [pkgfile]
         return imagefiles, tempdir, comptype, pldmflag
 
@@ -388,7 +447,12 @@ class FwpkgCommand:
             taskqueuecommand = " create %s " % os.path.basename(component)
             if options.tover:
                 taskqueuecommand = " create %s --tpmover" % os.path.basename(component)
-            if component.endswith(".fwpkg") or component.lower().endswith(".hpb") or component.lower().endswith(".fup") or component.endswith(".zip"):
+            if (
+                component.endswith(".fwpkg")
+                or component.lower().endswith(".hpb")
+                or component.lower().endswith(".fup")
+                or component.endswith(".zip")
+            ):
                 uploadcommand = "--component %s" % component
             else:
                 uploadcommand = "--component %s" % os.path.join(tempdir, component)
@@ -407,7 +471,6 @@ class FwpkgCommand:
             if options.tover:
                 LOGGER.info("Setting --tpmover if tpm enabled.")
                 uploadcommand += " --tpmover"
-
             self.rdmc.ui.printer("Uploading firmware: %s\n" % os.path.basename(component))
             try:
                 ret = self.auxcommands["uploadcomp"].run(uploadcommand)
@@ -436,10 +499,7 @@ class FwpkgCommand:
                 self.rdmc.ui.warn("Setting a taskqueue item to flash UEFI flashable firmware.\n")
                 path = "/redfish/v1/updateservice/updatetaskqueue"
                 newtask = {
-                    "Name": "Update-%s"
-                            % (
-                                str(randint(0, 1000000)),
-                            ),
+                    "Name": "Update-%s" % (str(randint(0, 1000000)),),
                     "Command": "ApplyUpdate",
                     "Filename": os.path.basename(component),
                     "UpdatableBy": ["Uefi"],
@@ -450,7 +510,21 @@ class FwpkgCommand:
                 if res.status != 201:
                     raise TaskQueueError("Not able create UEFI task.\n")
                 else:
-                    self.rdmc.ui.printer("Created UEFI Task for Component " + os.path.basename(component) + " successfully.\n")
+                    self.rdmc.ui.printer(
+                        "Created UEFI Task for Component " + os.path.basename(component) + " successfully.\n"
+                    )
+
+    def verify_targets(self, target):
+        target_list = target.split(",")
+        for target in target_list:
+            try:
+                target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + target
+                dd = self.rdmc.app.get_handler(target_url, service=True, silent=True)
+                if dd.status == 404:
+                    return False
+            except:
+                return False
+        return True
 
     def fwpkgvalidation(self, options):
         """fwpkg validation function
@@ -498,6 +572,11 @@ class FwpkgCommand:
             dest="update_srs",
             action="store_true",
             help="Add this flag to update the System Recovery Set with the uploaded firmware. "
-                 "NOTE: This requires an account login with the system recovery set privilege.",
+            "NOTE: This requires an account login with the system recovery set privilege.",
             default=False,
+        )
+        customparser.add_argument(
+            "--targets",
+            help="If targets value specify a comma separated\t" "firmwareinventory id only",
+            metavar="targets_indices",
         )
