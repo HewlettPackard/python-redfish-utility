@@ -77,20 +77,19 @@ class IloResetCommand:
             "in again.\nThis process may take up to 3 minutes to complete.\n\n"
         )
 
-        select = "Manager."
-        results = self.rdmc.app.select(selector=select)
-
+        select = "/redfish/v1/Managers/1/"
+        results = self.rdmc.app.get_handler(select, silent=True, service=True).dict
         try:
-            results = results[0]
+            results = results
         except:
             pass
 
         if results:
-            post_path = results.resp.request.path
+            post_path = results["Actions"]["#Manager.Reset"]["target"]
         else:
             raise NoContentsFoundForOperationError("Unable to find %s" % select)
 
-        bodydict = results.resp.dict
+        bodydict = results
 
         try:
             for item in bodydict["Actions"]:

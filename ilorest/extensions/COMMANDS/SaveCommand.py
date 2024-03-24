@@ -147,17 +147,41 @@ class SaveCommand:
         :param instances: list of instances from select to save
         :type instances: list.
         """
-
-        content = self.rdmc.app.getprops(insts=instances)
         try:
-            contents = [{val[self.rdmc.app.typepath.defs.hrefstring]: val} for val in content]
-        except KeyError:
+            content = self.rdmc.app.getprops(insts=instances)
             try:
-                contents = [{val["links"]["self"][self.rdmc.app.typepath.defs.hrefstring]: val} for val in content]
+                contents = [{val[self.rdmc.app.typepath.defs.hrefstring]: val} for val in content]
             except KeyError:
-                raise iLORisCorruptionError(
-                    "iLO Database seems to be corrupted. Please check. Reboot the server to " "restore\n"
-                )
+                try:
+                    contents = [{val["links"]["self"][self.rdmc.app.typepath.defs.hrefstring]: val} for val in content]
+                except KeyError:
+                    raise iLORisCorruptionError(
+                        "iLO Database seems to be corrupted. Please check. Reboot the server to " "restore\n"
+                    )
+        except:
+            contents = list()
+            baseconfig_path = [
+                "/redfish/v1/systems/1/bios/oem/hpe/baseconfigs/",
+                "/redfish/v1/systems/1/bios/oem/hpe/nvmeof/baseconfigs/",
+                "/redfish/v1/systems/1/bios/oem/hpe/iscsi/baseconfigs/",
+                "/redfish/v1/systems/1/bios/oem/hpe/tlsconfig/baseconfigs/",
+                "/redfish/v1/systems/1/bios/oem/hpe/serverconfiglock/baseconfigs/",
+                "/redfish/v1/systems/1/bios/oem/hpe/kmsconfig/baseconfigs/",
+                "/redfish/v1/systems/1/bios/oem/hpe/boot/baseconfigs/",
+                "/redfish/v1/systems/1/bios/baseconfigs/",
+                "/redfish/v1/systems/1/bios/nvmeof/baseconfigs/",
+                "/redfish/v1/systems/1/bios/iscsi/baseconfigs/",
+                "/redfish/v1/systems/1/bios/tlsconfig/baseconfigs/",
+                "/redfish/v1/systems/1/bios/serverconfiglock/baseconfigs/",
+                "/redfish/v1/systems/1/bios/kmsconfig/baseconfigs/",
+                "/redfish/v1/systems/1/bios/boot/baseconfigs/",
+            ]
+            for b in baseconfig_path:
+                result = self.rdmc.app.get_handler(b, silent=True, service=True)
+                if result.status == 200:
+                    d = {b: result.dict}
+                    contents.append(d)
+
         type_string = self.rdmc.app.typepath.defs.typestring
 
         templist = list()

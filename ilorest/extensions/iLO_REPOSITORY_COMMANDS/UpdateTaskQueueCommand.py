@@ -135,14 +135,9 @@ class UpdateTaskQueueCommand:
                     LOGGER.info("Logging out of the session without user and password")
                     self.rdmc.app.current_client.logout()
                     LOGGER.info("Logging in with user and password for deleting system recovery set")
+                    self.rdmc.app.current_client._user_pass = (options.user, options.password)
                     self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
                     self.rdmc.app.delete_handler(task["@odata.id"])
-                    LOGGER.info("Logging out of the session with user and password")
-                    self.rdmc.app.current_client.logout()
-                    LOGGER.info("Restoring old Logging in without user and password to restore")
-                    options.user = None
-                    options.password = None
-                    self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
                 else:
                     self.rdmc.app.delete_handler(task["@odata.id"])
             else:

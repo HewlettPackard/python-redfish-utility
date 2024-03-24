@@ -140,7 +140,8 @@ class MakeInstallSetCommand:
                         filenm, updateby, target = self.checkfiles(options)
                         comps["Filename"] = filenm
                         comps["UpdatableBy"] = updateby
-                        comps["Targets"] = target
+                        if options.targets:
+                            comps["Targets"] = target
                         break
                     else:
                         line = input("Enter " + reqdprops[count] + " for " + comps["Name"] + ": ")
@@ -271,7 +272,7 @@ class MakeInstallSetCommand:
         self.rdmc.ui.printer("Components currently in the repository that have not " "been added to the installset:\n")
         for comp in self.comps:
             count += 1
-            self.rdmc.ui.printer("[%d] %s\n" % (count, comp["Name"]))
+            self.rdmc.ui.printer("[%d] %s %s\n" % (count, comp["Name"], comp["Version"]))
         while True:
             userinput = input("Select the number of the component you want to add to " "the install set: ")
             try:
@@ -296,9 +297,9 @@ class MakeInstallSetCommand:
             target = targets
             return filename, updatableby, target
         else:
-            target = self.comps[userinput - 1]["Targets"]
-        del self.comps[userinput - 1]
-        return filename, updatableby, target
+            target = None
+            del self.comps[userinput - 1]
+            return filename, updatableby, target
 
     def minstallsetvalidation(self):
         """makeinstallset validation function"""

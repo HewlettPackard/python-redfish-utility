@@ -168,6 +168,27 @@ class IscsiConfigCommand:
                     self.rdmc.ui.error("URI path could not be found.")
         return path
 
+    def get_enabled_only(self):
+        enable_disable = dict()
+        enable_nic_only = list()
+        enable_nic = dict()
+        final_enabled_list =list()
+        import re
+        bios = "/redfish/v1/systems/1/bios/"
+        bios_dict = self.rdmc.app.get_handler(bios, silent=True, service=True).dict
+        for attr, val in bios_dict['Attributes'].items():
+            if "NetworkBoot" in str(val):
+                enable_disable[attr] = val
+        # Enabled NIC only listing
+        for k, v in enable_disable.items():
+            enable_nic_only.append(k)
+            nics = re.findall("\\d+", k)
+            enable_nic[k] = nics
+            final_enabled_list.append(nics)
+
+        return final_enabled_list
+
+
     def addoptionhelper(self, options, iscsipath, iscsisettingspath, bootpath):
         """Helper function to add option for iscsi
 
@@ -231,18 +252,44 @@ class IscsiConfigCommand:
 
         devicealloc_final = self.make_final_list(devicealloc, pcideviceslist)
 
+        print_flag = False
+        iscsi_list = self.listoptionhelper(options, iscsipath, iscsisettingspath, bootpath, print_flag)
+        refined_list = list()
+        for s in iscsi_list:
+            for key, val in s.items():
+                if key != "Not Added":
+                    for k, v in val.items():
+                        refined_list.append(v['iSCSINicSource'])
+        enabled_only_bootsource = self.get_enabled_only()
+        refined_devicealloc=list()
+        for d in devicealloc:
+            if "PreBootNetwork" in d["Associations"][0]:
+                nic = d["Associations"][1]
+            else:
+                nic = d["Associations"][0]
+            if "Storage" in nic:
+                continue
+            nics = re.findall("\\d+", nic)
+            if nics in enabled_only_bootsource:
+                refined_devicealloc.append(d)
+
         for item in iscsibootsources[self.rdmc.app.typepath.defs.iscsisource]:
             try:
                 if not item[self.rdmc.app.typepath.defs.iscsiattemptinstance]:
-                    nicsourcedata = devicealloc_final[int(options.add) - 1]["Associations"]
-
+                    nicsourcedata = refined_devicealloc[int(options.add) - 1]["Associations"]
+                    if 'PreBootNetwork' in nicsourcedata[0]:
+                        nic_getting_added = nicsourcedata[1]
+                    else:
+                        nic_getting_added = nicsourcedata[0]
+                    if nic_getting_added in refined_list:
+                        self.rdmc.ui.printer("Warning: This NIC is already added to existing attempt\n")
                     iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count]["iSCSINicSource"] = (
                         nicsourcedata[1] if isinstance(nicsourcedata[0], dict) else nicsourcedata[0]
                     )
 
                     iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count][
                         self.rdmc.app.typepath.defs.iscsiattemptinstance
-                    ] = int(options.add)
+                    ] = attemptinstancenumber
                     iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count][
                         self.rdmc.app.typepath.defs.iscsiattemptname
                     ] = str(attemptinstancenumber)
@@ -357,7 +404,7 @@ class IscsiConfigCommand:
         else:
             raise NicMissingOrConfigurationError("The given attempt instance does not exist.")
 
-    def listoptionhelper(self, options, iscsipath, iscsisettingspath, bootpath):
+    def listoptionhelper(self, options, iscsipath, iscsisettingspath, bootpath, print_flag=True):
         """Helper function to list options for iscsi
 
         :param options: command line options
@@ -452,7 +499,7 @@ class IscsiConfigCommand:
                                             + " "
                                             + str(pcidevice["DeviceInstance"])
                                             + " Port "
-                                            + str(pcidevice["DeviceSubInstance"])
+                                            + str(device["Subinstance"])
                                             + " : "
                                             + pcidevice.get("Name", "")
                                         )
@@ -478,7 +525,7 @@ class IscsiConfigCommand:
                     "/redfish/v1/systems/1/bios/oem/hpe/iscsi/settings URI seems to be not reachable even after"
                     " 4 retry attempts , kindly retry the command after some time \n\n"
                 )
-            elif not options.filename:
+            elif not options.filename and print_flag:
                 self.print_iscsi_config_helper(structeredlist, "Current iSCSI Attempts: \n")
         except Exception as excp:
             raise excp
@@ -492,6 +539,7 @@ class IscsiConfigCommand:
             filehndl.close()
 
             self.rdmc.ui.printer("Results written out to '%s'\n" % options.filename[0])
+        return structeredlist
 
     def defaultsoptionhelper(self, options, iscsipath, bootpath):
         """Helper function for default options for iscsi
@@ -715,6 +763,16 @@ class IscsiConfigCommand:
         try:
             tot_instance = []
             final_device_list = list()
+            enable_disable = dict()
+            enable_val = list()
+            import re
+            bios = "/redfish/v1/systems/1/bios/"
+            bios_dict = self.rdmc.app.get_handler(bios, silent=True, service=True).dict
+            for attr, val in bios_dict['Attributes'].items():
+                if "NetworkBoot" in str(val):
+                    nics = re.findall("\\d+", attr)
+                    enable_disable[attr] = nics
+                    enable_val.append(nics)
             if devicealloc and pcideviceslist:
                 if disabled:
                     self.rdmc.ui.printer("\nDisabled iSCSI Boot Network Interfaces: \n")
@@ -745,16 +803,25 @@ class IscsiConfigCommand:
                                         temp["Name"] = pcidevice["Name"]
                                     tot_instance.append(temp)
                 count = 0
+                enable_nic = dict()
+                # enb_val = list()
                 for t in tot_instance:
-                    count = count + 1
-                    self.rdmc.ui.printer(
-                        "[%s] %s : %s\n"
-                        % (
-                            count,
-                            t["Device"],
-                            t["Name"],
-                        )
-                    )
+                    nic = t["Device"]
+                    nics = re.findall("\\d+", nic)
+                    enable_nic[nic] = nics
+                    if "Embedded LOM" in t["Device"]:
+                        nics.remove("1")
+                    for i in enable_val:
+                        if i == nics:
+                            count = count + 1
+                            self.rdmc.ui.printer(
+                                "[%s] %s : %s\n"
+                                % (
+                                    count,
+                                    t["Device"],
+                                    t["Name"],
+                                )
+                            )
             else:
                 raise BootOrderMissingEntriesError("No entries found for" " iscsi configurations devices.\n")
         except Exception as excp:

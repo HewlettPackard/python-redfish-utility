@@ -106,6 +106,7 @@ class VirtualMediaCommand:
             ids = {ind: id for ind, id in enumerate(ids)}
             for path in paths:
                 paths[path] = paths[path]["@odata.id"]
+            paths = self.uniquevalmaker(paths)
         else:
             isredfish = False
             paths = self.auxcommands["get"].getworkerfunction("links/self/href", options, results=True, uselist=False)
@@ -135,6 +136,26 @@ class VirtualMediaCommand:
         # Return code
         return ReturnCodes.SUCCESS
 
+    def uniquevalmaker(self,paths):
+        unique_values = set(paths.values())
+
+        res = {}
+        i = 0
+        for val in unique_values:
+            if val.endswith("/"):
+                val = val[:-1]
+                res[i] = val
+                i = i + 1
+            else:
+                res[i] = val
+                i = i + 1
+        i = 0
+        res1 = dict()
+        for val in set(res.values()):
+            res1[i] = val
+            i = i + 1
+        return res1
+    
     def vmremovehelper(self, args, options, paths, isredfish, ilover):
         """Worker function to remove virtual media
 

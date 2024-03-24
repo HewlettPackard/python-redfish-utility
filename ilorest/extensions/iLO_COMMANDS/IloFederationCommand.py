@@ -462,7 +462,7 @@ class IloFederationCommand:
             "fedname",
             help="Federation name of the federation group to add.",
             type=str,
-            metavar="FEDERATION KEY",
+            metavar="FEDERATION NAME",
         )
         add_parser.add_argument(
             "fedkey",

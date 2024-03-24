@@ -196,14 +196,9 @@ class InstallSetCommand:
                 LOGGER.info("Logging out of the session without user and password")
                 self.rdmc.app.current_client.logout()
                 LOGGER.info("Logging in with user and password for deleting system recovery set")
+                self.rdmc.app.current_client._user_pass  = (options.user, options.password)
                 self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
                 self.rdmc.app.post_handler(path, body)
-                LOGGER.info("Logging out of the session with user and password")
-                self.rdmc.app.current_client.logout()
-                LOGGER.info("Restoring old Logging in without user and password to restore")
-                options.user = None
-                options.password = None
-                self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
             else:
                 self.rdmc.app.post_handler(path, body)
         else:
@@ -256,14 +251,9 @@ class InstallSetCommand:
                         LOGGER.info("Logging out of the session without user and password")
                         self.rdmc.app.current_client.logout()
                         LOGGER.info("Logging in with user and password for deleting system recovery set")
+                        self.rdmc.app.current_client._user_pass  = (options.user, options.password)
                         self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
                         self.rdmc.app.delete_handler(path)
-                        LOGGER.info("Logging out of the session with user and password")
-                        self.rdmc.app.current_client.logout()
-                        LOGGER.info("Restoring old Logging in without user and password to restore")
-                        options.user = None
-                        options.password = None
-                        self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
                     else:
                         self.rdmc.app.delete_handler(path)
                 else:
@@ -283,29 +273,23 @@ class InstallSetCommand:
         for setvar in sets:
             if setvar["IsRecovery"]:
                 self.rdmc.ui.warn("Attempting to delete recovery set: %s\n" % setvar["Name"])
-                ans = input("Would you like to delete recovery set?(y/n): ")
-                if ans == "n":
-                    self.rdmc.ui.printer("\n Skipping delete of recovery set.\n")
-                elif ans == "y":
-                    self.rdmc.ui.warn("Deleting system recovery set: %s\n" % setvar["Name"])
-                    if not (options.user and options.password):
+                if not (options.user and options.password):
                         raise InstallsetError(
                             "Deleting system recovery set needs to be passed with "
                             "--user and --password options, delete failed\n"
                         )
-                    if "blobstore" in self.rdmc.app.current_client.base_url:
+                self.rdmc.ui.warn("Deleting system recovery set: %s\n" % setvar["Name"])
+                LOGGER.debug(
+                    "This is to inform that ,Recovery install set %s will also be deleted as RemoveAll option is being used\n" % setvar["Name"])
+
+                if "blobstore" in self.rdmc.app.current_client.base_url:
                         LOGGER.info("Logging out of the session without user and password")
                         self.rdmc.app.current_client.logout()
                         LOGGER.info("Logging in with user and password for deleting system recovery set")
+                        self.rdmc.app.current_client._user_pass  = (options.user, options.password)
                         self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
                         self.rdmc.app.delete_handler(setvar["@odata.id"])
-                        LOGGER.info("Logging out of the session with user and password")
-                        self.rdmc.app.current_client.logout()
-                        LOGGER.info("Restoring old Logging in without user and password to restore")
-                        options.user = None
-                        options.password = None
-                        self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
-                    else:
+                else:
                         self.rdmc.app.delete_handler(setvar["@odata.id"])
             else:
                 self.rdmc.ui.printer("Deleting install set: %s\n" % setvar["Name"])

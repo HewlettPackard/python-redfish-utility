@@ -72,7 +72,10 @@ class ListCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        self.listvalidation(options)
+        if "securityservice" in options.selector.lower():
+            pass
+        else:
+            self.listvalidation(options)
 
         fvals = (None, None)
 

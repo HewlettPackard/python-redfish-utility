@@ -657,9 +657,10 @@ class UploadComponentCommand:
                     LOGGER.info("Component {} uploaded successfully".format(filename))
                     self.rdmc.ui.printer("Component " + filename + " uploaded successfully.\n")
                     self.rdmc.ui.printer("[200] The operation completed successfully.\n")
-                    if not self.wait_for_state_change():
-                        # Failed to upload the component.
-                        raise UploadError("Error while processing the component.")
+                    if not options.update_target:
+                        if not self.wait_for_state_change():
+                            # Failed to upload the component.
+                            raise UploadError("Error while processing the component.")
 
                 multiupload = True
 

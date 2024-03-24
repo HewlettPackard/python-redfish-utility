@@ -210,9 +210,10 @@ class FwpkgCommand:
             elif comptype in ["C", "BC"]:
                 message = "This firmware is set to flash on reboot.\n"
 
-            if not self.auxcommands["uploadcomp"].wait_for_state_change():
-                # Failed to upload the component.
-                raise FirmwareUpdateError("Error while processing the component.")
+            if "blobstore" not in self.rdmc.app.redfishinst.base_url:
+                if not self.auxcommands["uploadcomp"].wait_for_state_change():
+                    # Failed to upload the component.
+                    raise FirmwareUpdateError("Error while processing the component.")
 
             self.rdmc.ui.printer(message)
 

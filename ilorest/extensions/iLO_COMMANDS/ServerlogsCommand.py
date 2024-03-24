@@ -1162,7 +1162,7 @@ class ServerlogsCommand:
 
         try:
             context = pyudev.Context()
-            for device in context.list_devices(subsystem="block", DEVTYPE='partition'):
+            for device in context.list_devices(subsystem="block"):
                 if device.get("ID_FS_LABEL") == "BLACKBOX" or (device.parent and device.parent.get("ID_VENDOR") == "iLO"):
                     dirpath = os.path.join(tempfile.gettempdir(), "BLACKBOX")
 
@@ -1323,7 +1323,16 @@ class ServerlogsCommand:
         timenow = (str(datetime.datetime.now()).split()[0]).split("-")
         todaysdate = "".join(timenow)
 
+        resp = self.rdmc.app.get_handler(
+                "/redfish/v1",
+                sessionid=options.sessionid,
+                silent=True,
+                service=True,
+                uncache=True,
+            )
         ahsdefaultfilename = "HPE_" + snum + "_" + todaysdate + ".ahs"
+        if "Vendor" in resp.dict:
+            ahsdefaultfilename = ahsdefaultfilename.replace("HPE", resp.dict["Vendor"])
 
         if options.directorypath:
             dir_name = options.directorypath

@@ -89,7 +89,10 @@ class GetCommand:
         if getattr(options, "json"):
             self.rdmc.json = True
 
-        self.getvalidation(options)
+        if "securityservice" in options.selector.lower():
+            pass
+        else:
+            self.getvalidation(options)
 
         filtr = (None, None)
         if options.filter:
