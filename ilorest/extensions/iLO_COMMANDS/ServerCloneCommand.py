@@ -788,7 +788,14 @@ class ServerCloneCommand:
         if reset_confirm:
             if self.rdmc.app.current_client.base_url:  # reset process in remote mode
                 self.rdmc.ui.printer("Resetting the server...\n")
-                self.auxcommands["reboot"].run("ColdBoot")  # force restart, cold boot
+                sys_url ="/redfish/v1/Systems/1/"
+                sysresults = self.rdmc.app.get_handler(sys_url, service=True, silent=True).dict
+                power_state = sysresults["PowerState"]
+                if power_state == "On":
+                    self.auxcommands["reboot"].run("ColdBoot")  # force restart, cold boot
+                elif power_state == "Off":
+                    self.rdmc.ui.printer("System is on power off state, powering ON\n")
+                    self.auxcommands["reboot"].run("On")
                 self.rdmc.ui.printer("Waiting 3 minutes for reboot to complete...\n")
                 time.sleep(180)
                 self.rdmc.ui.printer("Resetting iLO...\n")

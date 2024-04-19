@@ -170,6 +170,7 @@ except ModuleNotFoundError:
         UsernamePasswordRequiredError,
         TabAndHistoryCompletionClass,
         iLORisCorruptionError,
+        TfaEnablePreRequisiteError,
         CloudConnectTimeoutError,
         CloudConnectFailedError,
         ProxyConfigFailedError,
@@ -898,7 +899,7 @@ class RdmcCommand(RdmcCommandBase):
             self.ui.error(excp)
         except redfish.hpilo.risblobstore2.ChifDllMissingError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_CHIF_DLL_MISSING_ERROR
-            self.ui.printer("iLOrest Chif dll not found, please check that the " "chif dll is present.\n")
+            self.ui.printer("iLOrest Chif library not found, please check that the chif ilorest_chif.dll/.so is present.\n")
         except redfish.hpilo.risblobstore2.UnexpectedResponseError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_UNEXPECTED_RESPONSE_ERROR
             self.ui.printer("Unexpected data received from iLO.\n")

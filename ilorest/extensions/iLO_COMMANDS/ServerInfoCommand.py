@@ -394,6 +394,7 @@ class ServerInfoCommand:
                     content = {"power": power_cap}
                     content["power"].update(test)
                 try:
+                    powersuplies = []
                     for supply in data["PowerSupplies"]:
                         power_supply = "Power Supply %s" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["BayNumber"]
                         powersupply = {}
@@ -424,8 +425,9 @@ class ServerInfoCommand:
                                 powersupply.update({"State": supply["Status"]["State"]})
                         except KeyError:
                             pass
-                        powerdetails = {power_supply: powersupply}
-                        content["power"].update(powerdetails)
+                        # powerdetails = {power_supply: powersupply}
+                        powersuplies.append(powersupply)
+                        content["power"].update({"PowerSupplies": powersuplies})
                     for redundancy in data["Redundancy"]:
                         redund_name = redundancy["Name"]
                         redundancy_dict = {"Redundancy Mode": redundancy["Mode"]}

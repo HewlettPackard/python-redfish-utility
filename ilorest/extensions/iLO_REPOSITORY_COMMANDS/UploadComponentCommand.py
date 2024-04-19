@@ -240,9 +240,9 @@ class UploadComponentCommand:
                             options.update_repository = False
                         else:
                             options.update_repository = True
-                        if not options.update_target:
+                        if not options.update_target and comp["Locked"]:
                             validation = False
-                        break
+                            break
                     if options.update_repository:
                         if (
                             comp["Filename"].upper() == str(filehndl[0]).upper()

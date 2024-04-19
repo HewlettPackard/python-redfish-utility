@@ -72,8 +72,12 @@ class ListCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        if "securityservice" in options.selector.lower():
-            pass
+        if options.selector:
+            if "securityservice" in options.selector.lower():
+                pass
+        elif self.rdmc.app.selector:
+            if "securityservice" in self.rdmc.app.selector:
+                pass
         else:
             self.listvalidation(options)
 
@@ -88,7 +92,10 @@ class ListCommand:
                 fvals = (sel.strip(), val.strip())
             except:
                 raise InvalidCommandLineError("Invalid filter" " parameter format [filter_attribute]=[filter_value]")
-
+        if options.selector:
+            self.rdmc.app.selector = options.selector
+        elif self.rdmc.app.selector:
+            options.selector = self.rdmc.app.selector
         if "securityservice" in options.selector.lower():
             url = "/redfish/v1/Managers/1/SecurityService/"
             contents = self.rdmc.app.get_handler(url, service=True, silent=True).dict

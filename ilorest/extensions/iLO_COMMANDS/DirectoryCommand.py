@@ -212,7 +212,7 @@ class DirectoryCommand:
                 keytab = options.keytab
             try:
                 directory_settings = self.directory_helper(results, options)
-                if options.roles and "add" in options.roles:
+                if "ldap" in line and options.roles and "add" in options.roles:
                     role_val = options.roles["add"]
                     for r in role_val:
                         if ";" in r.split(":")[0]:
@@ -273,8 +273,8 @@ class DirectoryCommand:
 
                                 priv_patches[mapping["RemoteGroup"]] = privs
                                 mapping["LocalRole"] = "ReadOnly"
-                except Exception:
-                    pass
+                except Exception as excp:
+                    self.rdmc.ui.error(excp)
                 self.rdmc.ui.printer("Changing settings...\n")
                 try:
                     self.rdmc.app.patch_handler(path, payload)

@@ -89,7 +89,10 @@ class GetCommand:
         if getattr(options, "json"):
             self.rdmc.json = True
 
-        if "securityservice" in options.selector.lower():
+        if options.selector:
+            if "securityservice" in options.selector.lower():
+                pass
+        elif "securityservice" in self.rdmc.app.selector.lower():
             pass
         else:
             self.getvalidation(options)
@@ -156,7 +159,9 @@ class GetCommand:
         args = (
             [
                 "Attributes/" + arg
-                if self.rdmc.app.selector.lower().startswith("bios.") and "attributes" not in arg.lower()
+                if self.rdmc.app.selector
+                and self.rdmc.app.selector.lower().startswith("bios.")
+                and "attributes" not in arg.lower()
                 else arg
                 for arg in args
             ]
@@ -167,12 +172,16 @@ class GetCommand:
             instances = self.rdmc.app.select(selector=self.rdmc.app.selector, fltrvals=filtervals)
 
         try:
+            if hasattr(options, "selector") and options.selector:
+                self.rdmc.app.selector = options.selector
             if "securityservice" in self.rdmc.app.selector.lower():
                 url = "/redfish/v1/Managers/1/SecurityService/"
                 contents = self.rdmc.app.get_handler(url, service=True, silent=True).dict
                 security_contents = []
-                if not args:
+                if not args and not options.json:
                     UI().print_out_human_readable(contents)
+                elif options and options.json and contents:
+                    UI().print_out_json(contents)
                 else:
                     attr = args[0]
                     contents_lower = {k.lower(): v for k, v in contents.items()}

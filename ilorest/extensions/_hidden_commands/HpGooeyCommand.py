@@ -120,10 +120,13 @@ class HpGooeyCommand:
 
         self.hpgooeyvalidation(options)
 
-        if self.rdmc.app.current_client.base_url.startswith("blobstore"):
-            self.local_run(options)
-        else:
+        if options.key == "hpmbirthcert":
             self.remote_run(options)
+        else:
+            if self.rdmc.app.current_client.base_url.startswith("blobstore"):
+                self.local_run(options)
+            else:
+                self.remote_run(options)
 
         self.cmdbase.logout_routine(self, options)
         # Return code
@@ -150,6 +153,9 @@ class HpGooeyCommand:
 
             with open(options.filename[0], _read_mode) as bfh:
                 blobfiledata = bfh.read()
+
+            if options.key == "hpmbirthcert":
+                blobfiledata = self.writebirthcert(blobfiledata=blobfiledata, blobdata=None, key=options.key)
             if options.key == "birthcert":
                 try:
                     bcert = self.remote_read(path)
@@ -157,23 +163,25 @@ class HpGooeyCommand:
                         bcert = bcert.decode("utf-8")
                 except StandardBlobErrorHandler:
                     bcert = ""
-                blobdata = bytearray(bcert, encoding="utf-8")
-                blobfiledata = self.writebirthcert(blobfiledata=blobfiledata, blobdata=blobdata)
+                if not isinstance(bcert, bytes):
+                    blobdata = bytearray(bcert, encoding="utf-8")
+                blobfiledata = self.writebirthcert(blobfiledata=blobfiledata, blobdata=blobdata, key=options.key)
+
             self.remote_write(path, blobfiledata)
 
         elif options.read:
             if not (options.key and options.namespace):
-                raise InvalidCommandLineError("Key and namespace are required" " for hpblob operations.")
+                raise InvalidCommandLineError("Key and namespace are required for hpblob operations.")
 
             filedata = BytesIO()
 
             filedatastr = bytes(self.remote_read(path))
 
-            if options.key == "birthcert":
-                filedatastr = self.readbirthcert(filedatastr)
+            if options.key == "birthcert" or options.key == "hpmbirthcert":
+                filedatastr = self.readbirthcert(filedatastr, options.key)
 
-            # if isinstance(filedatastr, bytes):
-            #    filedatastr = filedatastr.decode('utf-8','ignore')
+            if not isinstance(filedatastr, bytes):
+                filedatastr = filedatastr.encode('utf-8','ignore')
             filedata.write(filedatastr)
             if options.filename:
                 self.rdmc.ui.printer("Writing data to %s..." % options.filename[0])
@@ -183,7 +191,10 @@ class HpGooeyCommand:
 
                 self.rdmc.ui.printer("Done\n")
             else:
-                self.rdmc.ui.printer("%s\n" % filedata.getvalue().decode("utf-8"))
+                filedata_value = filedata.getvalue()
+                if isinstance(filedata_value, bytes):
+                    filedata_value = filedata_value.decode("utf-8")
+                self.rdmc.ui.printer("%s\n" % filedata_value)
 
         elif options.delete:
             if not (options.key and options.namespace):
@@ -193,7 +204,7 @@ class HpGooeyCommand:
         elif options.list:
             if not options.namespace:
                 raise InvalidCommandLineError("Namespace is required for hpblob operations.")
-            bs2 = risblobstore2.BlobStore2(log_dir=self.rdmc.log_dir)
+            bs2 = risblobstore2.BlobStore2()
             recvpacket = bs2.list(options.namespace)
             errorcode = struct.unpack("<I", recvpacket[8:12])[0]
 
@@ -315,7 +326,7 @@ class HpGooeyCommand:
             sys.stderr.write("No command entered")
 
     def local_run(self, options):
-        bs2 = risblobstore2.BlobStore2(log_dir=self.rdmc.log_dir)
+        bs2 = risblobstore2.BlobStore2()
         risblobstore2.BlobStore2.initializecreds(options.user, options.password)
         bs2.gethprestchifhandle()
 
@@ -348,10 +359,7 @@ class HpGooeyCommand:
 
             if options.key == "birthcert":
                 blobdata = bytearray(bs2.read(options.key, options.namespace))
-                blobfiledata = self.writebirthcert(
-                    blobfiledata=blobfiledata,
-                    blobdata=blobdata,
-                )
+                blobfiledata = self.writebirthcert(blobfiledata=blobfiledata, blobdata=blobdata, key=options.key)
 
             errorcode = bs2.write(options.key, options.namespace, blobfiledata)
 
@@ -370,7 +378,7 @@ class HpGooeyCommand:
                 filedatastr = bytes(bs2.read(options.key, options.namespace))
 
                 if options.key == "birthcert":
-                    filedatastr = self.readbirthcert(filedatastr)
+                    filedatastr = self.readbirthcert(filedatastr, options.key)
 
                 # if isinstance(filedatastr, bytes):
                 #    filedatastr = filedatastr.decode('utf-8', 'ignore')
@@ -383,7 +391,10 @@ class HpGooeyCommand:
 
                     self.rdmc.ui.printer("Done\n")
                 else:
-                    self.rdmc.ui.printer("%s\n" % filedata.getvalue().decode("utf-8"))
+                    filedata_value = filedata.getvalue()
+                    if isinstance(filedata_value, bytes):
+                        filedata_value = filedata_value.decode("utf-8")
+                    self.rdmc.ui.printer("%s\n" % filedata_value)
             except risblobstore2.BlobNotFoundError as excp:
                 raise excp
             except Exception as excp:
@@ -538,8 +549,10 @@ class HpGooeyCommand:
 
     def remote_write(self, path, data):
         """Remote version of blob write"""
+        # if isinstance(data, bytes):
+        #    data = data.decode('utf-8')
         resp = self.rdmc.app.post_handler(path, data, silent=True, service=True)
-        if resp.status != 201:
+        if resp.status != 201 and resp.status != 200:
             raise StandardBlobErrorHandler('"remote or vnic write failure"')
 
     def remote_delete(self, path):
@@ -675,23 +688,34 @@ class HpGooeyCommand:
                 pumount = subprocess.Popen(["umount", path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 _, _ = pumount.communicate()
 
-    def readbirthcert(self, blobdata):
+    def readbirthcert(self, blobdata, key):
         """Function to read the birth certificate
 
         :param blobdata: data read from birth certificate call
         :type blobdata: str.
         """
-        if "blobstore" in self.rdmc.app.redfishinst.base_url:
+        if key != "hpmbirthcert":
+            if "blobstore" in self.rdmc.app.redfishinst.base_url:
+                blobio = BytesIO(blobdata)
+                filehand = gzip.GzipFile(mode="rb", fileobj=blobio)
+
+                data = filehand.read()
+                filehand.close()
+            else:
+                data = blobdata
+        else:
             blobio = BytesIO(blobdata)
             filehand = gzip.GzipFile(mode="rb", fileobj=blobio)
 
             data = filehand.read()
             filehand.close()
-        else:
-            data = blobdata
+            #if isinstance(blobdata, bytes):
+            #    data = blobdata.decode("utf-8")
+            #else:
+            #    data = blobdata
         return data
 
-    def writebirthcert(self, blobdata, blobfiledata):
+    def writebirthcert(self, blobdata, blobfiledata, key):
         """Function to read the birth certificate
 
         :param blobdata: data to be written to birth certificate call
@@ -703,12 +727,18 @@ class HpGooeyCommand:
         if filetype != "no match":
             raise StandardBlobErrorHandler
 
-        if "blobstore" in self.rdmc.app.redfishinst.base_url:
-            blobdataunpacked = self.readbirthcert(blobdata)
+        if key != "hpmbirthcert":
+            if "blobstore" in self.rdmc.app.redfishinst.base_url:
+                blobdataunpacked = self.readbirthcert(blobdata, key)
+            else:
+                if isinstance(blobdata, bytes):
+                    blobdataunpacked = blobdata.decode("utf-8")
+                else:
+                    blobdataunpacked = blobdata
+            totdata = self.parsebirthcert(blobdataunpacked, blobfiledata)
         else:
-            blobdataunpacked = blobdata.decode("utf-8")
+            totdata = self.parsebirthcert(None, blobfiledata)
 
-        totdata = self.parsebirthcert(blobdataunpacked, blobfiledata)
         databuf = BytesIO()
 
         filehand = gzip.GzipFile(mode="wb", fileobj=databuf)
@@ -717,8 +747,9 @@ class HpGooeyCommand:
 
         compresseddata = databuf.getvalue()
         return compresseddata
+        #return totdata
 
-    def parsebirthcert(self, blobdataunpacked, blobfiledata):
+    def parsebirthcert(self, blobdataunpacked=None, blobfiledata=None):
         """Parse birth certificate function."""
         filedata = StringIO(blobfiledata)
         if blobdataunpacked:
@@ -767,7 +798,7 @@ class HpGooeyCommand:
         if compdata:
             compresseddata = compdata
 
-        bs2 = risblobstore2.BlobStore2(log_dir=self.rdmc.log_dir)
+        bs2 = risblobstore2.BlobStore2()
         risblobstore2.BlobStore2.initializecreds(options.user, options.password)
 
         errorcode = bs2.write(options.key, options.namespace, compresseddata)

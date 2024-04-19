@@ -106,7 +106,7 @@ class VirtualMediaCommand:
             ids = {ind: id for ind, id in enumerate(ids)}
             for path in paths:
                 paths[path] = paths[path]["@odata.id"]
-            paths = self.uniquevalmaker(paths)
+            # paths = self.uniquevalmaker(paths)
         else:
             isredfish = False
             paths = self.auxcommands["get"].getworkerfunction("links/self/href", options, results=True, uselist=False)

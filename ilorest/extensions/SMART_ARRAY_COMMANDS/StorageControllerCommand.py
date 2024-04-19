@@ -237,6 +237,8 @@ class StorageControllerCommand:
         ilo_ver = self.rdmc.app.getiloversion()
 
         if options.command == "state":
+            if not options.storageid:
+                raise InvalidCommandLineError("Please provide --storageid option.\n")
             if ilo_ver >= 6:
                 storage_ctlr = self.storagecontroller(options, print_ctrl=False, single_use=True)
                 for storage in storage_ctlr:
@@ -256,14 +258,16 @@ class StorageControllerCommand:
                     else:
                         sys.stdout.write(
                             "Previous storage controller configuration status messages are "
-                            "not available for controller '%s - %s - %s' (@Redfish.Settings not "
-                            "available).\n"
+                            "not available for controller '%s'\n"
                             % (
-                                storage,
-                                storage_ctlr[storage].get("Location", "Unknown"),
-                                storage_ctlr[storage].get("Model", "Unknown"),
+                                storage
                             )
                         )
+                        ctrl_data = dict()
+                        ctrl_data.update({"Location": storage_ctlr[storage].get("Location", "Unknown")})
+                        ctrl_data.update({"Model": storage_ctlr[storage].get("Model", "Unknown")})
+                        UI().print_out_json(ctrl_data)
+
             else:
                 controllers = self.controllers(options, print_ctrl=False, single_use=True)
                 for controller in controllers:
@@ -283,14 +287,16 @@ class StorageControllerCommand:
                     else:
                         sys.stdout.write(
                             "Previous storage controller configuration status messages are "
-                            "not available for controller '%s - %s - %s' (@Redfish.Settings not "
-                            "available).\n"
+                            "not available for controller '%s'\n"
                             % (
-                                controller,
-                                controllers[controller].get("Location", "Unknown"),
-                                controllers[controller].get("Model", "Unknown"),
+                                controller
                             )
                         )
+                        ctrl_data = dict()
+                        ctrl_data.update({"Location": controllers[controller].get("Location", "Unknown")})
+                        ctrl_data.update({"Model": controllers[controller].get("Model", "Unknown")})
+                        UI().print_out_json(ctrl_data)
+
         if options.command == "save":
             if ilo_ver >= 6.110:
                 storage = {}
@@ -445,12 +451,12 @@ class StorageControllerCommand:
                     self.storagecontroller(options, print_ctrl=True, single_use=False)
                 elif options.controller and not options.storageid:
                     raise InvalidCommandLineError(
-                        "with --controller option, --storageid option is mandatory for iLO6.\n"
+                        "with --controller option, --storageid option is mandatory for 'iLO 6' and 'iLO 5'.\n"
                     )
                 elif (
                     options.physicaldrives or options.pdrive or options.logicaldrives or options.ldrive
                 ) and not options.storageid:
-                    raise InvalidCommandLineError("--storageid option is mandatory for iLO6.\n")
+                    raise InvalidCommandLineError("--storageid option is mandatory for 'iLO 6' and 'iLO 5'.\n")
                 elif (
                     not options.storageid
                     and not options.controller
@@ -472,6 +478,8 @@ class StorageControllerCommand:
         st_url = "/redfish/v1/Systems/1/Storage/"
         st_content = self.rdmc.app.get_handler(st_url, silent=True, service=True)
         if not "error" in st_content.dict:
+            if st_content.dict["Members@odata.count"] == 0:
+                raise InvalidCommandLineError("Redfish Enabled Controllers not found in this server.\n")
             if st_content.dict["Members"]:
                 st_content = st_content.dict["Members"]
 
@@ -585,6 +593,8 @@ class StorageControllerCommand:
         get_contrller = []
         list_storageid = self.rdmc.app.get_handler("/redfish/v1/Systems/1/Storage/", silent=True, service=True)
         if not "error" in list_storageid.dict:
+            if list_storageid.dict["Members@odata.count"] == 0:
+                raise InvalidCommandLineError("Redfish Enabled Controllers not found in this server.\n")
             if len(list_storageid.dict["Members"]) > 0:
                 list_storageid = list_storageid.dict[
                     "Members"
@@ -617,8 +627,8 @@ class StorageControllerCommand:
                     else:
                         continue
                 if not st_flag:
-                    sys.stdout.write(
-                        "Storage ID {} not found or Storage ID is not redfish enabled and does not have DE\n".format(
+                    raise InvalidCommandLineError(
+                        "Storage ID {} not found or Storage ID is not Redfish enabled and does not have DExxxxxx\n".format(
                             options.storageid
                         )
                     )
@@ -685,6 +695,7 @@ class StorageControllerCommand:
                             and not getattr(options, "ldrive", False)
                             and not getattr(options, "pdrive", False)
                             and not getattr(options, "controller", False)
+                            and not options.command in "state"
                         ):
                             sys.stdout.write("-----------------------------------\n")
                             sys.stdout.write("Details of Storage %s\n" % options.storageid)
@@ -855,7 +866,7 @@ class StorageControllerCommand:
                         if single_use:
                             storage_data[controller["Id"]] = controller
                 if getattr(options, "controller", False) and not controller_ident and print_ctrl:
-                    sys.stdout.write("Controller in position '%s' was not found\n" % (getattr(options, "controller", False)))
+                    raise InvalidCommandLineError("Controller in position '%s' was not found\n" % (getattr(options, "controller", False)))
                 if single_use:
                     return storage_data
 
@@ -970,7 +981,7 @@ class StorageControllerCommand:
                                     controller_data[controller["Id"]] = controller
 
                     if getattr(options, "controller", False) and not controller_ident and print_ctrl:
-                        sys.stdout.write(
+                        raise InvalidCommandLineError(
                             "Controller in position '%s' was not found\n" % (getattr(options, "controller", False))
                         )
                     if getattr(options, "json", False) and not options.storageid:
@@ -983,9 +994,9 @@ class StorageControllerCommand:
                         return controller_data
             else:
                 raise InvalidCommandLineError(
-                    "Storage cotroller is not ready, Kindly re run the command after sometime\n")
+                    "Storage controller is not ready, Kindly re run the command after sometime\n")
         else:
-            raise InvalidCommandLineError("Storage cotroller is not ready, Kindly re run the command after sometime\n")
+            raise InvalidCommandLineError("Storage controller is not ready, Kindly re run the command after sometime\n")
 
     def storagecontroller(self, options, print_ctrl=False, single_use=False):
         if getattr(options, "controller", False):
@@ -1165,7 +1176,7 @@ class StorageControllerCommand:
                 if single_use:
                     storage_data[controller["Id"]] = controller
         if getattr(options, "controller", False) and not controller_ident and print_ctrl:
-            sys.stdout.write("Controller in position '%s' was not found\n" % (getattr(options, "controller", False)))
+            raise InvalidCommandLineError("Controller in position '%s' was not found\n" % (getattr(options, "controller", False)))
         if single_use:
             return storage_data
 
@@ -1181,8 +1192,8 @@ class StorageControllerCommand:
             else:
                 continue
         if not st_flag:
-            sys.stdout.write(
-                "\nStorage ID {} not found or Storage ID is not redfish enabled and does not have DE\n".format(
+            raise InvalidCommandLineError(
+                "\nStorage ID {} not found or Storage ID is not Redfish enabled and does not have DExxxxxx\n".format(
                     options.storageid
                 )
             )
@@ -1195,7 +1206,7 @@ class StorageControllerCommand:
 
         storage_resp = self.rdmc.app.get_handler(storage_id_url, silent=True, service=True).dict
         if not storage_resp:
-            sys.stdout.write("\nStorage Id {} not found\n".format(options.storageid))
+            raise InvalidCommandLineError("\nStorage Id {} not found\n".format(options.storageid))
             return
         controllers = storage_resp["Controllers"]["Members"]
         volumes = storage_resp["Volumes"]["Members"]
@@ -1507,7 +1518,7 @@ class StorageControllerCommand:
         if getattr(options, "json", False) and pdrive_ident:
             UI().print_out_json(outjson)
         if getattr(options, "pdrive", False) and not pdrive_ident and print_ctrl:
-            sys.stdout.write("\tPhysical drive in position '%s' was not found\n" % options.pdrive)
+            raise InvalidCommandLineError("\tPhysical drive in position '%s' was not found\n" % options.pdrive)
         elif not found_entries and print_ctrl:
             sys.stdout.write("\tPhysical drives not found.\n")
 
@@ -1625,7 +1636,7 @@ class StorageControllerCommand:
                 sys.stdout.write("\tVolumes not found.\n")
         if not getattr(options, "logicaldrives", False) and not printed:
             if getattr(options, "ldrive", False):
-                sys.stdout.write("\tVolume '%s' does not exists.\n" % getattr(options, "ldrive", False))
+                raise InvalidCommandLineError("\tVolume '%s' does not exists.\n" % getattr(options, "ldrive", False))
 
         if single_use:
             return logicaldrives
@@ -1775,7 +1786,7 @@ class StorageControllerCommand:
                 if getattr(options, "pdrive", False) and pdrive_ident:
                     break
             if getattr(options, "pdrive", False) and not pdrive_ident and print_ctrl:
-                sys.stdout.write("\tPhysical drive in position '%s' was not found \n" % options.pdrive)
+                raise InvalidCommandLineError("\tPhysical drive in position '%s' was not found \n" % options.pdrive)
             elif not found_entries and print_ctrl:
                 sys.stdout.write("\tPhysical drives not found.\n")
 
@@ -2086,6 +2097,17 @@ class StorageControllerCommand:
             "controller, select it by index.\tstoragecontroller state --controller=2"
             "\n\t2. To get more details on a specific controller select "
             "it by location.\tstoragecontroller state --controller='Slot 0'",
+            default=None,
+        )
+        state_parser.add_argument(
+            "--storage_id",
+            "--storageid",
+            dest="storageid",
+            help="Use this flag to select the corresponding controller using either the storageid "
+                 "id. \n\tExamples:\n\t1. To get more details on a specific "
+                 "controller, select it by storageid.\tstoragecontroller state --storageid=DE00E000"
+                 "\n\t2. To get more details on a specific controller select "
+                 "it by location.\tstoragecontroller state --storageid='DE00E000'",
             default=None,
         )
         self.cmdbase.add_login_arguments_group(state_parser)

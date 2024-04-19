@@ -78,7 +78,7 @@ class SecurityStatusCommand(RdmcCommandBase):
             result = self.validate_creds(options.user, options.password)
             # self.rdmc.ui.printer("Validate Creds is {}...\n".format(result))
             if result:
-                secstate = BlobStore2(log_dir=self.rdmc.log_dir).get_security_state()
+                secstate = BlobStore2().get_security_state()
                 if isinstance(secstate, bytes):
                     if secstate == b"\x00":
                         state = struct.unpack("B", secstate)
@@ -94,7 +94,7 @@ class SecurityStatusCommand(RdmcCommandBase):
                 self.rdmc.ui.error("Credentials: Invalid\n")
 
         else:
-            secstate = BlobStore2(log_dir=self.rdmc.log_dir).get_security_state()
+            secstate = BlobStore2().get_security_state()
             if isinstance(secstate, bytes):
                 if secstate == b"\x00":
                     state = struct.unpack("B", secstate)

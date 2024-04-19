@@ -83,7 +83,8 @@ class SaveCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        self.savevalidation(options)
+        if hasattr(options, "selector") and options.selector.lower() != "hpbaseconfigs":
+            self.savevalidation(options)
 
         # if args:
         #  raise InvalidCommandLineError("Save command takes no arguments.")
