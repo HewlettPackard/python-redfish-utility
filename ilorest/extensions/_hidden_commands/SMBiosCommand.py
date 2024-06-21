@@ -22,6 +22,7 @@ import json
 import struct
 
 import redfish.ris
+
 try:
     from rdmc_helper import (
         IncompatibleiLOVersionError,

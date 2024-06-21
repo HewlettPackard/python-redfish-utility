@@ -255,6 +255,7 @@ class MakeInstallSetCommand:
                 validated_property = givenvalue
 
         return validated_property
+
     def get_target(self, target):
         target_list = target.split(",")
         for target in target_list:

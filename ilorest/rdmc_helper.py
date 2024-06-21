@@ -43,6 +43,7 @@ except ImportError:
 
 if os.name == "nt":
     from six.moves import winreg
+
     if six.PY2:
         from win32con import HKEY_LOCAL_MACHINE
     elif six.PY3:
@@ -54,16 +55,12 @@ if os.name == "nt":
 # ---------Debug logger---------
 # Using hard coded list until better solution is found
 HARDCODEDLIST = [
-    "name",
     "modified",
-    "type",
-    "description",
     "attributeregistry",
     "links",
     "settingsresult",
     "actions",
     "availableactions",
-    "id",
     "extref",
 ]
 
@@ -280,6 +277,7 @@ class iLORisCorruptionError(RdmcError):
     """Raised when user tries to invoke a command that isn't enabled"""
 
     pass
+
 
 class ResourceNotReadyError(RdmcError):
     """Raised when user tries to invoke a command that isn't enabled"""

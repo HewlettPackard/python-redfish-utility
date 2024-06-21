@@ -17,7 +17,6 @@
 # -*- coding: utf-8 -*-
 """ Storage Controller Command for rdmc """
 import json
-import time
 import sys
 from argparse import RawDescriptionHelpFormatter
 
@@ -258,10 +257,7 @@ class StorageControllerCommand:
                     else:
                         sys.stdout.write(
                             "Previous storage controller configuration status messages are "
-                            "not available for controller '%s'\n"
-                            % (
-                                storage
-                            )
+                            "not available for controller '%s'\n" % (storage)
                         )
                         ctrl_data = dict()
                         ctrl_data.update({"Location": storage_ctlr[storage].get("Location", "Unknown")})
@@ -287,10 +283,7 @@ class StorageControllerCommand:
                     else:
                         sys.stdout.write(
                             "Previous storage controller configuration status messages are "
-                            "not available for controller '%s'\n"
-                            % (
-                                controller
-                            )
+                            "not available for controller '%s'\n" % (controller)
                         )
                         ctrl_data = dict()
                         ctrl_data.update({"Location": controllers[controller].get("Location", "Unknown")})
@@ -477,7 +470,7 @@ class StorageControllerCommand:
         # self.auxcommands["select"].selectfunction("StorageCollection.")
         st_url = "/redfish/v1/Systems/1/Storage/"
         st_content = self.rdmc.app.get_handler(st_url, silent=True, service=True)
-        if not "error" in st_content.dict:
+        if "error" not in st_content.dict:
             if st_content.dict["Members@odata.count"] == 0:
                 raise InvalidCommandLineError("Redfish Enabled Controllers not found in this server.\n")
             if st_content.dict["Members"]:
@@ -515,9 +508,12 @@ class StorageControllerCommand:
                     UI().print_out_json(outjson)
             else:
                 raise InvalidCommandLineError(
-                    "Storage controllers are not ready , Kindly re run the command after sometime\n")
+                    "Storage controllers are not ready , Kindly re run the command after sometime\n"
+                )
         else:
-            raise InvalidCommandLineError("Storage controllers are not ready , Kindly re run the command after sometime\n")
+            raise InvalidCommandLineError(
+                "Storage controllers are not ready , " "Kindly re run the command after sometime\n"
+            )
 
     def storagecontrollerremovereadonly(self, controller):
         templist = [
@@ -592,13 +588,11 @@ class StorageControllerCommand:
         storage_data = {}
         get_contrller = []
         list_storageid = self.rdmc.app.get_handler("/redfish/v1/Systems/1/Storage/", silent=True, service=True)
-        if not "error" in list_storageid.dict:
+        if "error" not in list_storageid.dict:
             if list_storageid.dict["Members@odata.count"] == 0:
                 raise InvalidCommandLineError("Redfish Enabled Controllers not found in this server.\n")
             if len(list_storageid.dict["Members"]) > 0:
-                list_storageid = list_storageid.dict[
-                    "Members"
-                ]
+                list_storageid = list_storageid.dict["Members"]
                 for val in list_storageid:
                     storageid_fromurl = val["@odata.id"]
                     # storageid_fromurl = val.split("/")[-2]
@@ -615,7 +609,9 @@ class StorageControllerCommand:
                             list_controllers = self.rdmc.app.get_handler(
                                 controller["@odata.id"], silent=True, service=True
                             ).dict
-                            list_volumes = self.rdmc.app.get_handler(volumes["@odata.id"], silent=True, service=True).dict
+                            list_volumes = self.rdmc.app.get_handler(
+                                volumes["@odata.id"], silent=True, service=True
+                            ).dict
                         except KeyError:
                             self.rdmc.ui.printer("Please check controller was Gen11.\n")
                             return ReturnCodes.NO_CONTENTS_FOUND_FOR_OPERATION
@@ -628,9 +624,8 @@ class StorageControllerCommand:
                         continue
                 if not st_flag:
                     raise InvalidCommandLineError(
-                        "Storage ID {} not found or Storage ID is not Redfish enabled and does not have DExxxxxx\n".format(
-                            options.storageid
-                        )
+                        "Storage ID {} not found or Storage ID is not Redfish enabled "
+                        "and does not have DExxxxxx\n".format(options.storageid)
                     )
                     return
                 no_need_ilo5 = True
@@ -695,7 +690,7 @@ class StorageControllerCommand:
                             and not getattr(options, "ldrive", False)
                             and not getattr(options, "pdrive", False)
                             and not getattr(options, "controller", False)
-                            and not options.command in "state"
+                            and options.command not in "state"
                         ):
                             sys.stdout.write("-----------------------------------\n")
                             sys.stdout.write("Details of Storage %s\n" % options.storageid)
@@ -722,7 +717,9 @@ class StorageControllerCommand:
                             storage_data["Storage"].update({"Id": getval["Id"]})
                             storage_data["Storage"].update({"Health": getval["Status"]["HealthRollup"]})
                             storage_data["Storage"].update({"Name": getval["Name"]})
-                            storage_data["Storage"].update({"Number of Controllers": list_controllers["Members@odata.count"]})
+                            storage_data["Storage"].update(
+                                {"Number of Controllers": list_controllers["Members@odata.count"]}
+                            )
                             storage_data["Storage"].update({"Number of Volumes": list_volumes["Members@odata.count"]})
                             storage_data["Storage"].update({"Number of Drives": getval["Drives@odata.count"]})
                             UI().print_out_json(storage_data)
@@ -803,7 +800,9 @@ class StorageControllerCommand:
                             and not options.ldrive
                         ):
                             controller_info = "---------------------------------------------\n"
-                            controller_info += "Controller {} Details on Storage Id {}\n".format(options.controller, storage_id)
+                            controller_info += "Controller {} Details on Storage Id {}" "\n".format(
+                                options.controller, storage_id
+                            )
                             controller_info += "---------------------------------------------\n"
                             controller_info += "Id: %s\n" % controller["Id"]
                             controller_info += "StorageId: %s\n" % storage_id
@@ -819,7 +818,9 @@ class StorageControllerCommand:
                                 pass
                             controller_info += "Status: %s\n" % controller["Status"]
                             try:
-                                controller_info += "SupportedDeviceProtocols: %s\n" % controller["SupportedDeviceProtocols"]
+                                controller_info += (
+                                    "SupportedDeviceProtocols: %s\n" % controller["SupportedDeviceProtocols"]
+                                )
                             except KeyError:
                                 pass
                             try:
@@ -846,7 +847,9 @@ class StorageControllerCommand:
                                 pass
                             outjson_data.update({"Status": controller["Status"]})
                             try:
-                                outjson_data.update({"SupportedDeviceProtocols": controller["SupportedDeviceProtocols"]})
+                                outjson_data.update(
+                                    {"SupportedDeviceProtocols": controller["SupportedDeviceProtocols"]}
+                                )
                             except KeyError:
                                 pass
                             try:
@@ -866,7 +869,9 @@ class StorageControllerCommand:
                         if single_use:
                             storage_data[controller["Id"]] = controller
                 if getattr(options, "controller", False) and not controller_ident and print_ctrl:
-                    raise InvalidCommandLineError("Controller in position '%s' was not found\n" % (getattr(options, "controller", False)))
+                    raise InvalidCommandLineError(
+                        "Controller in position '%s' was " "not found\n" % (getattr(options, "controller", False))
+                    )
                 if single_use:
                     return storage_data
 
@@ -971,10 +976,18 @@ class StorageControllerCommand:
                                     outjson_data.update({"Status": controller["Status"]})
                                     UI().print_out_json(outjson_data)
 
-                                if getattr(options, "logicaldrives", False) or getattr(options, "ldrive", False) or single_use:
+                                if (
+                                    getattr(options, "logicaldrives", False)
+                                    or getattr(options, "ldrive", False)
+                                    or single_use
+                                ):
                                     self.logical_drives(options, controller, print_ctrl)
 
-                                if getattr(options, "physicaldrives", False) or getattr(options, "pdrive", False) or single_use:
+                                if (
+                                    getattr(options, "physicaldrives", False)
+                                    or getattr(options, "pdrive", False)
+                                    or single_use
+                                ):
                                     self.physical_drives(options, controller, print_ctrl)
 
                                 if single_use:
@@ -994,7 +1007,8 @@ class StorageControllerCommand:
                         return controller_data
             else:
                 raise InvalidCommandLineError(
-                    "Storage controller is not ready, Kindly re run the command after sometime\n")
+                    "Storage controller is not ready, Kindly re run the command after sometime\n"
+                )
         else:
             raise InvalidCommandLineError("Storage controller is not ready, Kindly re run the command after sometime\n")
 
@@ -1176,7 +1190,9 @@ class StorageControllerCommand:
                 if single_use:
                     storage_data[controller["Id"]] = controller
         if getattr(options, "controller", False) and not controller_ident and print_ctrl:
-            raise InvalidCommandLineError("Controller in position '%s' was not found\n" % (getattr(options, "controller", False)))
+            raise InvalidCommandLineError(
+                "Controller in position '%s' was " "not found\n" % (getattr(options, "controller", False))
+            )
         if single_use:
             return storage_data
 
@@ -1477,7 +1493,7 @@ class StorageControllerCommand:
                         drive_data.get("Name", "NA"),
                         drive_data.get("Model", "NA"),
                         location,
-                        drive_data.get("MediaType","NA"),
+                        drive_data.get("MediaType", "NA"),
                         drive_data.get("SerialNumber", "NA"),
                         drive_data.get("CapacityBytes", "NA"),
                     )
@@ -1496,7 +1512,7 @@ class StorageControllerCommand:
                         drive_data["Name"],
                         drive_data.get("Model", "NA"),
                         location,
-                        drive_data.get("MediaType","NA"),
+                        drive_data.get("MediaType", "NA"),
                         drive_data.get("SerialNumber", "NA"),
                         drive_data.get("CapacityBytes", "NA"),
                     )
@@ -1508,7 +1524,7 @@ class StorageControllerCommand:
                 outjson["Drives"][location]["Name"] = drive_data["Name"]
                 outjson["Drives"][location]["Model"] = drive_data.get("Model", "NA")
                 outjson["Drives"][location]["Location"] = location
-                outjson["Drives"][location]["MediaType"] = drive_data.get("MediaType","NA")
+                outjson["Drives"][location]["MediaType"] = drive_data.get("MediaType", "NA")
                 outjson["Drives"][location]["SerialNumber"] = drive_data.get("SerialNumber", "NA")
                 outjson["Drives"][location]["CapacityBytes"] = drive_data.get("CapacityBytes", "NA")
                 if options.pdrive:
@@ -1608,7 +1624,7 @@ class StorageControllerCommand:
                     outjson["volumes"][tmp["Id"]]["VolumeName"] = tmp["Name"]
                     outjson["volumes"][tmp["Id"]]["RAIDType"] = tmp["RAIDType"]
                     outjson["volumes"][tmp["Id"]]["VolumeUniqueIdentifier"] = d_name[0]
-                    #if options.ldrive:
+                    # if options.ldrive:
                     #    outjson["volumes"][tmp["Id"]]["Drive Location"] = volumes
                     outjson["volumes"][tmp["Id"]]["Capacity"] = tmp["CapacityBytes"]
                     outjson["volumes"][tmp["Id"]]["Health"] = tmp["Status"]["Health"]
@@ -2104,10 +2120,10 @@ class StorageControllerCommand:
             "--storageid",
             dest="storageid",
             help="Use this flag to select the corresponding controller using either the storageid "
-                 "id. \n\tExamples:\n\t1. To get more details on a specific "
-                 "controller, select it by storageid.\tstoragecontroller state --storageid=DE00E000"
-                 "\n\t2. To get more details on a specific controller select "
-                 "it by location.\tstoragecontroller state --storageid='DE00E000'",
+            "id. \n\tExamples:\n\t1. To get more details on a specific "
+            "controller, select it by storageid.\tstoragecontroller state --storageid=DE00E000"
+            "\n\t2. To get more details on a specific controller select "
+            "it by location.\tstoragecontroller state --storageid='DE00E000'",
             default=None,
         )
         self.cmdbase.add_login_arguments_group(state_parser)

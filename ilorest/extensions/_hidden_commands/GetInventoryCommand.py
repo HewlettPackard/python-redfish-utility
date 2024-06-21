@@ -89,16 +89,18 @@ class GetInventoryCommand:
 
         if options.inventory:
             try:
-                collectiondata = self.rdmc.app.get_handler("/redfish/v1/updateservice/firmwareinventory", service=False,
-                                                           silent=True).dict
+                collectiondata = self.rdmc.app.get_handler(
+                    "/redfish/v1/updateservice/firmwareinventory", service=False, silent=True
+                ).dict
                 members = self.rdmc.app.getcollectionmembers(collectiondata.get("@odata.id"))
                 collectiondata.update({"Members": members})
                 alldata.update({"firmwareInventory": collectiondata})
             except:
                 alldata.update({"firmwareInventory": {}})
             try:
-                collectiondata = self.rdmc.app.get_handler("/redfish/v1/updateservice/softwareinventory", service=False,
-                                                           silent=True).dict
+                collectiondata = self.rdmc.app.get_handler(
+                    "/redfish/v1/updateservice/softwareinventory", service=False, silent=True
+                ).dict
                 members = self.rdmc.app.getcollectionmembers(collectiondata.get("@odata.id"))
                 collectiondata.update({"Members": members})
                 alldata.update({"softwareInventory": collectiondata})
@@ -137,8 +139,9 @@ class GetInventoryCommand:
                         return self.printlastfailedresult(result2)
                     break
             try:
-                collectiondata = self.rdmc.app.get_handler("/redfish/v1/Managers/1/EthernetInterfaces/", service=False,
-                                                           silent=True).dict
+                collectiondata = self.rdmc.app.get_handler(
+                    "/redfish/v1/Managers/1/EthernetInterfaces/", service=False, silent=True
+                ).dict
                 members = self.rdmc.app.getcollectionmembers(collectiondata.get("@odata.id"))
                 collectiondata.update({"Members": members})
                 alldata.update({"EthernetInterfaces": collectiondata})
@@ -152,8 +155,9 @@ class GetInventoryCommand:
                 alldata.update({"DateTime": {}})
 
             try:
-                collectiondata = self.rdmc.app.get_handler("/redfish/v1/UpdateService/",
-                                                           service=False, silent=True).dict
+                collectiondata = self.rdmc.app.get_handler(
+                    "/redfish/v1/UpdateService/", service=False, silent=True
+                ).dict
                 alldata.update({"DowngradePolicy": collectiondata})
             except:
                 alldata.update({"DowngradePolicy": {}})
@@ -192,8 +196,9 @@ class GetInventoryCommand:
 
         if options.repo_data:
             try:
-                collectiondata = self.rdmc.app.get_handler("/redfish/v1/UpdateService/installsets",
-                                                           service=False, silent=True).dict
+                collectiondata = self.rdmc.app.get_handler(
+                    "/redfish/v1/UpdateService/installsets", service=False, silent=True
+                ).dict
                 members = self.rdmc.app.getcollectionmembers(collectiondata.get("@odata.id"))
                 if len(members) == 0:
                     members = []
@@ -203,8 +208,9 @@ class GetInventoryCommand:
                 alldata.update({"installsets": []})
 
             try:
-                collectiondata = self.rdmc.app.get_handler("/redfish/v1/UpdateService/updatetaskqueue",
-                                                           service=False, silent=True).dict
+                collectiondata = self.rdmc.app.get_handler(
+                    "/redfish/v1/UpdateService/updatetaskqueue", service=False, silent=True
+                ).dict
                 members = self.rdmc.app.getcollectionmembers(collectiondata.get("@odata.id"))
                 if len(members) == 0:
                     members = []
@@ -215,8 +221,9 @@ class GetInventoryCommand:
 
             if self.rdmc.app.getiloversion(skipschemas=True) >= 5.130:
                 try:
-                    collectiondata = self.rdmc.app.get_handler("/redfish/v1/UpdateService/maintenancewindows",
-                                                               service=False, silent=True).dict
+                    collectiondata = self.rdmc.app.get_handler(
+                        "/redfish/v1/UpdateService/maintenancewindows", service=False, silent=True
+                    ).dict
                     members = self.rdmc.app.getcollectionmembers(collectiondata.get("@odata.id"))
                     if len(members) == 0:
                         members = []

@@ -713,7 +713,7 @@ class DirectoryCommand:
             description=ldap_help + "\n\n\tSimply show LDAP configuration:\n\t\tdirectory ldap\n\n"
             "To modify the LDAP username, password, service address, search strings or "
             "enable/disable LDAP.\n\t\tdirectory ldap <username> <password> "
-            "--serviceaddress x.x.y.z --addsearch \"string1;string2\" --enable.\n\n\tTo add role "
+            '--serviceaddress x.x.y.z --addsearch "string1;string2" --enable.\n\n\tTo add role '
             'mapping.\n\t\tdirectory ldap <username> <password> --addrolemap "LocalRole1:'
             'RemoteGroup3#LocalRole2:RemoteGroup4:SID".\n\n\tTo remove role mapping.\n\t\t'
             "directory ldap <username> <password> --removerolemap LocalRole1#LocalRole2." + privilege_help,
@@ -774,7 +774,7 @@ class DirectoryCommand:
             nargs="*",
             action=_DirectoryParse,
             help="Optionally add this flag to add or remove Role Mapping(s) for the LDAP."
-                 " Remove EX: --removerolemap LocalRole1#LocalRole2 "
+            " Remove EX: --removerolemap LocalRole1#LocalRole2 "
             'Add EX: --addrolemap "LocalRole1:RemoteGroup3#LocalRole2:RemoteGroup4\n\n"'
             'SID EX: --addrolemap "LocalRole1:RemoteGroup2:SID#LocalRole2:RemoteGroup5:SID"'
             "\n\nNOTE 1: Create a custom local role group (and subsequently assign to a role map)"

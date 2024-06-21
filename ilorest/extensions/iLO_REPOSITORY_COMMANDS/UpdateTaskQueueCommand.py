@@ -127,10 +127,7 @@ class UpdateTaskQueueCommand:
             if "RecoveryPrivilege" in task and task["RecoveryPrivilege"]:
                 self.rdmc.ui.printer("This task is associated with updating recovery set\n")
                 if not (options.user and options.password):
-                    raise TaskQueueError(
-                        "Deleting this task needs "
-                        "--user and --password options, delete failed\n"
-                    )
+                    raise TaskQueueError("Deleting this task needs " "--user and --password options, delete failed\n")
                 if "blobstore" in self.rdmc.app.current_client.base_url:
                     LOGGER.info("Logging out of the session without user and password")
                     self.rdmc.app.current_client.logout()
@@ -142,7 +139,6 @@ class UpdateTaskQueueCommand:
                     self.rdmc.app.delete_handler(task["@odata.id"])
             else:
                 self.rdmc.app.delete_handler(task["@odata.id"])
-
 
     def cleanqueue(self):
         """Deletes all finished or errored tasks in the update task queue"""
@@ -335,6 +331,7 @@ class UpdateTaskQueueCommand:
             help="If set then the TPMOverrideFlag is passed in on the " "associated flash operations",
             default=False,
         )
+
     def definearguments(self, customparser):
         """Wrapper function for new command main function
 
@@ -413,4 +410,3 @@ class UpdateTaskQueueCommand:
 
         self.cmdbase.add_login_arguments_group(create_parser)
         self.options_argument_group(create_parser)
-

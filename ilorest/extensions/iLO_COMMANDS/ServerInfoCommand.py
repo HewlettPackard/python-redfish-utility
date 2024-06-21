@@ -237,11 +237,11 @@ class ServerInfoCommand:
             else:
                 # getloc = self.rdmc.app.getidbytype("ProcessorCollection.")
                 getloc = self.rdmc.app.getidbytype("Processor.")
-                tot_proc=[]
+                tot_proc = []
                 if getloc == "/rest/v1/Systems/1/Processors/1" or "/rest/v1/Systems/1/Processors/2":
                     getloc = "/redfish/v1/Systems/1/Processors/"
                     get_p = self.rdmc.app.get_handler(getloc, service=True, silent=True).dict["Members"]
-                    output=""
+                    output = ""
                     if get_p and not options.json:
                         sys.stdout.write("------------------------------------------------\n")
                         sys.stdout.write("Processor:\n")
@@ -255,8 +255,10 @@ class ServerInfoCommand:
                             output += "\tSocket: %s\n" % data["Socket"]
                             output += "\tMax Speed: %s MHz\n" % data["MaxSpeedMHz"]
                             try:
-                                output += "\tSpeed: %s MHz\n" % data["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                    "RatedSpeedMHz"]
+                                output += (
+                                    "\tSpeed: %s MHz\n"
+                                    % data["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]
+                                )
                             except KeyError:
                                 pass
                             output += "\tCores: %s\n" % data["TotalCores"]
@@ -288,8 +290,10 @@ class ServerInfoCommand:
                             tmp[process]["Max Speed"] = data["MaxSpeedMHz"]
                             try:
                                 tmp[process].update(
-                                    {"Speed": "%s MHz" % data["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                        "RatedSpeedMHz"]}
+                                    {
+                                        "Speed": "%s MHz"
+                                        % data["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]
+                                    }
                                 )
                             except KeyError:
                                 pass
@@ -383,13 +387,17 @@ class ServerInfoCommand:
                         if "AverageConsumedWatts" in control["PowerMetrics"]:
                             power_mertic = {"Average Power": "%s W" % control["PowerMetrics"]["AverageConsumedWatts"]}
                         if "MaxConsumedWatts" in control["PowerMetrics"]:
-                            power_mertic.update({"Max Consumed Power": "%s W" % control["PowerMetrics"]["MaxConsumedWatts"]})
+                            power_mertic.update(
+                                {"Max Consumed Power": "%s W" % control["PowerMetrics"]["MaxConsumedWatts"]}
+                            )
                         if "MinConsumedWatts" in control["PowerMetrics"]:
                             power_mertic.update(
                                 {"Minimum Consumed Power": "%s W" % control["PowerMetrics"]["MinConsumedWatts"]}
                             )
                         if "IntervalInMin" in control["PowerMetrics"]:
-                            powercontent = "Power Metrics on %s min. Intervals" % control["PowerMetrics"]["IntervalInMin"]
+                            powercontent = (
+                                "Power Metrics on %s min. Intervals" % control["PowerMetrics"]["IntervalInMin"]
+                            )
                     test = {powercontent: power_mertic}
                     content = {"power": power_cap}
                     content["power"].update(test)
@@ -898,10 +906,13 @@ class ServerInfoCommand:
                             output += "Input Voltage Type: %s\n" % supply["LineInputVoltageType"]
                         if "HotplugCapable" in supply["Oem"][self.rdmc.app.typepath.defs.oemhp]:
                             output += (
-                                "Hotplug Capable: %s\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"]
+                                "Hotplug Capable: %s\n"
+                                % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"]
                             )
                         if "iPDUCapable" in supply["Oem"][self.rdmc.app.typepath.defs.oemhp]:
-                            output += "iPDU Capable: %s\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"]
+                            output += (
+                                "iPDU Capable: %s\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"]
+                            )
                         try:
                             if "Health" in supply["Status"]:
                                 output += "Health: %s\n" % supply["Status"]["Health"]

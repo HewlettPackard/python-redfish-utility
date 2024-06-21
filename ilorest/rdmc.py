@@ -32,7 +32,6 @@ import importlib
 import logging
 import os
 import shlex
-import ssl
 import sys
 import traceback
 from argparse import RawTextHelpFormatter
@@ -202,7 +201,7 @@ try:
     FIPSSTR = ""
     if Encryption.check_fips_mode_os():
         LOGGER.info("FIPS mode is enabled in OS!")
-    #if Encryption.check_fips_mode_os() and not Encryption.check_fips_mode_ssl():
+    # if Encryption.check_fips_mode_os() and not Encryption.check_fips_mode_ssl():
     #    ssl.FIPS_mode_set(int(1))
     #    if ssl.FIPS_mode():
     #        FIPSSTR = "FIPS mode enabled using openssl version %s.\n" % ssl.OPENSSL_VERSION
@@ -899,7 +898,8 @@ class RdmcCommand(RdmcCommandBase):
             self.ui.error(excp)
         except redfish.hpilo.risblobstore2.ChifDllMissingError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_CHIF_DLL_MISSING_ERROR
-            self.ui.printer("iLOrest Chif library not found, please check that the chif ilorest_chif.dll/.so is present.\n")
+            self.ui.printer("iLOrest Chif library not found, please check that the chif "
+                            "ilorest_chif.dll/.so is present.\n")
         except redfish.hpilo.risblobstore2.UnexpectedResponseError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_UNEXPECTED_RESPONSE_ERROR
             self.ui.printer("Unexpected data received from iLO.\n")

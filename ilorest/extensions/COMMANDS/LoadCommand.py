@@ -116,7 +116,7 @@ class LoadCommand:
             "MACAddress",
             "VLAN",
             "SpeedMbps",
-            "DateTime"
+            "DateTime",
         ]
         remove_data = self.rdmc.app.removereadonlyprops(tmp, False, True, templist)
         return remove_data
@@ -202,8 +202,9 @@ class LoadCommand:
                             remove_odata = self.securebootremovereadonly(payload)
                             payload.update(remove_odata)
                             if "StaticNameServers" in payload:
-                                payload["StaticNameServers"] = [item for item in payload["StaticNameServers"] if
-                                                                      item != "::"]
+                                payload["StaticNameServers"] = [
+                                    item for item in payload["StaticNameServers"] if item != "::"
+                                ]
                             tempdir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
                             temp_file = os.path.join(tempdir, "temp_patch.json")
                             out_file = open(temp_file, "w")
@@ -215,8 +216,9 @@ class LoadCommand:
                             eth_conf = True
                             continue
                         else:
-                            self.rdmc.ui.printer("Skipping network configurations as"
-                                                 " --force_network_config is not included.\n")
+                            self.rdmc.ui.printer(
+                                "Skipping network configurations as" " --force_network_config is not included.\n"
+                            )
                             continue
 
                     inputlist.append(content)
@@ -302,7 +304,7 @@ class LoadCommand:
             options.latestschema = True
 
         try:
-            self.cmdbase.login_select_validation(self, options)
+            self.cmdbase.login_validation(self, options)
         except Exception:
             if options.mpfilename:
                 pass
@@ -561,8 +563,7 @@ class LoadCommand:
             "--force_network_config",
             dest="force_network_config",
             help="Use this flag to force set network configuration."
-                 "Network settings will be skipped if the flag is not included.",
+            "Network settings will be skipped if the flag is not included.",
             action="store_true",
             default=None,
         )
-

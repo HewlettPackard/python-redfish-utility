@@ -83,8 +83,27 @@ class SaveCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        if hasattr(options, "selector") and options.selector.lower() != "hpbaseconfigs":
+        if (
+            hasattr(options, "selector")
+            and "hpbaseconfigs" not in options.selector.lower()
+            and "hpebaseconfigs" not in options.selector.lower()
+            and "bios" not in options.selector.lower()
+        ):
             self.savevalidation(options)
+        else:
+            # filename validations and checks
+            self.cmdbase.login_validation(self, options)
+            self.filename = None
+            if options.filename and len(options.filename) > 1:
+                raise InvalidCommandLineError("Save command doesn't support multiple filenames.")
+            elif options.filename:
+                self.filename = options.filename[0]
+            elif self.rdmc.config:
+                if self.rdmc.config.defaultsavefilename:
+                    self.filename = self.rdmc.config.defaultsavefilename
+
+            if not self.filename:
+                self.filename = __filename__
 
         # if args:
         #  raise InvalidCommandLineError("Save command takes no arguments.")
@@ -106,9 +125,9 @@ class SaveCommand:
                 fltrvals=(sel, val),
                 path_refresh=True,
             )
-            contents = self.saveworkerfunction(instances=instances)
+            contents = self.saveworkerfunction(options, instances=instances)
         else:
-            contents = self.saveworkerfunction()
+            contents = self.saveworkerfunction(options)
 
         if options.multisave:
             for select in options.multisave:
@@ -116,7 +135,7 @@ class SaveCommand:
                     self.auxcommands["select"].run(select)
                 except:
                     pass
-                contents += self.saveworkerfunction()
+                contents += self.saveworkerfunction(options)
 
         if not contents:
             raise redfish.ris.NothingSelectedError
@@ -142,13 +161,19 @@ class SaveCommand:
         # Return code
         return ReturnCodes.SUCCESS
 
-    def saveworkerfunction(self, instances=None):
+    def saveworkerfunction(self, options, instances=None):
         """Returns the currently selected type for saving
 
         :param instances: list of instances from select to save
         :type instances: list.
         """
         try:
+            if (
+                "bios" in options.selector.lower()
+                or "hpbaseconfigs" in options.selector.lower()
+                or "hpebaseconfigs" in options.selector.lower()
+            ):
+                raise KeyError
             content = self.rdmc.app.getprops(insts=instances)
             try:
                 contents = [{val[self.rdmc.app.typepath.defs.hrefstring]: val} for val in content]
@@ -160,28 +185,39 @@ class SaveCommand:
                         "iLO Database seems to be corrupted. Please check. Reboot the server to " "restore\n"
                     )
         except:
+            config_path = None
             contents = list()
-            baseconfig_path = [
-                "/redfish/v1/systems/1/bios/oem/hpe/baseconfigs/",
-                "/redfish/v1/systems/1/bios/oem/hpe/nvmeof/baseconfigs/",
-                "/redfish/v1/systems/1/bios/oem/hpe/iscsi/baseconfigs/",
-                "/redfish/v1/systems/1/bios/oem/hpe/tlsconfig/baseconfigs/",
-                "/redfish/v1/systems/1/bios/oem/hpe/serverconfiglock/baseconfigs/",
-                "/redfish/v1/systems/1/bios/oem/hpe/kmsconfig/baseconfigs/",
-                "/redfish/v1/systems/1/bios/oem/hpe/boot/baseconfigs/",
-                "/redfish/v1/systems/1/bios/baseconfigs/",
-                "/redfish/v1/systems/1/bios/nvmeof/baseconfigs/",
-                "/redfish/v1/systems/1/bios/iscsi/baseconfigs/",
-                "/redfish/v1/systems/1/bios/tlsconfig/baseconfigs/",
-                "/redfish/v1/systems/1/bios/serverconfiglock/baseconfigs/",
-                "/redfish/v1/systems/1/bios/kmsconfig/baseconfigs/",
-                "/redfish/v1/systems/1/bios/boot/baseconfigs/",
-            ]
-            for b in baseconfig_path:
-                result = self.rdmc.app.get_handler(b, silent=True, service=True)
-                if result.status == 200:
-                    d = {b: result.dict}
-                    contents.append(d)
+            if options.selector.lower() == "bios.":
+                config_path = ["/redfish/v1/systems/1/bios/settings/"]
+            elif options.selector.lower() == "bios":
+                config_path = ["/redfish/v1/systems/1/bios/settings/", "/redfish/v1/systems/1/bios/mappings/"]
+            elif "hpbaseconfigs" in options.selector.lower() or "hpebaseconfigs" in options.selector.lower():
+                config_path = [
+                    "/redfish/v1/systems/1/bios/oem/hpe/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/oem/hpe/nvmeof/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/oem/hpe/iscsi/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/oem/hpe/tlsconfig/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/oem/hpe/serverconfiglock/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/oem/hpe/kmsconfig/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/oem/hpe/boot/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/nvmeof/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/iscsi/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/tlsconfig/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/serverconfiglock/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/kmsconfig/baseconfigs/",
+                    "/redfish/v1/systems/1/bios/boot/baseconfigs/",
+                ]
+            result = None
+            for b in config_path:
+                try:
+                    result = self.rdmc.app.get_handler(b, silent=True, service=True)
+                except:
+                    pass
+                if result is not None:
+                    if result.status == 200:
+                        d = {b: result.dict}
+                        contents.append(d)
 
         type_string = self.rdmc.app.typepath.defs.typestring
 

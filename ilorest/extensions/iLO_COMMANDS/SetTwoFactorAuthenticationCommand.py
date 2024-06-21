@@ -149,7 +149,7 @@ class SetTwoFactorAuthenticationCommand:
             if resp_get.dict["Oem"]["Hpe"]["AlertMailSenderDomain"] is not None:
                 SenderDomain = resp_get.dict["Oem"]["Hpe"]["AlertMailSenderDomain"]
             else:
-                SenderDomain= ""
+                SenderDomain = ""
         else:
             SenderDomain = options.SenderDomain[0]
 

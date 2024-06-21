@@ -288,6 +288,7 @@ class SetCommand:
                             if "managernetworkprotocol." or "thermal." in self.rdmc.app.selector:
                                 import platform
                                 import tempfile
+
                                 tempdir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
                                 temp_file = os.path.join(tempdir, "temp_patch.json")
                                 out_file = open(temp_file, "w")
@@ -305,6 +306,7 @@ class SetCommand:
                     if "PowerControl" in payload.keys():
                         import platform
                         import tempfile
+
                         tempdir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
                         temp_file = os.path.join(tempdir, "temp_patch.json")
                         out_file = open(temp_file, "w")
@@ -419,4 +421,3 @@ class SetCommand:
             help="Override the measures stopping the tool from writing " "over items that are system unique.",
             default=None,
         )
-

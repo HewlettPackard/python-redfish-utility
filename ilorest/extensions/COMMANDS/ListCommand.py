@@ -72,12 +72,10 @@ class ListCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        if options.selector:
-            if "securityservice" in options.selector.lower():
-                pass
-        elif self.rdmc.app.selector:
-            if "securityservice" in self.rdmc.app.selector:
-                pass
+        selector = options.selector.lower() if options.selector else self.rdmc.app.selector.lower()
+
+        if "securityservice" in selector:
+            self.cmdbase.login_validation(self, options)
         else:
             self.listvalidation(options)
 

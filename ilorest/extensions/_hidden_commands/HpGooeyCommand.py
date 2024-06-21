@@ -141,9 +141,9 @@ class HpGooeyCommand:
 
         if options.write:
             if not (options.key and options.namespace):
-                raise InvalidCommandLineError("Key and namespace are required" " for hpblob operations.")
+                raise InvalidCommandLineError("Key and namespace are required for hpblob operations.")
             if not options.filename or not os.path.isfile(options.filename[0]):
-                raise InvalidFileInputError("Given file doesn't exist, please " "provide a file with input data.")
+                raise InvalidFileInputError("Please provide a file with input data or given file does not exist")
 
             blobfiledata = None
             if options.binfile:
@@ -181,7 +181,7 @@ class HpGooeyCommand:
                 filedatastr = self.readbirthcert(filedatastr, options.key)
 
             if not isinstance(filedatastr, bytes):
-                filedatastr = filedatastr.encode('utf-8','ignore')
+                filedatastr = filedatastr.encode("utf-8", "ignore")
             filedata.write(filedatastr)
             if options.filename:
                 self.rdmc.ui.printer("Writing data to %s..." % options.filename[0])
@@ -194,7 +194,10 @@ class HpGooeyCommand:
                 filedata_value = filedata.getvalue()
                 if isinstance(filedata_value, bytes):
                     filedata_value = filedata_value.decode("utf-8")
-                self.rdmc.ui.printer("%s\n" % filedata_value)
+                if filedata_value == "":
+                    self.rdmc.ui.printer("HPM Birth Certificate does not exist!!\n")
+                else:
+                    self.rdmc.ui.printer("%s\n" % filedata_value)
 
         elif options.delete:
             if not (options.key and options.namespace):
@@ -332,10 +335,10 @@ class HpGooeyCommand:
 
         if options.write:
             if not (options.key and options.namespace):
-                raise InvalidCommandLineError("Key and namespace are required" " for hpblob operations.")
+                raise InvalidCommandLineError("Key and namespace are required for hpblob operations.")
 
             if not options.filename or not os.path.isfile(options.filename[0]):
-                raise InvalidFileInputError("Given file doesn't exist, please " "provide a file with input data.")
+                raise InvalidFileInputError("Please provide a file with input data or given file does not exist")
 
             if options.binfile:
                 _read_mode = "rb"
@@ -401,7 +404,7 @@ class HpGooeyCommand:
                 raise StandardBlobErrorHandler(excp)
         elif options.delete:
             if not (options.key and options.namespace):
-                raise InvalidCommandLineError("Key and namespace are required" " for hpblob operations.")
+                raise InvalidCommandLineError("Key and namespace are required for hpblob operations.")
 
             try:
                 bs2.get_info(options.key, options.namespace)
@@ -542,8 +545,18 @@ class HpGooeyCommand:
         resp = self.rdmc.app.get_handler(path, silent=True, service=True, uncache=True)
         if resp.status == 200:
             data = resp.ori
+            if data is not b'':
+                if "hpm" in path.lower():
+                    self.rdmc.ui.printer("Successfully read HPM Birth Certificate.\n")
+                else:
+                    self.rdmc.ui.printer("Successfully read Birth Certificate.\n")
+            else:
+                if "hpm" in path.lower():
+                    raise risblobstore2.BlobNotFoundError("No HPM Birth Certificate found.\n")
+                else:
+                    raise risblobstore2.BlobNotFoundError("No Birth Certificate found.\n")
         else:
-            raise StandardBlobErrorHandler('"remote or vnic read failure"')
+            raise StandardBlobErrorHandler("remote or vnic read failure")
 
         return data
 
@@ -552,14 +565,25 @@ class HpGooeyCommand:
         # if isinstance(data, bytes):
         #    data = data.decode('utf-8')
         resp = self.rdmc.app.post_handler(path, data, silent=True, service=True)
-        if resp.status != 201 and resp.status != 200:
-            raise StandardBlobErrorHandler('"remote or vnic write failure"')
+        if resp.status == 201 or resp.status == 200:
+            if "hpm" in path.lower():
+                self.rdmc.ui.printer("Successfully written HPM Birth Certificate.\n")
+            else:
+                self.rdmc.ui.printer("Successfully written Birth Certificate.\n")
+        else:
+            raise StandardBlobErrorHandler("remote or vnic write failure")
 
     def remote_delete(self, path):
         """Remote version of blob delete"""
         resp = self.rdmc.app.delete_handler(path, silent=True, service=True)
-        if resp.status != 200:
-            raise StandardBlobErrorHandler('"remote or vnic delete failure"')
+        if resp.status == 200:
+            if "hpm" in path.lower():
+                self.rdmc.ui.printer("Successfully deleted HPM Birth Certificate.\n")
+            else:
+                self.rdmc.ui.printer("Successfully deleted Birth Certificate.\n")
+        else:
+            raise StandardBlobErrorHandler("remote or vnic delete failure")
+
 
     def check_mount_path(self, label):
         """Get mount folder path."""
@@ -709,9 +733,9 @@ class HpGooeyCommand:
 
             data = filehand.read()
             filehand.close()
-            #if isinstance(blobdata, bytes):
+            # if isinstance(blobdata, bytes):
             #    data = blobdata.decode("utf-8")
-            #else:
+            # else:
             #    data = blobdata
         return data
 
@@ -747,7 +771,6 @@ class HpGooeyCommand:
 
         compresseddata = databuf.getvalue()
         return compresseddata
-        #return totdata
 
     def parsebirthcert(self, blobdataunpacked=None, blobfiledata=None):
         """Parse birth certificate function."""

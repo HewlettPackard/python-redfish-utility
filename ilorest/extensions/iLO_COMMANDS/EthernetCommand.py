@@ -264,8 +264,7 @@ class EthernetCommand:
             if options.force_network_config:
                 self.load_main_function(options)
             else:
-                self.rdmc.ui.printer("Skipping network configurations as "
-                                     "--force_network_config is not included.\n")
+                self.rdmc.ui.printer("Skipping network configurations as " "--force_network_config is not included.\n")
 
         return ReturnCodes.SUCCESS
 
@@ -573,12 +572,14 @@ class EthernetCommand:
                                                 try:
                                                     data[eth_config_type][_path]["DHCPv4"]["UseNTPServers"] = True
                                                     data[eth_config_type][_path]["DHCPv6"]["UseNTPServers"] = True
-                                                    data[eth_config_type][_path]["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                                        "DHCPv4"
-                                                    ]["UseNTPServers"] = True
-                                                    data[eth_config_type][_path]["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                                        "DHCPv6"
-                                                    ]["UseNTPServers"] = True
+                                                    data[eth_config_type][_path]["Oem"]
+                                                    [self.rdmc.app.typepath.defs.oemhp]["DHCPv4"][
+                                                        "UseNTPServers"
+                                                    ] = True
+                                                    data[eth_config_type][_path]["Oem"]
+                                                    [self.rdmc.app.typepath.defs.oemhp]["DHCPv6"][
+                                                        "UseNTPServers"
+                                                    ] = True
                                                     self.load_ethernet_aux(
                                                         eth_config_type,
                                                         _path,
@@ -856,7 +857,10 @@ class EthernetCommand:
             # try again with OEM
             try:
                 if oem_dhcpv4conf.get("UseDomainName") or oem_dhcpv6conf.get("UseDomainName"):
-                    if "Oem" in ethernet_data and "DomainName" in ethernet_data["Oem"][self.rdmc.app.typepath.defs.oemhp]:
+                    if (
+                        "Oem" in ethernet_data
+                        and "DomainName" in ethernet_data["Oem"][self.rdmc.app.typepath.defs.oemhp]
+                    ):
                         del ethernet_data["Oem"][self.rdmc.app.typepath.defs.oemhp]["DomainName"]
                     if "FQDN" in ethernet_data:
                         del ethernet_data["FQDN"]
@@ -948,14 +952,16 @@ class EthernetCommand:
                 flags["DHCPv4"] = {"UseDNSServers": False}
 
         # verify dependencies on those flags which are to be applied are eliminated
-        if "IPv4Addresses" in flags and \
-            flags["IPv4Addresses"][0]["Address"] == curr_sel.dict["IPv4Addresses"][0]["Address"] and \
-            flags["IPv4Addresses"][0]["Gateway"] == curr_sel.dict["IPv4Addresses"][0]["Gateway"] and \
-            flags["IPv4Addresses"][0]["SubnetMask"] == curr_sel.dict["IPv4Addresses"][0]["SubnetMask"]:
+        if (
+            "IPv4Addresses" in flags
+            and flags["IPv4Addresses"][0]["Address"] == curr_sel.dict["IPv4Addresses"][0]["Address"]
+            and flags["IPv4Addresses"][0]["Gateway"] == curr_sel.dict["IPv4Addresses"][0]["Gateway"]
+            and flags["IPv4Addresses"][0]["SubnetMask"] == curr_sel.dict["IPv4Addresses"][0]["SubnetMask"]
+        ):
             del flags["IPv4Addresses"]
         try:
             if not flags:
-                self.rdmc.ui.warn("No change in configurations in "+_path)
+                self.rdmc.ui.warn("No change in configurations in " + _path)
             else:
                 self.rdmc.app.patch_handler(_path, flags, silent=True)
         except IloResponseError as excp:
@@ -1222,7 +1228,7 @@ class EthernetCommand:
             "--force_network_config",
             dest="force_network_config",
             help="Use this flag to force set network configuration."
-                 "Network settings will be skipped if the flag is not included.",
+            "Network settings will be skipped if the flag is not included.",
             action="store_true",
             default=None,
         )

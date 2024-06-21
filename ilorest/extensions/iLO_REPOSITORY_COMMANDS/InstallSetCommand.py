@@ -54,8 +54,8 @@ class InstallSetCommand:
             "name": "installset",
             "usage": None,
             "description": "Run to perform operations on install sets.\nTo view help on specific "
-                           "sub-commands run: installset <sub-command> -h\n\n\tExample: installset "
-                           "add -h\nNote: iLO 5 required.",
+            "sub-commands run: installset <sub-command> -h\n\n\tExample: installset "
+            "add -h\nNote: iLO 5 required.",
             "summary": "Manages install sets for iLO.",
             "aliases": [],
             "auxcommands": [],
@@ -189,14 +189,13 @@ class InstallSetCommand:
             self.rdmc.ui.warn("Adding system recovery set: %s\n" % body["Name"])
             if not (options.user and options.password):
                 raise InstallsetError(
-                    "Adding system recovery set needs to be passed with "
-                    "--user and --password options, add failed\n"
+                    "Adding system recovery set needs to be passed with " "--user and --password options, add failed\n"
                 )
             if "blobstore" in self.rdmc.app.current_client.base_url:
                 LOGGER.info("Logging out of the session without user and password")
                 self.rdmc.app.current_client.logout()
                 LOGGER.info("Logging in with user and password for deleting system recovery set")
-                self.rdmc.app.current_client._user_pass  = (options.user, options.password)
+                self.rdmc.app.current_client._user_pass = (options.user, options.password)
                 self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
                 self.rdmc.app.post_handler(path, body)
             else:
@@ -251,7 +250,7 @@ class InstallSetCommand:
                         LOGGER.info("Logging out of the session without user and password")
                         self.rdmc.app.current_client.logout()
                         LOGGER.info("Logging in with user and password for deleting system recovery set")
-                        self.rdmc.app.current_client._user_pass  = (options.user, options.password)
+                        self.rdmc.app.current_client._user_pass = (options.user, options.password)
                         self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
                         self.rdmc.app.delete_handler(path)
                     else:
@@ -274,37 +273,37 @@ class InstallSetCommand:
             if setvar["IsRecovery"]:
                 self.rdmc.ui.warn("Attempting to delete recovery set: %s\n" % setvar["Name"])
                 if not (options.user and options.password):
-                        raise InstallsetError(
-                            "Deleting system recovery set needs to be passed with "
-                            "--user and --password options, delete failed\n"
-                        )
+                    raise InstallsetError(
+                        "Deleting system recovery set needs to be passed with "
+                        "--user and --password options, delete failed\n"
+                    )
                 self.rdmc.ui.warn("Deleting system recovery set: %s\n" % setvar["Name"])
                 LOGGER.debug(
-                    "This is to inform that ,Recovery install set %s will also be deleted as RemoveAll option is being used\n" % setvar["Name"])
+                    "This is to inform that ,Recovery install set %s will also be "
+                    "deleted as RemoveAll option is being used\n" % setvar["Name"]
+                )
 
                 if "blobstore" in self.rdmc.app.current_client.base_url:
-                        LOGGER.info("Logging out of the session without user and password")
-                        self.rdmc.app.current_client.logout()
-                        LOGGER.info("Logging in with user and password for deleting system recovery set")
-                        self.rdmc.app.current_client._user_pass  = (options.user, options.password)
-                        self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
-                        self.rdmc.app.delete_handler(setvar["@odata.id"])
+                    LOGGER.info("Logging out of the session without user and password")
+                    self.rdmc.app.current_client.logout()
+                    LOGGER.info("Logging in with user and password for deleting system recovery set")
+                    self.rdmc.app.current_client._user_pass = (options.user, options.password)
+                    self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
+                    self.rdmc.app.delete_handler(setvar["@odata.id"])
                 else:
-                        self.rdmc.app.delete_handler(setvar["@odata.id"])
+                    self.rdmc.app.delete_handler(setvar["@odata.id"])
             else:
                 self.rdmc.ui.printer("Deleting install set: %s\n" % setvar["Name"])
                 self.rdmc.app.delete_handler(setvar["@odata.id"])
 
     def build_json_out(self, options):
         sets = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/InstallSets/")
-        list_content = []
+        list_content = dict()
         for setvar in sets:
-            if setvar["IsRecovery"]:
-                recovery = "[Recovery Set]"
-            else:
-                recovery = ""
-            content = {setvar["Name"]: {recovery}}
-            list_content.append(content)
+            content = dict()
+            content[setvar["Name"]] = dict()
+            content[setvar["Name"]].update({"IsRecovery": setvar["IsRecovery"]})
+            list_content.update(content)
 
             if "Sequence" not in list(setvar.keys()):
                 content.update({"No Sequences in set."})
@@ -314,16 +313,16 @@ class InstallSetCommand:
                 if "Filename" in list(item.keys()):
                     name = item["Name"]
                     filename_cmd = "%s %s" % (item["Command"], item["Filename"])
-                    content.update({name: {filename_cmd}})
+                    content[setvar["Name"]].update({name: {filename_cmd}})
                 elif "WaitTimeSeconds" in list(item.keys()):
                     wait_name = item["Name"]
                     wait_command = "%s %s seconds" % (
                         item["Command"],
                         str(item["WaitTimeSeconds"]),
                     )
-                    content.update({wait_name: {wait_command}})
+                    content[setvar["Name"]].update({wait_name: {wait_command}})
                 else:
-                    content.update({item["Name"]: {item["Command"]}})
+                    content[setvar["Name"]].update({item["Name"]: {item["Command"]}})
         return list_content
 
     def printinstallsets(self, options):
@@ -441,7 +440,7 @@ class InstallSetCommand:
         default_parser = subcommand_parser.add_parser(
             "default",
             help="Running without any sub-command will return a list of all available install "
-                 "sets on the currently logged in server.",
+            "sets on the currently logged in server.",
         )
         default_parser.add_argument(
             "-j",
@@ -449,8 +448,8 @@ class InstallSetCommand:
             dest="json",
             action="store_true",
             help="Optionally include this flag if you wish to change the"
-                 " displayed output to JSON format. Preserving the JSON data"
-                 " structure makes the information easier to parse.",
+            " displayed output to JSON format. Preserving the JSON data"
+            " structure makes the information easier to parse.",
             default=False,
         )
         default_parser.add_argument(
@@ -468,30 +467,24 @@ class InstallSetCommand:
             "add",
             help=add_help,
             description=add_help + "\n\texample: installset add installsetfile.json "
-                                   "--name=newinstallsetname.\n\n\tNote: iLO will provide a default "
-                                   "install set name if the flag '--name' is not provided.",
+            "--name=newinstallsetname.\n\n\tNote: iLO will provide a default "
+            "install set name if the flag '--name' is not provided.",
             formatter_class=RawDescriptionHelpFormatter,
         )
         add_parser.add_argument(
             "json",
             help="Json file containing the install set tasks and sequencing"
-                 '\n\n\texample install set JSON file:\n\t[\n\t\t{\n\t\t\t"Name": '
-                 '"Wait",\n\t\t\t"UpdatableBy": ["RuntimeAgent"],\n\t\t\t'
-                 '"Command": "Wait",\n\t\t\t"WaitTimeSeconds": 60\n\t\t},\n\t\t{'
-                 '\n\t\t\t"Name": "uniqueName",\n\t\t\t"UpdatableBy": '
-                 '["RuntimeAgent"],\n\t\t\t"Command": "ApplyUpdate",\n\t\t\t"'
-                 'Filename": "filename.exe"\n\t\t},\n\t\t{\n\t\t\t"Name": '
-                 '"Reboot",\n\t\t\t"UpdatableBy": ["RuntimeAgent"],\n\t\t\t'
-                 '"Command": "ResetServer"\n\t\t}\n\t]',
+            '\n\n\texample install set JSON file:\n\t[\n\t\t{\n\t\t\t"Name": '
+            '"Wait",\n\t\t\t"UpdatableBy": ["RuntimeAgent"],\n\t\t\t'
+            '"Command": "Wait",\n\t\t\t"WaitTimeSeconds": 60\n\t\t},\n\t\t{'
+            '\n\t\t\t"Name": "uniqueName",\n\t\t\t"UpdatableBy": '
+            '["RuntimeAgent"],\n\t\t\t"Command": "ApplyUpdate",\n\t\t\t"'
+            'Filename": "filename.exe"\n\t\t},\n\t\t{\n\t\t\t"Name": '
+            '"Reboot",\n\t\t\t"UpdatableBy": ["RuntimeAgent"],\n\t\t\t'
+            '"Command": "ResetServer"\n\t\t}\n\t]',
             metavar="JSONFILE",
         )
-        add_parser.add_argument(
-            "-n",
-            "--name",
-            dest="name",
-            help="Install set name.",
-            default=None
-        )
+        add_parser.add_argument("-n", "--name", dest="name", help="Install set name.", default=None)
 
         self.cmdbase.add_login_arguments_group(add_parser)
 
@@ -501,7 +494,7 @@ class InstallSetCommand:
             "invoke",
             help=invoke_help,
             description=invoke_help + "\n\nExamples:\n\tTo simply invoke an install set\n\t"
-                                      "installset invoke --name=installsetname",
+            "installset invoke --name=installsetname",
             formatter_class=RawDescriptionHelpFormatter,
         )
         invoke_parser.add_argument(
@@ -518,24 +511,24 @@ class InstallSetCommand:
             dest="ctakeq",
             action="store_true",
             help="This option allows previous items in the task queue to"
-                 " be cleared before the Install Set is invoked",
+            " be cleared before the Install Set is invoked",
             default=False,
         )
         invoke_parser.add_argument(
             "--expire",
             dest="exafter",
             help="Optionally include this flag if you wish to set the"
-                 " time for installset to expire. ISO 8601 Redfish-style time "
-                 "string to be written after which iLO will automatically change "
-                 "state to Expired",
+            " time for installset to expire. ISO 8601 Redfish-style time "
+            "string to be written after which iLO will automatically change "
+            "state to Expired",
             default=None,
         )
         invoke_parser.add_argument(
             "--startafter",
             dest="safter",
             help="Optionally include this flag if you wish to set the"
-                 " earliest execution time for installset. ISO 8601 Redfish-style "
-                 "time string to be used.",
+            " earliest execution time for installset. ISO 8601 Redfish-style "
+            "time string to be used.",
             default=None,
         )
         invoke_parser.add_argument(
@@ -550,7 +543,7 @@ class InstallSetCommand:
             dest="uset",
             action="store_true",
             help="If set then the components in the flash operations are used"
-                 " to replace matching contents in the Recovery Set.",
+            " to replace matching contents in the Recovery Set.",
             default=False,
         )
         self.cmdbase.add_login_arguments_group(invoke_parser)
@@ -561,8 +554,8 @@ class InstallSetCommand:
             "delete",
             help=delete_help,
             description=delete_help + "\n\nExamples:\n\nTo delete a single install set:\n\t"
-                                      "installset delete --name=installsetname.\n\nTo delete all install sets\n\t"
-                                      "installset delete --removeall",
+            "installset delete --name=installsetname.\n\nTo delete all install sets\n\t"
+            "installset delete --removeall",
             formatter_class=RawDescriptionHelpFormatter,
         )
         delete_parser.add_argument(

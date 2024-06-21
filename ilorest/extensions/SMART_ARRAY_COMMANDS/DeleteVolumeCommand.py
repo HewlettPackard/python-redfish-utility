@@ -132,7 +132,6 @@ class DeleteVolumeCommand:
 
         controllist = []
 
-
         try:
             if ilo_ver >= 6.110:
                 if options.controller.isdigit():

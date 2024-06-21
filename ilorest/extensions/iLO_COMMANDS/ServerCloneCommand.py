@@ -34,6 +34,7 @@ from six.moves import input
 import redfish.ris
 from redfish.ris.rmc_helper import IdTokenError, IloResponseError, InstanceNotFoundError
 from redfish.ris.utils import iterateandclear, json_traversal_delete_empty
+from redfish.ris import SessionExpired
 
 try:
     from rdmc_helper import (
@@ -51,6 +52,7 @@ try:
     )
 except ImportError:
     from ilorest.rdmc_helper import (
+        LOGGER,
         Encryption,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
@@ -284,9 +286,9 @@ class ServerCloneCommand:
             self.gatherandsavefunction(self.getilotypes(options), options)
         elif self.load:
             self._fdata = self.file_handler(self.clone_file, operation="r+", options=options)
-            data = self._fdata['#ManagerAccount.v1_3_0.ManagerAccount']
-            if '#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup' in self._fdata:
-                fed_data = self._fdata['#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup']
+            data = self._fdata["#ManagerAccount.v1_3_0.ManagerAccount"]
+            if "#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup" in self._fdata:
+                fed_data = self._fdata["#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup"]
             else:
                 fed_data = dict()
             user_counter = 0
@@ -294,61 +296,67 @@ class ServerCloneCommand:
             if options.all:
                 for useracct in data.items():
                     user = useracct[1]
-                    if not user["Password"] == '<p/k>':
+                    if not user["Password"] == "<p/k>":
                         user_counter = user_counter + 1
                     else:
-
                         self.c_log_write(
-                            "Kindly modify the password from <p/k> to valid pass in the clone file for the user :" +
-                            user["UserName"] + "\n")
+                            "Kindly modify the password from <p/k> to valid pass in the clone file for the user :"
+                            + user["UserName"]
+                            + "\n"
+                        )
                 if fed_data:
                     for fedkey in fed_data.items():
                         fedacct = fedkey[1]
-                        if not fedacct["FederationKey"] == '<p/k>':
+                        if not fedacct["FederationKey"] == "<p/k>":
                             fed_counter = fed_counter + 1
                         else:
-
                             self.c_log_write(
-                                "Kindly modify the password from <p/k> to valid pass in the clone file for the user :" +
-                                fedacct["FederationName"] + "\n")
+                                "Kindly modify the password from <p/k> to valid pass in the clone file for the user :"
+                                + fedacct["FederationName"]
+                                + "\n"
+                            )
                 else:
-                    self.rdmc.ui.printer(
-                        "No federation accounts available\n")
+                    self.rdmc.ui.printer("No federation accounts available\n")
                 if user_counter == len(data.items()) or fed_counter == len(fed_data.items()):
                     self.loadfunction(options)
                     self.load_storageclone(options)
                 else:
                     self.rdmc.ui.error(
-                        "Please modify the default password <p/k> to a valid password in the clone json file and rerun the load command")
+                        "Please modify the default password <p/k> to a valid password "
+                        "in the clone json file and rerun the load command"
+                    )
 
             elif not options.iLOSSA:
                 for useracct in data.items():
                     user = useracct[1]
-                    if not user["Password"] == '<p/k>':
+                    if not user["Password"] == "<p/k>":
                         user_counter = user_counter + 1
                     else:
-
                         self.c_log_write(
-                            "Kindly modify the password from <p/k> to valid pass in the clone file for the user :" +
-                            user["UserName"] + "\n")
+                            "Kindly modify the password from <p/k> to valid pass in the clone file for the user :"
+                            + user["UserName"]
+                            + "\n"
+                        )
                 if fed_data:
                     for fedkey in fed_data.items():
                         fedacct = fedkey[1]
-                        if not fedacct["FederationKey"] == '<p/k>':
+                        if not fedacct["FederationKey"] == "<p/k>":
                             fed_counter = fed_counter + 1
                         else:
-
                             self.c_log_write(
-                                "Kindly modify the password from <p/k> to valid pass in the clone file for the user :" +
-                                fedacct["FederationName"] + "\n")
+                                "Kindly modify the password from <p/k> to valid pass in the clone file for the user :"
+                                + fedacct["FederationName"]
+                                + "\n"
+                            )
                 else:
-                    self.rdmc.ui.printer(
-                        "No federation accounts available\n")
+                    self.rdmc.ui.printer("No federation accounts available\n")
                 if user_counter == len(data.items()) or fed_counter == len(fed_data.items()):
                     self.loadfunction(options)
                 else:
                     self.rdmc.ui.error(
-                        "Please modify the default password <p/k> to a valid password in the clone json file and rerun the load command")
+                        "Please modify the default password <p/k> to a valid password "
+                        "in the clone json file and rerun the load command"
+                    )
             else:
                 self.load_storageclone(options)
 
@@ -754,18 +762,23 @@ class ServerCloneCommand:
         self._fdata = self.file_handler(self.clone_file, operation="r+", options=options)
         self.loadhelper(options)
         self.load_idleconnectiontime(options)
-        data = self._fdata['#ManagerAccount.v1_3_0.ManagerAccount']
-        if '#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup' in self._fdata:
-            fed_data = self._fdata['#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup']
+        data = self._fdata["#ManagerAccount.v1_3_0.ManagerAccount"]
+        if "#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup" in self._fdata:
+            fed_data = self._fdata["#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup"]
             for fedkey in fed_data.items():
-                self.load_federation(fedkey[1], '#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup',
-                                     '/redfish/v1/Managers/1/FederationGroups',options)
+                self.load_federation(
+                    fedkey[1],
+                    "#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup",
+                    "/redfish/v1/Managers/1/FederationGroups",
+                    options,
+                )
         else:
             self.rdmc.ui.printer("No federation accounts to load\n")
             pass
         for useracct in data.items():
-            self.load_accounts(useracct[1], '#ManagerAccount.v1_3_0.ManagerAccount',
-                               '/redfish/v1/AccountService/Accounts',options)
+            self.load_accounts(
+                useracct[1], "#ManagerAccount.v1_3_0.ManagerAccount", "/redfish/v1/AccountService/Accounts", options
+            )
 
         self.loadpatch(options)
         self.getsystemstatus(options)
@@ -788,7 +801,7 @@ class ServerCloneCommand:
         if reset_confirm:
             if self.rdmc.app.current_client.base_url:  # reset process in remote mode
                 self.rdmc.ui.printer("Resetting the server...\n")
-                sys_url ="/redfish/v1/Systems/1/"
+                sys_url = "/redfish/v1/Systems/1/"
                 sysresults = self.rdmc.app.get_handler(sys_url, service=True, silent=True).dict
                 power_state = sysresults["PowerState"]
                 if power_state == "On":
@@ -955,7 +968,7 @@ class ServerCloneCommand:
                         else:
                             sys.stdout.write("---Special loading complete for entry---.\n")
                 except KeyError as excp:
-                    if path in str(excp) and self._fdata.get(_type) and not "iLOFederationGroup" in _type:
+                    if path in str(excp) and self._fdata.get(_type) and "iLOFederationGroup" not in _type:
                         if self.delete(
                             scanned_dict[path]["Data"],
                             _type,
@@ -1268,14 +1281,14 @@ class ServerCloneCommand:
             if self.save:
                 data = self.save_accounts(data, _type, options)
             elif self.load:
-                self.load_accounts(data[_type][path], _type, path,options)
+                self.load_accounts(data[_type][path], _type, path, options)
 
         elif "FederationGroup" in _typep:
             identified = True
             if self.save:
                 data = self.save_federation(data, _type, options)
             elif self.load:
-                self.load_federation(data[_type][path], _type, path,options)
+                self.load_federation(data[_type][path], _type, path, options)
 
         elif "StorageCollection" in _typep:
             identified = True
@@ -1745,7 +1758,7 @@ class ServerCloneCommand:
             return sesprivs
 
     @log_decor
-    def load_accounts(self, user_accounts, _type, path,options):
+    def load_accounts(self, user_accounts, _type, path, options):
         """
         Load iLO User Account Data.
         :parm user_accounts: iLO User Account payload to be loaded
@@ -1876,38 +1889,34 @@ class ServerCloneCommand:
                     if "blobstore" in self.rdmc.app.current_client.base_url:
                         url = "/redfish/v1/Managers/1/SecurityService/"
                         get_security = self.rdmc.app.get_handler(url, silent=True, service=True).dict
-                        security_mode=get_security["SecurityState"]
+                        security_mode = get_security["SecurityState"]
 
-                        if "10" in add_privs_str and "Production" in security_mode and (options.user is None and options.password is None):
-                                self.c_log_write("Warning: For the users In local mode privileges might not get updated in Production mode , Kindly rerun the serverclone load with passing credentials which has recovery privilege")
-                                self.rdmc.ui.error("Warning: For the users In local mode privileges might not get updated in Production mode , Kindly rerun the serverclone load with passing credentials which has recovery privilege")
+                        if (
+                            "10" in add_privs_str
+                            and "Production" in security_mode
+                            and (options.user is None and options.password is None)
+                        ):
+                            self.c_log_write(
+                                "Warning: For the users In local mode privileges might not get "
+                                "updated in Production mode , Kindly rerun the serverclone load "
+                                "with passing credentials which has recovery privilege"
+                            )
+                            self.rdmc.ui.error(
+                                "Warning: For the users In local mode privileges might not get "
+                                "updated in Production mode , Kindly rerun the serverclone load "
+                                "with passing credentials which has recovery privilege"
+                            )
                         elif not (options.user is None and options.password is None):
-                                LOGGER.info("Logging out of the session without user and password")
-                                self.rdmc.app.current_client.logout()
-                                LOGGER.info("Logging in with user and password for deleting system recovery set")
-                                self.rdmc.app.current_client._user_pass = (options.user, options.password)
-                                self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
-                                if add_privs_str:
-                                    self.rdmc.ui.printer("Adding privileges for user: '%s'.\n" % user_name)
-                                    self.auxcommands["iloaccounts"].run("modify " + user_name + " --addprivs " + add_privs_str )
-                                    self.c_log_write("[CHANGE]: Adding privs for " + user_name)
-                                    time.sleep(2)
-                                if remove_privs_str:
-                                    self.rdmc.ui.printer("Removing privileges for user: '%s'.\n" % user_name)
-                                    self.auxcommands["iloaccounts"].run(
-                                        "modify " + user_name + " --removeprivs " + remove_privs_str
-                                    )
-                                    self.c_log_write("[CHANGE]: Removing privs for " + user_name)
-                                    time.sleep(2)
-                                elif role_id:
-                                    self.auxcommands["iloaccounts"].run("modify " + user_name + " --role " + role_id)
-                                    self.c_log_write("[CHANGE]: Modify role id for " + user_name)
-                                    time.sleep(2)
-                    else:
+                            LOGGER.info("Logging out of the session without user and password")
+                            self.rdmc.app.current_client.logout()
+                            LOGGER.info("Logging in with user and password for deleting system recovery set")
+                            self.rdmc.app.current_client._user_pass = (options.user, options.password)
+                            self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
                             if add_privs_str:
                                 self.rdmc.ui.printer("Adding privileges for user: '%s'.\n" % user_name)
                                 self.auxcommands["iloaccounts"].run(
-                                    "modify " + user_name + " --addprivs " + add_privs_str)
+                                    "modify " + user_name + " --addprivs " + add_privs_str
+                                )
                                 self.c_log_write("[CHANGE]: Adding privs for " + user_name)
                                 time.sleep(2)
                             if remove_privs_str:
@@ -1921,6 +1930,23 @@ class ServerCloneCommand:
                                 self.auxcommands["iloaccounts"].run("modify " + user_name + " --role " + role_id)
                                 self.c_log_write("[CHANGE]: Modify role id for " + user_name)
                                 time.sleep(2)
+                    else:
+                        if add_privs_str:
+                            self.rdmc.ui.printer("Adding privileges for user: '%s'.\n" % user_name)
+                            self.auxcommands["iloaccounts"].run("modify " + user_name + " --addprivs " + add_privs_str)
+                            self.c_log_write("[CHANGE]: Adding privs for " + user_name)
+                            time.sleep(2)
+                        if remove_privs_str:
+                            self.rdmc.ui.printer("Removing privileges for user: '%s'.\n" % user_name)
+                            self.auxcommands["iloaccounts"].run(
+                                "modify " + user_name + " --removeprivs " + remove_privs_str
+                            )
+                            self.c_log_write("[CHANGE]: Removing privs for " + user_name)
+                            time.sleep(2)
+                        elif role_id:
+                            self.auxcommands["iloaccounts"].run("modify " + user_name + " --role " + role_id)
+                            self.c_log_write("[CHANGE]: Modify role id for " + user_name)
+                            time.sleep(2)
         else:
             raise Exception(
                 "A password was not provided for account: '%s', path: '%s'. "
@@ -1996,7 +2022,7 @@ class ServerCloneCommand:
         return fedaccts
 
     @log_decor
-    def load_federation(self, fed_accounts, _type, path,options):
+    def load_federation(self, fed_accounts, _type, path, options):
         """
         Load of Federation Account Data.
         :parm fed_accounts: Federation account payload to be loaded
@@ -2054,30 +2080,58 @@ class ServerCloneCommand:
                     get_security = self.rdmc.app.get_handler(url, silent=True, service=True).dict
                     security_mode = get_security["SecurityState"]
 
-                    if "10" in add_privs_str and (options.user is None and options.password is None) and "Production" in security_mode :
+                    if (
+                        "10" in add_privs_str
+                        and (options.user is None and options.password is None)
+                        and "Production" in security_mode
+                    ):
                         self.c_log_write(
-                            "Warning: For the users In local mode privileges might not get updated in Production mode , Kindly rerun the serverclone load with passing credentials which has recovery privilege")
+                            "Warning: For the users In local mode privileges might not get updated in "
+                            "Production mode , Kindly rerun the serverclone load with "
+                            "passing credentials which has recovery privilege"
+                        )
                         self.rdmc.ui.error(
-                            "Warning: For the users In local mode privileges might not get updated in Production mode , Kindly rerun the serverclone load with passing credentials which has recovery privilege")
+                            "Warning: For the users In local mode privileges might not get updated in "
+                            "Production mode , Kindly rerun the serverclone load with "
+                            "passing credentials which has recovery privilege"
+                        )
                     elif not (options.user is None and options.password is None):
-                            LOGGER.info("Logging out of the session without user and password")
-                            self.rdmc.app.current_client.logout()
-                            LOGGER.info("Logging in with user and password for deleting system recovery set")
-                            self.rdmc.app.current_client._user_pass = (options.user, options.password)
-                            self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
+                        LOGGER.info("Logging out of the session without user and password")
+                        self.rdmc.app.current_client.logout()
+                        LOGGER.info("Logging in with user and password for deleting system recovery set")
+                        self.rdmc.app.current_client._user_pass = (options.user, options.password)
+                        self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
 
-                            if add_privs_str:
-                                self.rdmc.ui.printer("Adding privs to Federation account: '%s'\n" % fed_name)
-                                self.auxcommands["ilofederation"].run(
-                                    "modify " + fed_name + " " + fed_key + " --addprivs " + add_privs_str + " -u "+options.user + " -p "+options.password
-                                )
-                                time.sleep(2)
-                            if remove_privs_str:
-                                self.rdmc.ui.printer("Removing privs from Federation account: '%s'\n" % fed_name)
-                                self.auxcommands["ilofederation"].run(
-                                    "modify " + fed_name + " " + fed_key + " --removeprivs " + remove_privs_str + " -u "+options.user+" -p "+options.password
-                                )
-                                time.sleep(2)
+                        if add_privs_str:
+                            self.rdmc.ui.printer("Adding privs to Federation account: '%s'\n" % fed_name)
+                            self.auxcommands["ilofederation"].run(
+                                "modify "
+                                + fed_name
+                                + " "
+                                + fed_key
+                                + " --addprivs "
+                                + add_privs_str
+                                + " -u "
+                                + options.user
+                                + " -p "
+                                + options.password
+                            )
+                            time.sleep(2)
+                        if remove_privs_str:
+                            self.rdmc.ui.printer("Removing privs from Federation account: '%s'\n" % fed_name)
+                            self.auxcommands["ilofederation"].run(
+                                "modify "
+                                + fed_name
+                                + " "
+                                + fed_key
+                                + " --removeprivs "
+                                + remove_privs_str
+                                + " -u "
+                                + options.user
+                                + " -p "
+                                + options.password
+                            )
+                            time.sleep(2)
 
                 else:
                     if add_privs_str:
@@ -2092,7 +2146,6 @@ class ServerCloneCommand:
                             "modify " + fed_name + " " + fed_key + " --removeprivs " + remove_privs_str
                         )
                         time.sleep(2)
-
 
         else:
             self.rdmc.ui.warn(
@@ -2247,7 +2300,6 @@ class ServerCloneCommand:
         else:
             remove_privs_str += "3,"
         if desired_priv.get("Privileges").get("VirtualMediaPriv"):
-
             add_privs_str += "5,"
         else:
             remove_privs_str += "5,"

@@ -48,13 +48,14 @@ class CreateVolumeCommand:
             "name": "createvolume",
             "usage": None,
             "description": "Creates volumes on compatible HPE SSA RAID controllers\nTo view "
-                           "help on specific sub-commands run: createvolume <sub-command> -h\n\n"
-                           "NOTE: Refer http://www.hpe.com/info/scmo for additional information on creating Volumes on Gen11 "
-                           "servers.\n\t"
-                           "Also, when you select multiple physicaldrives you can select by both\n\t"
-                           "physical drive name and by the location at the same time.\n\t"
-                           "You can also select controllers by slot number as well as index.\n\t"
-                           "For iLO6, storage id need to be specified using --storageid=DE00E000 along with --controller=1",
+            "help on specific sub-commands run: createvolume <sub-command> -h\n\n"
+            "NOTE: Refer http://www.hpe.com/info/scmo for additional information "
+            "on creating Volumes on Gen11 servers.\n\t"
+            "Also, when you select multiple physicaldrives you can select by both\n\t"
+            "physical drive name and by the location at the same time.\n\t"
+            "You can also select controllers by slot number as well as index.\n\t"
+            "For iLO6, storage id need to be specified using --storageid=DE00E000 "
+            "along with --controller=1",
             "summary": "Creates a new volume on the selected controller.",
             "aliases": ["createlogicaldrive"],
             "auxcommands": ["SelectCommand", "StorageControllerCommand"],
@@ -91,8 +92,10 @@ class CreateVolumeCommand:
                 self.auxcommands["select"].selectfunction("StorageController.")
                 content = self.rdmc.app.getprops()
                 if options.command == "quickdrive":
-                    raise InvalidCommandLineError("This controller is not compatible with quickdrive option. "
-                                                  "Please use customdrive or volume option\n")
+                    raise InvalidCommandLineError(
+                        "This controller is not compatible with quickdrive option. "
+                        "Please use customdrive or volume option\n"
+                    )
                 ilo_ver = 6.110
                 options.command = "volume"
             except Exception:
@@ -142,10 +145,10 @@ class CreateVolumeCommand:
                 for volume_list in logical_drives:
                     volume = self.rdmc.app.get_handler(volume_list["@odata.id"], silent=True, service=True).dict
                     if (
-                            ("Status" in volume)
-                            and (volume["Status"]["State"] == "Enabled")
-                            and ("RAIDType" in volume)
-                            and (volume["RAIDType"] == "None")
+                        ("Status" in volume)
+                        and (volume["Status"]["State"] == "Enabled")
+                        and ("RAIDType" in volume)
+                        and (volume["RAIDType"] == "None")
                     ):
                         self.rdmc.app.delete_handler(volume["@odata.id"], {}, silent=True, service=True)
 
@@ -182,9 +185,11 @@ class CreateVolumeCommand:
 
                                     for sdrive in sparedrives:
                                         if sdrive == p_loc and sdrive not in array:
-                                            s_array.append({
+                                            s_array.append(
+                                                {
                                                     "@odata.id": controller["physical_drives"][str(p_id)]["@odata.id"],
-                                                })
+                                                }
+                                            )
                                             set_spare = True
                             newdrive1["Links"]["DedicatedSpareDrives"] = s_array
                             if not set_spare:
@@ -614,15 +619,15 @@ class CreateVolumeCommand:
             if "iOPerfModeEnabled" in options and options.iOPerfModeEnabled:
                 for item in iOPerfModeEnabledlist:
                     if (
-                            options.iOPerfModeEnabled[0].lower() == item.lower()
-                            and options.iOPerfModeEnabled[0].lower() == "false"
+                        options.iOPerfModeEnabled[0].lower() == item.lower()
+                        and options.iOPerfModeEnabled[0].lower() == "false"
                     ):
                         newdrive["IOPerfModeEnabled"] = eval(options.iOPerfModeEnabled[0])
                         itemadded = True
                         break
                     elif (
-                            options.iOPerfModeEnabled[0].lower() == item.lower()
-                            and options.iOPerfModeEnabled[0].lower() == "true"
+                        options.iOPerfModeEnabled[0].lower() == item.lower()
+                        and options.iOPerfModeEnabled[0].lower() == "true"
                     ):
                         if "SSD" in controller["SupportedDeviceProtocols"]:
                             newdrive["IOPerfModeEnabled"] = eval(options.iOPerfModeEnabled[0])
@@ -666,8 +671,8 @@ class CreateVolumeCommand:
                 if options.WriteHoleProtectionPolicy is not None:
                     for item in WriteHoleProtectionPolicyList:
                         if (
-                                options.WriteHoleProtectionPolicy[0].lower() == item.lower()
-                                and options.WriteHoleProtectionPolicy[0].lower() == "yes"
+                            options.WriteHoleProtectionPolicy[0].lower() == item.lower()
+                            and options.WriteHoleProtectionPolicy[0].lower() == "yes"
                         ):
                             newdrive["WriteHoleProtectionPolicy"] = "Journaling"
                             newdrive["Links"]["JournalingMedia"] = idval
@@ -707,16 +712,16 @@ class CreateVolumeCommand:
 
                     if options.command == "quickdrive":
                         if (
-                                controller["physical_drives"][drive]["InterfaceType"]
-                                == newdrive["DataDrives"]["DataDriveInterfaceType"]
+                            controller["physical_drives"][drive]["InterfaceType"]
+                            == newdrive["DataDrives"]["DataDriveInterfaceType"]
                         ):
                             drivechecks = (True, True, False, False)
                         else:
                             drives_avail -= 1
                             continue
                         if (
-                                controller["physical_drives"][drive]["MediaType"]
-                                == newdrive["DataDrives"]["DataDriveMediaType"]
+                            controller["physical_drives"][drive]["MediaType"]
+                            == newdrive["DataDrives"]["DataDriveMediaType"]
                         ):
                             drivechecks = (True, True, True, False)
                         else:
@@ -842,8 +847,8 @@ class CreateVolumeCommand:
             "--controller",
             dest="controller",
             help="Use this flag to select the corresponding controller "
-                 "using either the slot number or index.\nexample: --controller=Slot 0 OR "
-                 "--controller=1",
+            "using either the slot number or index.\nexample: --controller=Slot 0 OR "
+            "--controller=1",
             default=None,
             required=True,
         )
@@ -871,8 +876,8 @@ class CreateVolumeCommand:
             "quickdrive",
             help=qd_help,
             description=qd_help + "\n\texample: createvolume quickdrive "
-                                  "<raid-level> <num-drives> <media-type> <interface-type> "
-                                  "--locationtype=Internal  --minimumsize=0 --controller=1",
+            "<raid-level> <num-drives> <media-type> <interface-type> "
+            "--locationtype=Internal  --minimumsize=0 --controller=1",
             formatter_class=RawDescriptionHelpFormatter,
         )
         qd_parser.add_argument(
@@ -905,15 +910,15 @@ class CreateVolumeCommand:
             "--minimumsize",
             dest="minimumsize",
             help="""Optionally include to set the minimum size of the drive """
-                 """in GiB. (usable in quick creation only, use -1 for max size)""",
+            """in GiB. (usable in quick creation only, use -1 for max size)""",
             default=None,
         )
         qd_parser.add_argument(
             "--controller",
             dest="controller",
             help="Use this flag to select the corresponding controller "
-                 "using either the slot number or index.\nexample: --controller=Slot 0 OR "
-                 "--controller=1",
+            "using either the slot number or index.\nexample: --controller=Slot 0 OR "
+            "--controller=1",
             default=None,
             required=True,
         )
@@ -921,7 +926,7 @@ class CreateVolumeCommand:
             "--storageid",
             dest="storageid",
             help="Use this flag to select the corresponding storageid "
-                 "using either the slot number or index.\nexample: --storageid=DE123234",
+            "using either the slot number or index.\nexample: --storageid=DE123234",
             default=None,
             required=False,
         )
@@ -937,17 +942,18 @@ class CreateVolumeCommand:
             "customdrive",
             help=cd_help,
             description=cd_help + "\n\texample: createvolume customdrive "
-                                  "<raid-level> <physicaldrivelocations> --controller=1 "
-                                  "--name=drivename --spare-drives=1I:1:1,1I:1:3 --spare-type=Dedicated --capacitygib=10 "
-                                  "--accelerator-type=None\n\n\tOPTIONS:\n\traid-level:\t\t"
-                                  "Raid0, Raid1, Raid1ADM, Raid10, Raid10ADM, Raid5, Raid50, "
-                                  "Raid6, Raid60\n\tphysicaldrivelocation(s):\tLocation, Drive-name\n\t"
-                                  "media-type:\t\tSSD,HDD\n\tinterface-type:"
-                                  "\t\tSAS, SATA, NVMe\n\tdrive-location:\t\tInternal, External\n\t"
-                                  "--spare-type:\t\tDedicated, Roaming\n\t--accelerator-type:\t"
-                                  "ControllerCache, IOBypass, None\n\t--paritytype:\t\tDefault, Rapid"
-                                  "\n\t--capacitygib:\t\t-1 (for Max Size)\n\t--capacityblocks:\t"
-                                  "-1 (for Max Size)\n\n\t",
+            "<raid-level> <physicaldrivelocations> --controller=1 "
+            "--name=drivename --spare-drives=1I:1:1,1I:1:3 "
+            "--spare-type=Dedicated --capacitygib=10 "
+            "--accelerator-type=None\n\n\tOPTIONS:\n\traid-level:\t\t"
+            "Raid0, Raid1, Raid1ADM, Raid10, Raid10ADM, Raid5, Raid50, "
+            "Raid6, Raid60\n\tphysicaldrivelocation(s):\tLocation, Drive-name\n\t"
+            "media-type:\t\tSSD,HDD\n\tinterface-type:"
+            "\t\tSAS, SATA, NVMe\n\tdrive-location:\t\tInternal, External\n\t"
+            "--spare-type:\t\tDedicated, Roaming\n\t--accelerator-type:\t"
+            "ControllerCache, IOBypass, None\n\t--paritytype:\t\tDefault, Rapid"
+            "\n\t--capacitygib:\t\t-1 (for Max Size)\n\t--capacityblocks:\t"
+            "-1 (for Max Size)\n\n\t",
             formatter_class=RawDescriptionHelpFormatter,
         )
         cd_parser.add_argument(
@@ -971,15 +977,15 @@ class CreateVolumeCommand:
             "--spare-drives",
             dest="sparedrives",
             help="""Optionally include to set the spare drives by the """
-                 """physical drive's location. (usable in custom creation only)""",
+            """physical drive's location. (usable in custom creation only)""",
             default=None,
         )
         cd_parser.add_argument(
             "--capacitygib",
             dest="capacitygib",
             help="""Optionally include to set the capacity of the drive in """
-                 """GiB. (usable in custom creation only, use -1 for max """
-                 """size)""",
+            """GiB. (usable in custom creation only, use -1 for max """
+            """size)""",
             default=None,
         )
         cd_parser.add_argument(
@@ -998,7 +1004,7 @@ class CreateVolumeCommand:
             "--minimumsize",
             dest="minimumsize",
             help="""Optionally include to set the minimum size of the drive """
-                 """in GiB. (usable in quick creation only, use -1 for max size)""",
+            """in GiB. (usable in quick creation only, use -1 for max size)""",
             default=None,
         )
         cd_parser.add_argument(
@@ -1011,7 +1017,7 @@ class CreateVolumeCommand:
             "--storageid",
             dest="storageid",
             help="Use this flag to select the corresponding storageid "
-                 "using either the slot number or index.\nexample: --storageid=DE123234",
+            "using either the slot number or index.\nexample: --storageid=DE123234",
             default=None,
             required=False,
         )
@@ -1019,28 +1025,28 @@ class CreateVolumeCommand:
             "--capacityblocks",
             dest="capacityblocks",
             help="""Optionally include to choose the capacity in blocks. """
-                 """(use -1 for max size, usable in custom creation only)""",
+            """(use -1 for max size, usable in custom creation only)""",
             default=None,
         )
         cd_parser.add_argument(
             "--paritygroupcount",
             dest="paritygroup",
             help="""Optionally include to include the number of parity """
-                 """groups to use. (only valid for certain RAID levels)""",
+            """groups to use. (only valid for certain RAID levels)""",
             default=None,
         )
         cd_parser.add_argument(
             "--paritytype",
             dest="paritytype",
             help="""Optionally include to choose the parity initialization"""
-                 """ type. (usable in custom creation only)""",
+            """ type. (usable in custom creation only)""",
             default=None,
         )
         cd_parser.add_argument(
             "--block-size-bytes",
             dest="blocksize",
             help="""Optionally include to choose the block size of the disk"""
-                 """ drive. (usable in custom creation only)""",
+            """ drive. (usable in custom creation only)""",
             default=None,
         )
         cd_parser.add_argument(
@@ -1059,8 +1065,8 @@ class CreateVolumeCommand:
             "--controller",
             dest="controller",
             help="Use this flag to select the corresponding controller "
-                 "using either the slot number or index.\nexample: --controller=Slot 0 OR "
-                 "--controller=1",
+            "using either the slot number or index.\nexample: --controller=Slot 0 OR "
+            "--controller=1",
             default=None,
             required=True,
         )
@@ -1075,10 +1081,11 @@ class CreateVolumeCommand:
             "volume",
             help=v_help,
             description=v_help + "\n\texample: createvolume volume "
-                                 "<raid-level> <physicaldrivelocations> <displayname> <iOPerfModeEnabled> <readCachePolicy> "
-                                 "<writeCachePolicy> <WriteHoleProtectionPolicy> --storageid=DE009000 --controller=0 "
-                                 "<spare-drives> <capacitygib> "
-                                 "\n\n\t",
+            "<raid-level> <physicaldrivelocations> <displayname> "
+            "<iOPerfModeEnabled> <readCachePolicy> "
+            "<writeCachePolicy> <WriteHoleProtectionPolicy> --storageid=DE009000 --controller=0 "
+            "<spare-drives> <capacitygib> "
+            "\n\n\t",
             formatter_class=RawDescriptionHelpFormatter,
         )
         v_parser.add_argument(
@@ -1095,7 +1102,7 @@ class CreateVolumeCommand:
             "--storageid",
             dest="storageid",
             help="Use this flag to select the corresponding storageid "
-                 "using either the slot number or index.\nexample: --storageid=DE123234",
+            "using either the slot number or index.\nexample: --storageid=DE123234",
             default=None,
             required=True,
         )
@@ -1121,21 +1128,21 @@ class CreateVolumeCommand:
             "--WriteCachePolicy",
             dest="WriteCachePolicy",
             help="Optionally include to set the WriteCachePolicy "
-                 "Allowed values are 'Off', 'WriteThrough','ProtectedWriteBack','UnprotectedWriteBack'",
+            "Allowed values are 'Off', 'WriteThrough','ProtectedWriteBack','UnprotectedWriteBack'",
             default=None,
         )
         v_parser.add_argument(
             "--WriteHoleProtectionPolicy",
             dest="WriteHoleProtectionPolicy",
             help="""Optionally include to choose the WriteHoleProtectionPolicy """
-                 """this is applicable only for VROC, You can send either Yes or No as values""",
+            """this is applicable only for VROC, You can send either Yes or No as values""",
             default=None,
         )
         v_parser.add_argument(
             "--sparedrives",
             dest="sparedrives",
             help="""Optionally include to set the spare drives by the """
-                 """physical drive's location. (usable in custom creation only)""",
+            """physical drive's location. (usable in custom creation only)""",
             action="append",
             default=None,
         )
@@ -1143,8 +1150,8 @@ class CreateVolumeCommand:
             "--capacitybytes",
             dest="capacitybytes",
             help="""Optionally include to set the capacity of the drive in """
-                 """bytes. (usable in custom creation only, use -1 for max """
-                 """size)""",
+            """bytes. (usable in custom creation only, use -1 for max """
+            """size)""",
             action="append",
             default=None,
         )
@@ -1152,8 +1159,8 @@ class CreateVolumeCommand:
             "--controller",
             dest="controller",
             help="Use this flag to select the corresponding controller "
-                 "using either the slot number or index.\nexample: --controller=Slot 0 OR "
-                 "--controller=1",
+            "using either the slot number or index.\nexample: --controller=Slot 0 OR "
+            "--controller=1",
             default=None,
             required=True,
         )

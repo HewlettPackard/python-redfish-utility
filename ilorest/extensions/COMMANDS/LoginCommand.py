@@ -192,8 +192,10 @@ class LoginCommand:
             if "blobstore" in self.url and (options.waitforOTP or options.login_otp):
                 options.waitforOTP = None
                 options.login_otp = None
-                self.rdmc.ui.printer("Warning: For local inband mode, TFA is not supported, options --wait_for_otp "
-                                     "and --otp will be ignored\n")
+                self.rdmc.ui.printer(
+                    "Warning: For local inband mode, TFA is not supported, options --wait_for_otp "
+                    "and --otp will be ignored\n"
+                )
 
             if options.waitforOTP:
                 try:

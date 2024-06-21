@@ -563,31 +563,31 @@ class ServerlogsCommand:
         """
         LOGGER.info("Obtaining IML path for download.")
         path = ""
-        val = self.rdmc.app.typepath.defs.logservicetype
-        filtereddatainstance = self.rdmc.app.select(selector=val)
+        val = "/redfish/v1/Systems/1/LogServices/IML/"
+        filtereddatainstance = self.rdmc.app.get_handler(val, silent=True).dict
 
         try:
-            filtereddictslists = [x.resp.dict for x in filtereddatainstance]
+            filtereddictslists = filtereddatainstance
             if not filtereddictslists:
                 raise NoContentsFoundForOperationError("Unable to retrieve instance.")
-            for filtereddict in filtereddictslists:
-                if filtereddict["Name"] == "Integrated Management Log":
-                    if options.clearlog:
-                        if self.rdmc.app.typepath.defs.flagforrest:
-                            linkpath = filtereddict["links"]
-                            selfpath = linkpath["self"]
-                            path = selfpath["href"]
-                        elif self.rdmc.app.typepath.defs.isgen9:
-                            path = filtereddict[self.rdmc.app.typepath.defs.hrefstring]
-                        else:
-                            actiondict = filtereddict["Actions"]
-                            clearkey = [x for x in actiondict if x.endswith("ClearLog")]
-                            path = actiondict[clearkey[0]]["target"]
+            # for filtereddict in filtereddictslists:
+            if filtereddictslists["Name"] == "Integrated Management Log":
+                if options.clearlog:
+                    if self.rdmc.app.typepath.defs.flagforrest:
+                        linkpath = filtereddictslists["links"]
+                        selfpath = linkpath["self"]
+                        path = selfpath["href"]
+                    elif self.rdmc.app.typepath.defs.isgen9:
+                        path = filtereddictslists[self.rdmc.app.typepath.defs.hrefstring]
                     else:
-                        linkpath = filtereddict["links"] if "links" in filtereddict else filtereddict
-                        dictpath = linkpath["Entries"]
-                        dictpath = dictpath[0] if isinstance(dictpath, list) else dictpath
-                        path = dictpath[self.rdmc.app.typepath.defs.hrefstring]
+                        actiondict = filtereddictslists["Actions"]
+                        clearkey = [x for x in actiondict if x.endswith("ClearLog")]
+                        path = actiondict[clearkey[0]]["target"]
+                else:
+                    linkpath = filtereddictslists["links"] if "links" in filtereddictslists else filtereddictslists
+                    dictpath = linkpath["Entries"]
+                    dictpath = dictpath[0] if isinstance(dictpath, list) else dictpath
+                    path = dictpath[self.rdmc.app.typepath.defs.hrefstring]
             if not path:
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
         except NoContentsFoundForOperationError as excp:
@@ -609,31 +609,31 @@ class ServerlogsCommand:
         """
         LOGGER.info("Obtaining IEL path for download.")
         path = ""
-        val = self.rdmc.app.typepath.defs.logservicetype
-        filtereddatainstance = self.rdmc.app.select(selector=val)
+        val = "/redfish/v1/Managers/1/LogServices/IEL/"
+        filtereddatainstance = self.rdmc.app.get_handler(val, silent=True).dict
 
         try:
-            filtereddictslists = [x.resp.dict for x in filtereddatainstance]
+            filtereddictslists = filtereddatainstance
             if not filtereddictslists:
                 raise NoContentsFoundForOperationError("Unable to retrieve instance.")
-            for filtereddict in filtereddictslists:
-                if filtereddict["Name"] == "iLO Event Log":
-                    if options.clearlog:
-                        if self.rdmc.app.typepath.defs.flagforrest:
-                            linkpath = filtereddict["links"]
-                            selfpath = linkpath["self"]
-                            path = selfpath["href"]
-                        elif self.rdmc.app.typepath.defs.isgen9:
-                            path = filtereddict[self.rdmc.app.typepath.defs.hrefstring]
-                        else:
-                            actiondict = filtereddict["Actions"]
-                            clearkey = [x for x in actiondict if x.endswith("ClearLog")]
-                            path = actiondict[clearkey[0]]["target"]
+            # for filtereddict in filtereddictslists:
+            if filtereddictslists["Name"] == "iLO Event Log":
+                if options.clearlog:
+                    if self.rdmc.app.typepath.defs.flagforrest:
+                        linkpath = filtereddictslists["links"]
+                        selfpath = linkpath["self"]
+                        path = selfpath["href"]
+                    elif self.rdmc.app.typepath.defs.isgen9:
+                        path = filtereddictslists[self.rdmc.app.typepath.defs.hrefstring]
                     else:
-                        linkpath = filtereddict["links"] if "links" in filtereddict else filtereddict
-                        dictpath = linkpath["Entries"]
-                        dictpath = dictpath[0] if isinstance(dictpath, list) else dictpath
-                        path = dictpath[self.rdmc.app.typepath.defs.hrefstring]
+                        actiondict = filtereddictslists["Actions"]
+                        clearkey = [x for x in actiondict if x.endswith("ClearLog")]
+                        path = actiondict[clearkey[0]]["target"]
+                else:
+                    linkpath = filtereddictslists["links"] if "links" in filtereddictslists else filtereddictslists
+                    dictpath = linkpath["Entries"]
+                    dictpath = dictpath[0] if isinstance(dictpath, list) else dictpath
+                    path = dictpath[self.rdmc.app.typepath.defs.hrefstring]
 
             if not path:
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
@@ -659,23 +659,23 @@ class ServerlogsCommand:
             raise IncompatibleiLOVersionError("Security logs are only available on iLO 5 2.10 or" " greater.")
         LOGGER.info("Obtaining SL path for download.")
         path = ""
-        val = self.rdmc.app.typepath.defs.logservicetype
-        filtereddatainstance = self.rdmc.app.select(selector=val)
+        val = "/redfish/v1/Systems/1/LogServices/SL/"
+        filtereddatainstance = self.rdmc.app.get_handler(val, silent=True).dict
 
         try:
-            filtereddictslists = [x.resp.dict for x in filtereddatainstance]
+            filtereddictslists = filtereddatainstance
             if not filtereddictslists:
                 raise NoContentsFoundForOperationError("Unable to retrieve instance.")
-            for filtereddict in filtereddictslists:
-                if filtereddict["Id"] == "SL":
-                    if options.clearlog:
-                        actiondict = filtereddict["Actions"]
-                        clearkey = [x for x in actiondict if x.endswith("ClearLog")]
-                        path = actiondict[clearkey[0]]["target"]
-                    else:
-                        dictpath = filtereddict["Entries"]
-                        dictpath = dictpath[0] if isinstance(dictpath, list) else dictpath
-                        path = dictpath[self.rdmc.app.typepath.defs.hrefstring]
+            # for filtereddict in filtereddictslists:
+            if filtereddictslists["Id"] == "SL":
+                if options.clearlog:
+                    actiondict = filtereddictslists["Actions"]
+                    clearkey = [x for x in actiondict if x.endswith("ClearLog")]
+                    path = actiondict[clearkey[0]]["target"]
+                else:
+                    dictpath = filtereddictslists["Entries"]
+                    dictpath = dictpath[0] if isinstance(dictpath, list) else dictpath
+                    path = dictpath[self.rdmc.app.typepath.defs.hrefstring]
 
             if not path:
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
@@ -704,75 +704,75 @@ class ServerlogsCommand:
                 "AHS logs must be downloaded with " "default name. Please re-run command without filename option."
             )
 
-        val = self.rdmc.app.typepath.defs.hpiloactivehealthsystemtype
-        filtereddatainstance = self.rdmc.app.select(selector=val)
+        val = "/redfish/v1/Managers/1/ActiveHealthSystem/"
+        filtereddatainstance = self.rdmc.app.get_handler(val, silent=True).dict
 
         try:
-            filtereddictslists = [x.resp.dict for x in filtereddatainstance]
+            filtereddictslists = filtereddatainstance
 
             if not filtereddictslists:
                 raise NoContentsFoundForOperationError("Unable to retrieve log instance.")
 
-            for filtereddict in filtereddictslists:
-                if options.clearlog:
-                    if self.rdmc.app.typepath.defs.flagforrest:
-                        linkpath = filtereddict["links"]
-                        selfpath = linkpath["self"]
-                        path = selfpath["href"]
-                    elif self.rdmc.app.typepath.defs.isgen9:
-                        path = filtereddict[self.rdmc.app.typepath.defs.hrefstring]
-                    else:
-                        actiondict = filtereddict["Actions"]
-                        clearkey = [x for x in actiondict if x.endswith("ClearLog")]
-                        path = actiondict[clearkey[0]]["target"]
+            # for filtereddict in filtereddictslists:
+            if options.clearlog:
+                if self.rdmc.app.typepath.defs.flagforrest:
+                    linkpath = filtereddictslists["links"]
+                    selfpath = linkpath["self"]
+                    path = selfpath["href"]
+                elif self.rdmc.app.typepath.defs.isgen9:
+                    path = filtereddictslists[self.rdmc.app.typepath.defs.hrefstring]
                 else:
-                    linkpath = filtereddict["links"] if "links" in filtereddict else filtereddict["Links"]
+                    actiondict = filtereddictslists["Actions"]
+                    clearkey = [x for x in actiondict if x.endswith("ClearLog")]
+                    path = actiondict[clearkey[0]]["target"]
+            else:
+                linkpath = filtereddictslists["links"] if "links" in filtereddictslists else filtereddictslists["Links"]
 
-                    ahslocpath = linkpath["AHSLocation"]
-                    path = ahslocpath["extref"]
-                    weekpath = None
+                ahslocpath = linkpath["AHSLocation"]
+                path = ahslocpath["extref"]
+                weekpath = None
 
-                    if options.downloadallahs:
-                        path = path
-                    elif options.customiseAHS:
-                        custr = options.customiseAHS
-                        if custr.startswith(("'", '"')) and custr.endswith(("'", '"')):
-                            custr = custr[1:-1]
+                if options.downloadallahs:
+                    path = path
+                elif options.customiseAHS:
+                    custr = options.customiseAHS
+                    if custr.startswith(("'", '"')) and custr.endswith(("'", '"')):
+                        custr = custr[1:-1]
 
-                        if custr.startswith("from="):
-                            path = path.split("downloadAll=1")[0]
-
-                        path = path + custr
-                    else:
-                        if "RecentWeek" in list(linkpath.keys()):
-                            weekpath = linkpath["RecentWeek"]["extref"]
-                        elif "AHSFileStart" in list(filtereddict.keys()):
-                            enddate = filtereddict["AHSFileEnd"].split("T")[0]
-                            startdate = filtereddict["AHSFileStart"].split("T")[0]
-
-                            enddat = list(map(int, enddate.split("-")))
-                            startdat = list(map(int, startdate.split("-")))
-
-                            weekago = datetime.datetime.now() - datetime.timedelta(days=6)
-                            weekagostr = list(map(int, (str(weekago).split()[0]).split("-")))
-
-                            strdate = min(
-                                max(
-                                    datetime.date(weekagostr[0], weekagostr[1], weekagostr[2]),
-                                    datetime.date(startdat[0], startdat[1], startdat[2]),
-                                ),
-                                datetime.date(enddat[0], enddat[1], enddat[2]),
-                            )
-
-                            aweekstr = "from=" + str(strdate) + "&&to=" + enddate
-                        else:
-                            week_ago = datetime.datetime.now() - datetime.timedelta(days=6)
-                            aweekstr = (
-                                "from=" + str(week_ago).split()[0] + "&&to=" + str(datetime.datetime.now()).split()[0]
-                            )
-
+                    if custr.startswith("from="):
                         path = path.split("downloadAll=1")[0]
-                        path = weekpath if weekpath else path + aweekstr
+
+                    path = path + custr
+                else:
+                    if "RecentWeek" in list(linkpath.keys()):
+                        weekpath = linkpath["RecentWeek"]["extref"]
+                    elif "AHSFileStart" in list(filtereddictslists.keys()):
+                        enddate = filtereddictslists["AHSFileEnd"].split("T")[0]
+                        startdate = filtereddictslists["AHSFileStart"].split("T")[0]
+
+                        enddat = list(map(int, enddate.split("-")))
+                        startdat = list(map(int, startdate.split("-")))
+
+                        weekago = datetime.datetime.now() - datetime.timedelta(days=6)
+                        weekagostr = list(map(int, (str(weekago).split()[0]).split("-")))
+
+                        strdate = min(
+                            max(
+                                datetime.date(weekagostr[0], weekagostr[1], weekagostr[2]),
+                                datetime.date(startdat[0], startdat[1], startdat[2]),
+                            ),
+                            datetime.date(enddat[0], enddat[1], enddat[2]),
+                        )
+
+                        aweekstr = "from=" + str(strdate) + "&&to=" + enddate
+                    else:
+                        week_ago = datetime.datetime.now() - datetime.timedelta(days=6)
+                        aweekstr = (
+                            "from=" + str(week_ago).split()[0] + "&&to=" + str(datetime.datetime.now()).split()[0]
+                        )
+
+                    path = path.split("downloadAll=1")[0]
+                    path = weekpath if weekpath else path + aweekstr
 
             if not path:
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
@@ -1298,12 +1298,12 @@ class ServerlogsCommand:
         todaysdate = "".join(timenow)
 
         resp = self.rdmc.app.get_handler(
-                "/redfish/v1",
-                sessionid=options.sessionid,
-                silent=True,
-                service=True,
-                uncache=True,
-            )
+            "/redfish/v1",
+            sessionid=options.sessionid,
+            silent=True,
+            service=True,
+            uncache=True,
+        )
         ahsdefaultfilename = "HPE_" + snum + "_" + todaysdate + ".ahs"
         if "Vendor" in resp.dict:
             ahsdefaultfilename = ahsdefaultfilename.replace("HPE", resp.dict["Vendor"])

@@ -33,11 +33,8 @@ from redfish.hpilo.risblobstore2 import BlobStore2
 try:
     from rdmc_helper import (
         LOGGER,
-        LERR,
-        LOUT,
         IncompatibleiLOVersionError,
         ReturnCodes,
-        Encryption,
         InvalidCommandLineErrorOPTS,
         InvalidFileInputError,
         UploadError,
@@ -47,13 +44,9 @@ try:
 except ImportError:
     from ilorest.rdmc_helper import (
         LOGGER,
-        LERR,
-        LOUT,
         IncompatibleiLOVersionError,
         ReturnCodes,
-        Encryption,
         InvalidCommandLineErrorOPTS,
-        InvalidCommandLineError,
         InvalidFileInputError,
         UploadError,
         TaskQueueError,
@@ -445,9 +438,6 @@ class FwpkgCommand:
         """
 
         for component in components:
-            taskqueuecommand = " create %s " % os.path.basename(component)
-            if options.tover:
-                taskqueuecommand = " create %s --tpmover" % os.path.basename(component)
             if (
                 component.endswith(".fwpkg")
                 or component.lower().endswith(".hpb")

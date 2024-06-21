@@ -53,22 +53,16 @@ try:
         IncompatibleiLOVersionError,
         TimeOutError,
         InvalidFileInputError,
-        DeviceDiscoveryInProgress,
-        FirmwareUpdateError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         LOGGER,
         ReturnCodes,
         InvalidCommandLineErrorOPTS,
-        Encryption,
         UploadError,
-        InvalidCommandLineError,
         IncompatibleiLOVersionError,
         TimeOutError,
         InvalidFileInputError,
-        DeviceDiscoveryInProgress,
-        FirmwareUpdateError,
     )
 
 
@@ -145,7 +139,7 @@ class UploadComponentCommand:
                 device_discovery_status = results["Oem"]["Hpe"]["DeviceDiscoveryComplete"]["DeviceDiscovery"]
                 LOGGER.info("Device Discovery Status is {}".format(device_discovery_status))
                 # check for device discovery
-                #if ("DeviceDiscoveryComplete" not in device_discovery_status):
+                # if ("DeviceDiscoveryComplete" not in device_discovery_status):
                 #    raise DeviceDiscoveryInProgress(
                 #        "Device Discovery in progress...Please retry flashing firmware after 10 minutes"
                 #    )
@@ -440,9 +434,8 @@ class UploadComponentCommand:
 
             if res.status == 400 and res.dict is None:
                 self.rdmc.ui.error(
-                    "Component "
-                    + filename
-                    + " was not uploaded , iLO returned 400 error code. Check if the user has all privileges to perform the operation.\n"
+                    "Component " + filename + " was not uploaded , iLO returned 400 error code. "
+                    "Check if the user has all privileges to perform the operation.\n"
                 )
                 return ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
 

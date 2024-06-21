@@ -1085,9 +1085,7 @@ class CertificateCommand:
         subcommand_parser = customparser.add_subparsers(dest="command")
 
         # gen csr sub-parser
-        gen_csr_help = (
-            "Please use the below example command to execute the same function."
-        )
+        gen_csr_help = "Please use the below example command to execute the same function."
         gen_csr_parser = subcommand_parser.add_parser(
             "csr",
             help=gen_csr_help,

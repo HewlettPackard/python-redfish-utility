@@ -172,11 +172,12 @@ class IscsiConfigCommand:
         enable_disable = dict()
         enable_nic_only = list()
         enable_nic = dict()
-        final_enabled_list =list()
+        final_enabled_list = list()
         import re
+
         bios = "/redfish/v1/systems/1/bios/"
         bios_dict = self.rdmc.app.get_handler(bios, silent=True, service=True).dict
-        for attr, val in bios_dict['Attributes'].items():
+        for attr, val in bios_dict["Attributes"].items():
             if "NetworkBoot" in str(val):
                 enable_disable[attr] = val
         # Enabled NIC only listing
@@ -187,7 +188,6 @@ class IscsiConfigCommand:
             final_enabled_list.append(nics)
 
         return final_enabled_list
-
 
     def addoptionhelper(self, options, iscsipath, iscsisettingspath, bootpath):
         """Helper function to add option for iscsi
@@ -259,9 +259,9 @@ class IscsiConfigCommand:
             for key, val in s.items():
                 if key != "Not Added":
                     for k, v in val.items():
-                        refined_list.append(v['iSCSINicSource'])
+                        refined_list.append(v["iSCSINicSource"])
         enabled_only_bootsource = self.get_enabled_only()
-        refined_devicealloc=list()
+        refined_devicealloc = list()
         for d in devicealloc:
             if "PreBootNetwork" in d["Associations"][0]:
                 nic = d["Associations"][1]
@@ -277,7 +277,7 @@ class IscsiConfigCommand:
             try:
                 if not item[self.rdmc.app.typepath.defs.iscsiattemptinstance]:
                     nicsourcedata = refined_devicealloc[int(options.add) - 1]["Associations"]
-                    if 'PreBootNetwork' in nicsourcedata[0]:
+                    if "PreBootNetwork" in nicsourcedata[0]:
                         nic_getting_added = nicsourcedata[1]
                     else:
                         nic_getting_added = nicsourcedata[0]
@@ -492,7 +492,9 @@ class IscsiConfigCommand:
                                 pcid = pcid.split(",")
                                 del pcid[-1]
                                 pcid = ",".join(pcid)
-                                if (device["CorrelatableID"] == pcidevice["UEFIDevicePath"]) or ("Embedded" not in pcidevice["DeviceType"] and (pcid == it)):
+                                if (device["CorrelatableID"] == pcidevice["UEFIDevicePath"]) or (
+                                    "Embedded" not in pcidevice["DeviceType"] and (pcid == it)
+                                ):
                                     if "Storage" not in pcidevice["DeviceType"]:
                                         inputstring = (
                                             pcidevice["DeviceType"]
@@ -766,9 +768,10 @@ class IscsiConfigCommand:
             enable_disable = dict()
             enable_val = list()
             import re
+
             bios = "/redfish/v1/systems/1/bios/"
             bios_dict = self.rdmc.app.get_handler(bios, silent=True, service=True).dict
-            for attr, val in bios_dict['Attributes'].items():
+            for attr, val in bios_dict["Attributes"].items():
                 if "NetworkBoot" in str(val):
                     nics = re.findall("\\d+", attr)
                     enable_disable[attr] = nics
@@ -792,7 +795,13 @@ class IscsiConfigCommand:
                         it = ",".join(it)
                         if pcid == it:
                             if "Storage" not in pcidevice["DeviceType"]:
-                                device = pcidevice["DeviceType"] + " " + str(pcidevice["DeviceInstance"]) + " Port " + str(item["Subinstance"])
+                                device = (
+                                    pcidevice["DeviceType"]
+                                    + " "
+                                    + str(pcidevice["DeviceInstance"])
+                                    + " Port "
+                                    + str(item["Subinstance"])
+                                )
                                 if device not in final_device_list:
                                     final_device_list.append(device)
                                     temp = dict()

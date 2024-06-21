@@ -16,7 +16,6 @@
 
 # -*- coding: utf-8 -*-
 """ Get Command for RDMC """
-import json
 from collections import OrderedDict
 
 import six
@@ -89,11 +88,10 @@ class GetCommand:
         if getattr(options, "json"):
             self.rdmc.json = True
 
-        if options.selector:
-            if "securityservice" in options.selector.lower():
-                pass
-        elif "securityservice" in self.rdmc.app.selector.lower():
-            pass
+        selector = options.selector.lower() if options.selector else self.rdmc.app.selector.lower()
+
+        if "securityservice" in selector:
+            self.cmdbase.login_validation(self, options)
         else:
             self.getvalidation(options)
 
@@ -153,16 +151,20 @@ class GetCommand:
         arg = None
 
         # For rest redfish compatibility of bios.
+        if hasattr(options, "selector") and options.selector:
+            self.rdmc.app.selector = options.selector
         args = [args] if args and isinstance(args, six.string_types) else args
         if self.rdmc.app.selector and "." not in self.rdmc.app.selector:
             self.rdmc.app.selector = self.rdmc.app.selector + "."
         args = (
             [
-                "Attributes/" + arg
-                if self.rdmc.app.selector
-                and self.rdmc.app.selector.lower().startswith("bios.")
-                and "attributes" not in arg.lower()
-                else arg
+                (
+                    "Attributes/" + arg
+                    if self.rdmc.app.selector
+                    and self.rdmc.app.selector.lower().startswith("bios.")
+                    and "attributes" not in arg.lower()
+                    else arg
+                )
                 for arg in args
             ]
             if args
@@ -172,8 +174,6 @@ class GetCommand:
             instances = self.rdmc.app.select(selector=self.rdmc.app.selector, fltrvals=filtervals)
 
         try:
-            if hasattr(options, "selector") and options.selector:
-                self.rdmc.app.selector = options.selector
             if "securityservice" in self.rdmc.app.selector.lower():
                 url = "/redfish/v1/Managers/1/SecurityService/"
                 contents = self.rdmc.app.get_handler(url, service=True, silent=True).dict
@@ -189,7 +189,18 @@ class GetCommand:
                 if security_contents:
                     UI().print_out_human_readable(security_contents)
             else:
-                contents = self.rdmc.app.getprops(props=args, remread=readonly, nocontent=nocontent, insts=instances)
+                if "selector" in options:
+                    contents = self.rdmc.app.getprops(
+                        props=args,
+                        remread=readonly,
+                        selector=options.selector,
+                        nocontent=nocontent,
+                        insts=instances,
+                    )
+                else:
+                    contents = self.rdmc.app.getprops(
+                        props=args, remread=readonly, nocontent=nocontent, insts=instances
+                    )
             uselist = False if readonly else uselist
         except redfish.ris.rmc_helper.EmptyRaiseForEAFP:
             contents = self.rdmc.app.getprops(props=args, nocontent=nocontent)
@@ -198,19 +209,15 @@ class GetCommand:
                 content.update(content["Attributes"])
                 del content["Attributes"]
             contents[ind] = OrderedDict(sorted(list(content.items()), key=lambda x: x[0]))
+        if len(args) > 0 and "Members" in args[0]:
+            uselist = False
         if uselist:
-            if not contents:
-                raise NoContentsFoundForOperationError(
-                    "No get contents found for entry: %s, Check if it " "Oem/Hpe Attribute" % args[0]
-                )
-            contents = contents[0]
-            contents = {
-                key: val for key, val in contents.items() if key not in HARDCODEDLIST and "@odata" not in key.lower()
-            }
+            for item in contents:
+                self.removereserved(item)
         if results:
             return contents
 
-        contents = contents[0] if (isinstance(contents, list) and len(contents) == 1) else contents
+        contents = contents[0] if len(contents) == 1 else contents
 
         if options and options.json and contents:
             UI().print_out_json(contents)
@@ -232,30 +239,23 @@ class GetCommand:
 
     def removereserved(self, entry):
         """function to remove reserved properties
-
         :param entry: dictionary to remove reserved properties from
         :type entry: dict.
         """
-        # convert to dict
-        new = json.loads(json.dumps(entry))
 
-        new_dict = {key: val for key, val in new.items() if "@odata" not in key.lower()}
-
-        # for key, val in list(entry.items()):
-        #    if key.lower() in HARDCODEDLIST or "@odata" in key.lower():
-        #        del entry[key]
-        #    elif isinstance(val, list):
-        #        for item in entry[key]:
-        #            if isinstance(item, dict) and item:
-        #                self.removereserved(item)
-        #                if all([True if not test else False for test in entry[key]]):
-        #                    del entry[key]
-        #    elif isinstance(val, dict):
-        #        self.removereserved(val)
-        #        if all([True if not test else False for test in entry[key]]):
-        #            del entry[key]
-
-        return new_dict
+        for key, val in list(entry.items()):
+            if key.lower() in HARDCODEDLIST or "@odata" in key.lower():
+                del entry[key]
+            elif isinstance(val, list):
+                for item in entry[key]:
+                    if isinstance(item, dict) and item:
+                        self.removereserved(item)
+                        if all([True if not test else False for test in entry[key]]):
+                            del entry[key]
+            elif isinstance(val, dict):
+                self.removereserved(val)
+                if all([True if not test else False for test in entry[key]]):
+                    del entry[key]
 
     def checktoprint(self, options, contents, nocontent, arg):
         """function to decide what/how to print

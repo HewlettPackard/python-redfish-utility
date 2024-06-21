@@ -16,7 +16,6 @@
 
 # -*- coding: utf-8 -*-
 """ Virtual Media Command for rdmc """
-import sys
 
 try:
     from rdmc_helper import (
@@ -136,7 +135,7 @@ class VirtualMediaCommand:
         # Return code
         return ReturnCodes.SUCCESS
 
-    def uniquevalmaker(self,paths):
+    def uniquevalmaker(self, paths):
         unique_values = set(paths.values())
 
         res = {}
@@ -155,7 +154,7 @@ class VirtualMediaCommand:
             res1[i] = val
             i = i + 1
         return res1
-    
+
     def vmremovehelper(self, args, options, paths, isredfish, ilover):
         """Worker function to remove virtual media
 
