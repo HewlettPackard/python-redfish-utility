@@ -19,15 +19,26 @@
 import os
 import time
 
-from rdmc_helper import (
-    UI,
-    FirmwareUpdateError,
-    IncompatibleiLOVersionError,
-    InvalidCommandLineError,
-    InvalidCommandLineErrorOPTS,
-    ReturnCodes,
-    UploadError,
-)
+try:
+    from rdmc_helper import (
+        UI,
+        FirmwareUpdateError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
+        UploadError,
+    )
+except ImportError:
+    from ilorest.rdmc_helper import (
+        UI,
+        FirmwareUpdateError,
+        IncompatibleiLOVersionError,
+        InvalidCommandLineError,
+        InvalidCommandLineErrorOPTS,
+        ReturnCodes,
+        UploadError,
+    )
 
 
 class SmartNicCommand:

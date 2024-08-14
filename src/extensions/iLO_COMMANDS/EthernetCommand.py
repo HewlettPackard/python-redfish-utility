@@ -261,7 +261,10 @@ class EthernetCommand:
         elif "load" in options.command.lower():
             self.save = False
             self.load = True
-            self.load_main_function(options)
+            if options.force_network_config:
+                self.load_main_function(options)
+            else:
+                self.rdmc.ui.printer("Skipping network configurations as " "--force_network_config is not included.\n")
 
         return ReturnCodes.SUCCESS
 
@@ -332,16 +335,19 @@ class EthernetCommand:
         :type: boolean
         """
 
-        outdata = OrderedDict()
+        outdata = list()
 
-        outdata.update(self.rdmc.app.create_save_header())
+        outdata.append(self.rdmc.app.create_save_header())
 
         for _type in data:
             for path in data.get(_type):
+                temp = dict()
                 try:
-                    outdata[_type.split("#")[-1]].update({path: self.rdmc.app.removereadonlyprops(data[_type][path])})
+                    temp[_type.split("#")[-1]].update({path: self.rdmc.app.removereadonlyprops(data[_type][path])})
+                    outdata.append(temp)
                 except KeyError:
-                    outdata[_type.split("#")[-1]] = {path: self.rdmc.app.removereadonlyprops(data[_type][path])}
+                    temp[_type.split("#")[-1]] = {path: self.rdmc.app.removereadonlyprops(data[_type][path])}
+                    outdata.append(temp)
                 except Exception:
                     pass
 
@@ -537,54 +543,105 @@ class EthernetCommand:
                 raise InvalidFileInputError(
                     "Invalid file formatting found. Verify the file has a " "valid JSON format."
                 )
-
-        for ilotype, subsect in data.items():
-            _type = ilotype.split(".")[0]
-            for _path in subsect:
-                if not subsect[_path]:
-                    continue
-                elif "ethernetinterface" in _type.lower() or "ethernetnetworkinterface" in _type.lower():
-                    if "managers" in _path.lower():
-                        self.load_ethernet_aux(_type, _path, data[ilotype][_path])
-                    elif "systems" in _path.lower():
-                        self.rdmc.ui.warn("Systems Ethernet Interfaces '%s' " "cannot be modified." % _path)
+        if "load" in options.command.lower():
+            for d in data:
+                for ilotype, subsect in d.items():
+                    _type = ilotype.split(".")[0]
+                    for _path in subsect:
+                        if not subsect[_path]:
+                            continue
+                        elif "ethernetinterface" in _type.lower() or "ethernetnetworkinterface" in _type.lower():
+                            if "managers" in _path.lower():
+                                self.load_ethernet_aux(_type, _path, d[ilotype][_path])
+                            elif "systems" in _path.lower():
+                                self.rdmc.ui.warn("Systems Ethernet Interfaces '%s' " "cannot be modified." % _path)
+                                continue
+                        elif "datetime" in _type.lower():
+                            if "StaticNTPServers" in list(subsect.get(_path).keys()):
+                                # must set NTP Servers to static in OEM then reset iLO for StaticNTPServers
+                                # property to appear in iLODateTime
+                                if self.rdmc.app.redfishinst.is_redfish:
+                                    eth_config_type = "ethernetinterface"
+                                else:
+                                    eth_config_type = "ethernetnetworkinterface"
+                                for key in list(data.keys()):
+                                    if key.split(".")[0].lower() == eth_config_type:
+                                        eth_config_type = key
+                                        for _path in data[eth_config_type]:
+                                            if "managers" in _path.lower():
+                                                try:
+                                                    data[eth_config_type][_path]["DHCPv4"]["UseNTPServers"] = True
+                                                    data[eth_config_type][_path]["DHCPv6"]["UseNTPServers"] = True
+                                                    data[eth_config_type][_path]["Oem"]
+                                                    [self.rdmc.app.typepath.defs.oemhp]["DHCPv4"][
+                                                        "UseNTPServers"
+                                                    ] = True
+                                                    data[eth_config_type][_path]["Oem"]
+                                                    [self.rdmc.app.typepath.defs.oemhp]["DHCPv6"][
+                                                        "UseNTPServers"
+                                                    ] = True
+                                                    self.load_ethernet_aux(
+                                                        eth_config_type,
+                                                        _path,
+                                                        data[eth_config_type][_path],
+                                                    )
+                                                except KeyError:
+                                                    self.rdmc.ui.printer(
+                                                        "Unable to configure " "'UseNTPServers' for '%s'.\n" % _path
+                                                    )
+                                                self.rdmc.ui.printer(
+                                                    "iLO must be reset in order for "
+                                                    "changes to static network time protocol servers to "
+                                                    "take effect.\n"
+                                                )
+        elif "default" in options.command.lower():
+            for ilotype, subsect in data.items():
+                _type = ilotype.split(".")[0]
+                for _path in subsect:
+                    if not subsect[_path]:
                         continue
-                elif "datetime" in _type.lower():
-                    if "StaticNTPServers" in list(subsect.get(_path).keys()):
-                        # must set NTP Servers to static in OEM then reset iLO for StaticNTPServers
-                        # property to appear in iLODateTime
-                        if self.rdmc.app.redfishinst.is_redfish:
-                            eth_config_type = "ethernetinterface"
-                        else:
-                            eth_config_type = "ethernetnetworkinterface"
-                        for key in list(data.keys()):
-                            if key.split(".")[0].lower() == eth_config_type:
-                                eth_config_type = key
-                                for _path in data[eth_config_type]:
-                                    if "managers" in _path.lower():
-                                        try:
-                                            data[eth_config_type][_path]["DHCPv4"]["UseNTPServers"] = True
-                                            data[eth_config_type][_path]["DHCPv6"]["UseNTPServers"] = True
-                                            data[eth_config_type][_path]["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                                "DHCPv4"
-                                            ]["UseNTPServers"] = True
-                                            data[eth_config_type][_path]["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                                "DHCPv6"
-                                            ]["UseNTPServers"] = True
-                                            self.load_ethernet_aux(
-                                                eth_config_type,
-                                                _path,
-                                                data[eth_config_type][_path],
-                                            )
-                                        except KeyError:
+                    elif "ethernetinterface" in _type.lower() or "ethernetnetworkinterface" in _type.lower():
+                        if "managers" in _path.lower():
+                            self.load_ethernet_aux(_type, _path, data[ilotype][_path])
+                        elif "systems" in _path.lower():
+                            self.rdmc.ui.warn("Systems Ethernet Interfaces '%s' " "cannot be modified." % _path)
+                            continue
+                    elif "datetime" in _type.lower():
+                        if "StaticNTPServers" in list(subsect.get(_path).keys()):
+                            # must set NTP Servers to static in OEM then reset iLO for StaticNTPServers
+                            # property to appear in iLODateTime
+                            if self.rdmc.app.redfishinst.is_redfish:
+                                eth_config_type = "ethernetinterface"
+                            else:
+                                eth_config_type = "ethernetnetworkinterface"
+                            for key in list(data.keys()):
+                                if key.split(".")[0].lower() == eth_config_type:
+                                    eth_config_type = key
+                                    for _path in data[eth_config_type]:
+                                        if "managers" in _path.lower():
+                                            try:
+                                                data[eth_config_type][_path]["DHCPv4"]["UseNTPServers"] = True
+                                                data[eth_config_type][_path]["DHCPv6"]["UseNTPServers"] = True
+                                                data[eth_config_type][_path]["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                                    "DHCPv4"
+                                                ]["UseNTPServers"] = True
+                                                data[eth_config_type][_path]["Oem"][self.rdmc.app.typepath.defs.oemhp][
+                                                    "DHCPv6"
+                                                ]["UseNTPServers"] = True
+                                                self.load_ethernet_aux(
+                                                    eth_config_type,
+                                                    _path,
+                                                    data[eth_config_type][_path],
+                                                )
+                                            except KeyError:
+                                                self.rdmc.ui.printer(
+                                                    "Unable to configure " "'UseNTPServers' for '%s'.\n" % _path
+                                                )
                                             self.rdmc.ui.printer(
-                                                "Unable to configure " "'UseNTPServers' for '%s'.\n" % _path
+                                                "iLO must be reset in order for "
+                                                "changes to static network time protocol servers to "
+                                                "take effect.\n"
                                             )
-                                        self.rdmc.ui.printer(
-                                            "iLO must be reset in order for "
-                                            "changes to static network time protocol servers to "
-                                            "take effect.\n"
-                                        )
 
     def load_ethernet_aux(self, _type, _path, ethernet_data):
         """helper function for parsing and bucketting ethernet properties.
@@ -800,7 +857,10 @@ class EthernetCommand:
             # try again with OEM
             try:
                 if oem_dhcpv4conf.get("UseDomainName") or oem_dhcpv6conf.get("UseDomainName"):
-                    if "DomainName" in ethernet_data["Oem"][self.rdmc.app.typepath.defs.oemhp]:
+                    if (
+                        "Oem" in ethernet_data
+                        and "DomainName" in ethernet_data["Oem"][self.rdmc.app.typepath.defs.oemhp]
+                    ):
                         del ethernet_data["Oem"][self.rdmc.app.typepath.defs.oemhp]["DomainName"]
                     if "FQDN" in ethernet_data:
                         del ethernet_data["FQDN"]
@@ -892,9 +952,18 @@ class EthernetCommand:
                 flags["DHCPv4"] = {"UseDNSServers": False}
 
         # verify dependencies on those flags which are to be applied are eliminated
-
+        if (
+            "IPv4Addresses" in flags
+            and flags["IPv4Addresses"][0]["Address"] == curr_sel.dict["IPv4Addresses"][0]["Address"]
+            and flags["IPv4Addresses"][0]["Gateway"] == curr_sel.dict["IPv4Addresses"][0]["Gateway"]
+            and flags["IPv4Addresses"][0]["SubnetMask"] == curr_sel.dict["IPv4Addresses"][0]["SubnetMask"]
+        ):
+            del flags["IPv4Addresses"]
         try:
-            self.rdmc.app.patch_handler(_path, flags, silent=True)
+            if not flags:
+                self.rdmc.ui.warn("No change in configurations in " + _path)
+            else:
+                self.rdmc.app.patch_handler(_path, flags, silent=True)
         except IloResponseError as excp:
             errors.append("iLO Responded with the following errors setting DHCP: %s.\n" % excp)
 
@@ -915,7 +984,8 @@ class EthernetCommand:
         except (KeyError, NameError) as exp:
             errors.append("Unable to remove property %s.\n" % exp)
 
-        self.patch_eth(_path, ethernet_data, errors)
+        if ethernet_data:
+            self.patch_eth(_path, ethernet_data, errors)
 
         if errors and "Virtual" not in ident_name:
             raise RdmcError(
@@ -1153,6 +1223,14 @@ class EthernetCommand:
             "networking.json\n\n\tLoad an encrypted iLO networking configuration file\n\texample: "
             "ethernet load --encryption <ENCRYPTION KEY>".format(load_help),
             formatter_class=RawDescriptionHelpFormatter,
+        )
+        load_parser.add_argument(
+            "--force_network_config",
+            dest="force_network_config",
+            help="Use this flag to force set network configuration."
+            "Network settings will be skipped if the flag is not included.",
+            action="store_true",
+            default=None,
         )
         self.cmdbase.add_login_arguments_group(load_parser)
         self.options_argument_group(load_parser)

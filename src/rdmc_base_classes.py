@@ -121,7 +121,7 @@ class RdmcCommandBase(CommandBase):
         self.nologo = False
         self.toolbar = False
 
-    def login_select_validation(self, cmdinstance, options, skipbuild=False):
+    def login_validation(self, cmdinstance, options, skipbuild=False):
         """Combined validation function to login and select with other commands. Not for use with
         login or select commands themselves. Make sure your command imports options from
         add_login_arguments_group or there will be errors.
@@ -135,7 +135,6 @@ class RdmcCommandBase(CommandBase):
         """
 
         logobj = cmdinstance.rdmc.load_command(cmdinstance.rdmc.search_commands("LoginCommand"))
-        selobj = cmdinstance.rdmc.load_command(cmdinstance.rdmc.search_commands("SelectCommand"))
         inputline = list()
         client = None
         loggedin = False
@@ -191,22 +190,51 @@ class RdmcCommandBase(CommandBase):
             if options.path:
                 inputline.extend(["--path", options.path])
 
-        if getattr(options, "biospassword", False):
-            inputline.extend(["--biospassword", options.biospassword])
-        if getattr(options, "sessionid", False):
-            inputline.extend(["--sessionid", options.sessionid])
+            if getattr(options, "biospassword", False):
+                inputline.extend(["--biospassword", options.biospassword])
+            if getattr(options, "sessionid", False):
+                inputline.extend(["--sessionid", options.sessionid])
+
+            logobj.loginfunction(inputline, skipbuild=skipbuild)
+            loggedin = True
+
+        if not (loggedin or client or options.url or cmdinstance.rdmc.app.typepath.url):
+            message = "Local login initiated...\n"
+            if cmdinstance.rdmc.opts.verbose:
+                sys.stdout.write(message)
+            else:
+                rdmc_helper.LOGGER.info(message)
+
+        if not (loggedin or client):
+            logobj.loginfunction(inputline, skipbuild=skipbuild)
+
+    def login_select_validation(self, cmdinstance, options, skipbuild=False):
+        """Combined validation function to login and select with other commands. Not for use with
+        login or select commands themselves. Make sure your command imports options from
+        add_login_arguments_group or there will be errors.
+
+        :param cmdinstance: the command object instance
+        :type cmdinstance: list.
+        :param options: command line options
+        :type options: list.
+        :param skipbuild: flag to only login and skip monolith build
+        :type skipbuild: bool.
+        """
+        inputline = list()
+
+        self.login_validation(cmdinstance, options, skipbuild=skipbuild)
+        logobj = cmdinstance.rdmc.load_command(cmdinstance.rdmc.search_commands("LoginCommand"))
+        selobj = cmdinstance.rdmc.load_command(cmdinstance.rdmc.search_commands("SelectCommand"))
         if hasattr(options, "selector") and options.selector:
             if inputline:
                 inputline.extend(["--selector", options.selector])
                 logobj.loginfunction(inputline)
-                loggedin = True
             else:
                 if getattr(options, "ref", False):
                     inputline.extend(["--refresh"])
 
                 inputline.extend([options.selector])
                 selobj.selectfunction(inputline)
-                loggedin = True
         elif hasattr(options, "selector"):
             try:
                 inputline = list()
@@ -218,19 +246,8 @@ class RdmcCommandBase(CommandBase):
                 if selector:
                     inputline.extend([selector])
                     selobj.selectfunction(inputline)
-                loggedin = True
             except NothingSelectedError:
                 raise NothingSelectedError
-        if not loggedin and not client and not options.url and not cmdinstance.rdmc.app.typepath.url:
-            try:
-                if cmdinstance.rdmc.opts.verbose:
-                    sys.stdout.write("Local login initiated...\n")
-                else:
-                    raise Exception
-            except Exception:
-                rdmc_helper.LOGGER.info("Local login initiated...\n")
-        if not loggedin and not client:
-            logobj.loginfunction(inputline, skipbuild=skipbuild)
 
     def logout_routine(self, cmdinstance, options):
         """Routine to logout of a server automatically at the completion of a command.

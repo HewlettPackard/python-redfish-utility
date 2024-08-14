@@ -19,7 +19,6 @@
 
 try:
     from rdmc_helper import (
-        IloLicenseError,
         IncompatibleiLOVersionError,
         InvalidCommandLineErrorOPTS,
         PathUnavailableError,
@@ -31,7 +30,6 @@ except ImportError:
         InvalidCommandLineErrorOPTS,
         PathUnavailableError,
         IncompatibleiLOVersionError,
-        IloLicenseError,
     )
 
 from redfish.ris import rmc_helper

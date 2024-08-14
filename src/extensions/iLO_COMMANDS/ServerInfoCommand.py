@@ -93,7 +93,9 @@ class ServerInfoCommand:
                 info["proxy"] = info["proxy"]["Oem"]["Hpe"]["WebProxyConfiguration"]
 
         if options.json:
-            if options.memory or options.processors and options.json and self.rdmc.app.typepath.defs.isgen9:
+            if options.processors and options.json and self.rdmc.app.typepath.defs.isgen9:
+                pass
+            elif options.memory and self.rdmc.app.typepath.defs.isgen9:
                 pass
             else:
                 self.build_json_out(info, options.showabsent)
@@ -235,11 +237,11 @@ class ServerInfoCommand:
             else:
                 # getloc = self.rdmc.app.getidbytype("ProcessorCollection.")
                 getloc = self.rdmc.app.getidbytype("Processor.")
-                tot_proc=[]
+                tot_proc = []
                 if getloc == "/rest/v1/Systems/1/Processors/1" or "/rest/v1/Systems/1/Processors/2":
                     getloc = "/redfish/v1/Systems/1/Processors/"
                     get_p = self.rdmc.app.get_handler(getloc, service=True, silent=True).dict["Members"]
-                    output=""
+                    output = ""
                     if get_p and not options.json:
                         sys.stdout.write("------------------------------------------------\n")
                         sys.stdout.write("Processor:\n")
@@ -253,8 +255,10 @@ class ServerInfoCommand:
                             output += "\tSocket: %s\n" % data["Socket"]
                             output += "\tMax Speed: %s MHz\n" % data["MaxSpeedMHz"]
                             try:
-                                output += "\tSpeed: %s MHz\n" % data["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                    "RatedSpeedMHz"]
+                                output += (
+                                    "\tSpeed: %s MHz\n"
+                                    % data["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]
+                                )
                             except KeyError:
                                 pass
                             output += "\tCores: %s\n" % data["TotalCores"]
@@ -286,8 +290,10 @@ class ServerInfoCommand:
                             tmp[process]["Max Speed"] = data["MaxSpeedMHz"]
                             try:
                                 tmp[process].update(
-                                    {"Speed": "%s MHz" % data["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                        "RatedSpeedMHz"]}
+                                    {
+                                        "Speed": "%s MHz"
+                                        % data["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]
+                                    }
                                 )
                             except KeyError:
                                 pass
@@ -373,41 +379,63 @@ class ServerInfoCommand:
             data = info["power"]
             if data is not None:
                 for control in data["PowerControl"]:
-                    power_cap = {"Total Power Capacity": "%s W" % control["PowerCapacityWatts"]}
-                    power_cap.update({"Total Power Consumed": "%s W" % control["PowerConsumedWatts"]})
-                    power_mertic = {"Average Power": "%s W" % control["PowerMetrics"]["AverageConsumedWatts"]}
-                    power_mertic.update({"Max Consumed Power": "%s W" % control["PowerMetrics"]["MaxConsumedWatts"]})
-                    power_mertic.update(
-                        {"Minimum Consumed Power": "%s W" % control["PowerMetrics"]["MinConsumedWatts"]}
-                    )
-                    powercontent = "Power Metrics on %s min. Intervals" % control["PowerMetrics"]["IntervalInMin"]
+                    if "PowerCapacityWatts" in control:
+                        power_cap = {"Total Power Capacity": "%s W" % control["PowerCapacityWatts"]}
+                    if "PowerConsumedWatts" in control:
+                        power_cap.update({"Total Power Consumed": "%s W" % control["PowerConsumedWatts"]})
+                    if "PowerMetrics" in control:
+                        if "AverageConsumedWatts" in control["PowerMetrics"]:
+                            power_mertic = {"Average Power": "%s W" % control["PowerMetrics"]["AverageConsumedWatts"]}
+                        if "MaxConsumedWatts" in control["PowerMetrics"]:
+                            power_mertic.update(
+                                {"Max Consumed Power": "%s W" % control["PowerMetrics"]["MaxConsumedWatts"]}
+                            )
+                        if "MinConsumedWatts" in control["PowerMetrics"]:
+                            power_mertic.update(
+                                {"Minimum Consumed Power": "%s W" % control["PowerMetrics"]["MinConsumedWatts"]}
+                            )
+                        if "IntervalInMin" in control["PowerMetrics"]:
+                            powercontent = (
+                                "Power Metrics on %s min. Intervals" % control["PowerMetrics"]["IntervalInMin"]
+                            )
                     test = {powercontent: power_mertic}
                     content = {"power": power_cap}
                     content["power"].update(test)
                 try:
+                    powersuplies = []
                     for supply in data["PowerSupplies"]:
                         power_supply = "Power Supply %s" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["BayNumber"]
-                        powersupply = {"Power Capacity": "%s W" % supply["PowerCapacityWatts"]}
-                        powersupply.update({"Last Power Output": "%s W" % supply["LastPowerOutputWatts"]})
-                        powersupply.update({"Input Voltage": "%s V" % supply["LineInputVoltage"]})
-                        powersupply.update({"Input Voltage Type": supply["LineInputVoltageType"]})
-                        powersupply.update(
-                            {"Hotplug Capable": supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"]}
-                        )
-                        powersupply.update(
-                            {"iPDU Capable": supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"]}
-                        )
+                        powersupply = {}
+                        if "PowerCapacityWatts" in supply:
+                            powersupply = {"Power Capacity": "%s W" % supply["PowerCapacityWatts"]}
+                        if "LastPowerOutputWatts" in supply:
+                            powersupply.update({"Last Power Output": "%s W" % supply["LastPowerOutputWatts"]})
+                        if "LineInputVoltage" in supply:
+                            powersupply.update({"Input Voltage": "%s V" % supply["LineInputVoltage"]})
+                        if "LineInputVoltageType" in supply:
+                            powersupply.update({"Input Voltage Type": supply["LineInputVoltageType"]})
+                        if "HotplugCapable" in supply["Oem"][self.rdmc.app.typepath.defs.oemhp]:
+                            powersupply.update(
+                                {"Hotplug Capable": supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"]}
+                            )
+                        if "iPDUCapable" in supply["Oem"][self.rdmc.app.typepath.defs.oemhp]:
+                            powersupply.update(
+                                {"iPDU Capable": supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"]}
+                            )
                         try:
-                            powersupply.update({"Health": supply["Status"]["Health"]})
+                            if "Health" in supply["Status"]:
+                                powersupply.update({"Health": supply["Status"]["Health"]})
                         except KeyError:
                             pass
                         # if absent:
                         try:
-                            powersupply.update({"State": supply["Status"]["State"]})
+                            if "State" in supply["Status"]:
+                                powersupply.update({"State": supply["Status"]["State"]})
                         except KeyError:
                             pass
-                        powerdetails = {power_supply: powersupply}
-                        content["power"].update(powerdetails)
+                        # powerdetails = {power_supply: powersupply}
+                        powersuplies.append(powersupply)
+                        content["power"].update({"PowerSupplies": powersuplies})
                     for redundancy in data["Redundancy"]:
                         redund_name = redundancy["Name"]
                         redundancy_dict = {"Redundancy Mode": redundancy["Mode"]}
@@ -868,22 +896,32 @@ class ServerInfoCommand:
                         output += "------------------------------------------------\n"
                         output += "Power Supply %s:\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["BayNumber"]
                         output += "------------------------------------------------\n"
-
-                        output += "Power Capacity: %s W\n" % supply["PowerCapacityWatts"]
-                        output += "Last Power Output: %s W\n" % supply["LastPowerOutputWatts"]
-                        output += "Input Voltage: %s V\n" % supply["LineInputVoltage"]
-                        output += "Input Voltage Type: %s\n" % supply["LineInputVoltageType"]
-                        output += (
-                            "Hotplug Capable: %s\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"]
-                        )
-                        output += "iPDU Capable: %s\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"]
+                        if "PowerCapacityWatts" in supply:
+                            output += "Power Capacity: %s W\n" % supply["PowerCapacityWatts"]
+                        if "LastPowerOutputWatts" in supply:
+                            output += "Last Power Output: %s W\n" % supply["LastPowerOutputWatts"]
+                        if "LineInputVoltage" in supply:
+                            output += "Input Voltage: %s V\n" % supply["LineInputVoltage"]
+                        if "LineInputVoltageType" in supply:
+                            output += "Input Voltage Type: %s\n" % supply["LineInputVoltageType"]
+                        if "HotplugCapable" in supply["Oem"][self.rdmc.app.typepath.defs.oemhp]:
+                            output += (
+                                "Hotplug Capable: %s\n"
+                                % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["HotplugCapable"]
+                            )
+                        if "iPDUCapable" in supply["Oem"][self.rdmc.app.typepath.defs.oemhp]:
+                            output += (
+                                "iPDU Capable: %s\n" % supply["Oem"][self.rdmc.app.typepath.defs.oemhp]["iPDUCapable"]
+                            )
                         try:
-                            output += "Health: %s\n" % supply["Status"]["Health"]
+                            if "Health" in supply["Status"]:
+                                output += "Health: %s\n" % supply["Status"]["Health"]
                         except KeyError:
                             pass
 
                         try:
-                            output += "State: %s\n" % supply["Status"]["State"]
+                            if "State" in supply["Status"]:
+                                output += "State: %s\n" % supply["Status"]["State"]
                         except KeyError:
                             pass
                     for redundancy in data["Redundancy"]:

@@ -43,7 +43,11 @@ except ImportError:
 
 if os.name == "nt":
     from six.moves import winreg
-    from win32.lib.win32con import HKEY_LOCAL_MACHINE
+
+    if six.PY2:
+        from win32con import HKEY_LOCAL_MACHINE
+    elif six.PY3:
+        from win32.lib.win32con import HKEY_LOCAL_MACHINE
 
 # ---------End of imports---------
 
@@ -51,16 +55,12 @@ if os.name == "nt":
 # ---------Debug logger---------
 # Using hard coded list until better solution is found
 HARDCODEDLIST = [
-    "name",
     "modified",
-    "type",
-    "description",
     "attributeregistry",
     "links",
     "settingsresult",
     "actions",
     "availableactions",
-    "id",
     "extref",
 ]
 
@@ -200,6 +200,8 @@ class ReturnCodes(object):
     FAILED_TO_UPLOAD_COMPONENT = 103
     TASKQUEUE_ERROR = 104
     DEVICE_DISCOVERY_IN_PROGRESS = 105
+    INSTALLSET_ERROR = 106
+    INVALID_TARGET_ERROR = 107
 
     # **** ComputeOpsManagement Errors****
     CLOUD_CONNECT_TIMEOUT = 111
@@ -275,6 +277,7 @@ class iLORisCorruptionError(RdmcError):
     """Raised when user tries to invoke a command that isn't enabled"""
 
     pass
+
 
 class ResourceNotReadyError(RdmcError):
     """Raised when user tries to invoke a command that isn't enabled"""
@@ -537,6 +540,12 @@ class InvalidSmartArrayConfigurationError(RdmcError):
 
 class FallbackChifUse(RdmcError):
     """Fallback Chif Use"""
+
+    pass
+
+
+class InstallsetError(RdmcError):
+    """Error while deleting Recovery installset"""
 
     pass
 

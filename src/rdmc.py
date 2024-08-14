@@ -32,7 +32,6 @@ import importlib
 import logging
 import os
 import shlex
-import ssl
 import sys
 import traceback
 from argparse import RawTextHelpFormatter
@@ -48,24 +47,23 @@ from six.moves import input
 import redfish.hpilo
 import redfish.rest.v1
 import redfish.ris
+from argparse import ArgumentParser
+import warnings
 
 try:
     import cliutils
-except ImportError:
-    from ilorest import cliutils
-try:
     import versioning
-except ImportError:
-    from ilorest import versioning
-try:
     import extensions
-except ImportError:
-    from ilorest import extensions
-
-try:
     from config.rdmc_config import RdmcConfig
-except ImportError:
+    from rdmc_helper import HARDCODEDLIST
+    from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
+except ModuleNotFoundError:
+    from ilorest import cliutils
+    from ilorest import versioning
+    from ilorest import extensions
     from ilorest.config.rdmc_config import RdmcConfig
+    from ilorest.rdmc_helper import HARDCODEDLIST
+    from ilorest.rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
 
 try:
     from rdmc_helper import (
@@ -121,8 +119,9 @@ try:
         UsernamePasswordRequiredError,
         iLORisCorruptionError,
         ResourceNotReadyError,
+        InstallsetError,
     )
-except ImportError:
+except ModuleNotFoundError:
     from ilorest.rdmc_helper import (
         ReturnCodes,
         RdmcError,
@@ -170,26 +169,14 @@ except ImportError:
         UsernamePasswordRequiredError,
         TabAndHistoryCompletionClass,
         iLORisCorruptionError,
+        TfaEnablePreRequisiteError,
         CloudConnectTimeoutError,
         CloudConnectFailedError,
         ProxyConfigFailedError,
         AlreadyCloudConnectedError,
         ResourceNotReadyError,
+        InstallsetError,
     )
-
-from argparse import ArgumentParser
-
-try:
-    from rdmc_helper import HARDCODEDLIST
-except:
-    from ilorest.rdmc_helper import HARDCODEDLIST
-
-try:
-    from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
-except ImportError:
-    from ilorest.rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
-
-import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -212,15 +199,15 @@ try:
     # enable fips mode if our special functions are available in _ssl and OS is
     # in FIPS mode
     FIPSSTR = ""
-    # if Encryption.check_fips_mode_os():
-    #    LOGGER.info("FIPS mode is already enabled in openssl 3.0!")
-    if Encryption.check_fips_mode_os() and not Encryption.check_fips_mode_ssl():
-        ssl.FIPS_mode_set(int(1))
-        if ssl.FIPS_mode():
-            FIPSSTR = "FIPS mode enabled using openssl version %s.\n" % ssl.OPENSSL_VERSION
-            LOGGER.info("FIPS mode enabled!")
-        else:
-            LOGGER.info("FIPS mode can not be enabled!")
+    if Encryption.check_fips_mode_os():
+        LOGGER.info("FIPS mode is enabled in OS!")
+    # if Encryption.check_fips_mode_os() and not Encryption.check_fips_mode_ssl():
+    #    ssl.FIPS_mode_set(int(1))
+    #    if ssl.FIPS_mode():
+    #        FIPSSTR = "FIPS mode enabled using openssl version %s.\n" % ssl.OPENSSL_VERSION
+    #        LOGGER.info("FIPS mode enabled!")
+    #    else:
+    #        LOGGER.info("FIPS mode can not be enabled!")
 except AttributeError:
     pass
 
@@ -244,6 +231,7 @@ class RdmcCommand(RdmcCommandBase):
         self.comm_map = dict()  # point command id names or alias to handle
         self.commlist = list()
         self._redobj = None
+        self.log_dir = None
         self.loaded_commands = []
 
         # import all extensions dynamically
@@ -252,7 +240,13 @@ class RdmcCommand(RdmcCommandBase):
             pkgName = "extensions" + pkgName
             try:
                 if "__pycache__" not in pkgName and "Command" in cName:
-                    self.commands_dict[cName] = getattr(importlib.import_module(pkgName, __package__), cName)()
+                    try:
+                        self.commands_dict[cName] = getattr(importlib.import_module(pkgName, __package__), cName)()
+                    except:
+                        self.commands_dict[cName] = getattr(
+                            importlib.import_module("ilorest." + pkgName, __package__),
+                            cName,
+                        )()
                     sName = pkgName.split(".")[1]
                     self.add_command(cName, section=sName)
             except cliutils.ResourceAllocationError as excp:
@@ -506,7 +500,7 @@ class RdmcCommand(RdmcCommandBase):
                     pass
                 else:
                     raise
-
+        self.log_dir = logdir
         if self.opts.debug:
             logfile = os.path.join(logdir, versioning.__shortname__ + ".log")
 
@@ -652,7 +646,8 @@ class RdmcCommand(RdmcCommandBase):
         try:
             if excp:
                 errorstr = "Exception: {0}".format(excp.__class__.__name__)
-                errorstr = errorstr + "({0})".format(excp.message) if hasattr(excp, "message") else errorstr
+                if excp.args:
+                    errorstr = errorstr + "({0})".format(excp.args[0]) if hasattr(excp, "args") else errorstr
                 LOGGER.info(errorstr)
             raise
         # ****** RDMC ERRORS ******
@@ -660,6 +655,9 @@ class RdmcCommand(RdmcCommandBase):
             self.retcode = ReturnCodes.CONFIGURATION_FILE_ERROR
             self.ui.error(excp)
             sys.exit(excp.errcode)
+        except InstallsetError as excp:
+            self.retcode = ReturnCodes.INSTALLSET_ERROR
+            self.ui.error(excp)
         except InvalidCommandLineError as excp:
             self.retcode = ReturnCodes.INVALID_COMMAND_LINE_ERROR
             self.ui.invalid_commmand_line(excp)
@@ -704,6 +702,7 @@ class RdmcCommand(RdmcCommandBase):
             self.ui.invalid_commmand_line(excp)
         except InvalidCommandLineErrorOPTS as excp:
             self.retcode = ReturnCodes.INVALID_COMMAND_LINE_ERROR
+            self.ui.invalid_commmand_line(excp)
         except InvalidFileFormattingError as excp:
             self.retcode = ReturnCodes.INVALID_FILE_FORMATTING_ERROR
             self.ui.invalid_file_formatting(excp)
@@ -899,7 +898,8 @@ class RdmcCommand(RdmcCommandBase):
             self.ui.error(excp)
         except redfish.hpilo.risblobstore2.ChifDllMissingError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_CHIF_DLL_MISSING_ERROR
-            self.ui.printer("iLOrest Chif dll not found, please check that the " "chif dll is present.\n")
+            self.ui.printer("iLOrest Chif library not found, please check that the chif "
+                            "ilorest_chif.dll/.so is present.\n")
         except redfish.hpilo.risblobstore2.UnexpectedResponseError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_UNEXPECTED_RESPONSE_ERROR
             self.ui.printer("Unexpected data received from iLO.\n")

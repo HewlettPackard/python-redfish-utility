@@ -261,6 +261,7 @@ class IloBackupRestoreCommand:
             description=backup_help + "\n\texample: backuprestore backup " "--f <backup_file>  --filepass <password>",
             formatter_class=RawDescriptionHelpFormatter,
         )
+        self.cmdbase.add_login_arguments_group(backup_parser)
 
         backup_parser.add_argument(
             "-f",
@@ -288,6 +289,7 @@ class IloBackupRestoreCommand:
             description=restore_help + "\n\texample: backuprestore restore " "--f <backup_file>  --filepass <password>",
             formatter_class=RawDescriptionHelpFormatter,
         )
+        self.cmdbase.add_login_arguments_group(restore_parser)
 
         restore_parser.add_argument(
             "-f",

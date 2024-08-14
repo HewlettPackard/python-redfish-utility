@@ -49,12 +49,13 @@ class CreateVolumeCommand:
             "usage": None,
             "description": "Creates volumes on compatible HPE SSA RAID controllers\nTo view "
             "help on specific sub-commands run: createvolume <sub-command> -h\n\n"
-            "NOTE: Refer http://www.hpe.com/info/scmo for additional information on creating Volumes on Gen11 "
-            "servers.\n\t"
+            "NOTE: Refer http://www.hpe.com/info/scmo for additional information "
+            "on creating Volumes on Gen11 servers.\n\t"
             "Also, when you select multiple physicaldrives you can select by both\n\t"
             "physical drive name and by the location at the same time.\n\t"
             "You can also select controllers by slot number as well as index.\n\t"
-            "For iLO6, storage id need to be specified using --storageid=DE00E000 along with --controller=1",
+            "For iLO6, storage id need to be specified using --storageid=DE00E000 "
+            "along with --controller=1",
             "summary": "Creates a new volume on the selected controller.",
             "aliases": ["createlogicaldrive"],
             "auxcommands": ["SelectCommand", "StorageControllerCommand"],
@@ -86,12 +87,25 @@ class CreateVolumeCommand:
 
         self.createvolumevalidation(options)
         ilo_ver = self.rdmc.app.getiloversion()
+        if ilo_ver < 6.110:
+            try:
+                self.auxcommands["select"].selectfunction("StorageController.")
+                content = self.rdmc.app.getprops()
+                if options.command == "quickdrive":
+                    raise InvalidCommandLineError(
+                        "This controller is not compatible with quickdrive option. "
+                        "Please use customdrive or volume option\n"
+                    )
+                ilo_ver = 6.110
+                options.command = "volume"
+            except Exception:
+                pass
 
         if ilo_ver >= 6.110:
             if options.command == "customdrive" or options.command == "quickdrive":
                 raise InvalidCommandLineError("customdrive or quickdrive subcommand is not supported on iLO6(Gen11).\n")
             if not options.storageid:
-                raise InvalidCommandLineError("--storageid option is mandatory for iLO6 onwards.\n")
+                raise InvalidCommandLineError("--storageid option is mandatory for iLO6 or latest iLO5 onwards.\n")
         else:
             if options.command == "volume":
                 raise InvalidCommandLineError("volume subcommand is not supported on iLO5(Gen10).\n")
@@ -157,8 +171,8 @@ class CreateVolumeCommand:
                             newdrive1 = {"Links": {"DedicatedSpareDrives": [{}]}}
                             volume_path1 = volume_path + result.session_location.split("Volumes")[1]
 
-                            sparedrives = options.sparedrives[0].split(",")
-
+                            sparedrives = options.sparedrives.split(",")
+                            s_array = []
                             if len(controller["physical_drives"]) > 0:
                                 for p_id in controller["physical_drives"]:
                                     p_loc = self.convertloc(
@@ -166,14 +180,18 @@ class CreateVolumeCommand:
                                             "ServiceLabel"
                                         ]
                                     )
+                                    l_loc = p_loc.split(":")[1:]
+                                    p_loc = ":".join(l_loc)
+
                                     for sdrive in sparedrives:
                                         if sdrive == p_loc and sdrive not in array:
-                                            newdrive1["Links"]["DedicatedSpareDrives"] = [
+                                            s_array.append(
                                                 {
                                                     "@odata.id": controller["physical_drives"][str(p_id)]["@odata.id"],
                                                 }
-                                            ]
+                                            )
                                             set_spare = True
+                            newdrive1["Links"]["DedicatedSpareDrives"] = s_array
                             if not set_spare:
                                 raise InvalidCommandLineError(
                                     "Invalid spare drive given, check whether given spare drive is different from "
@@ -181,7 +199,7 @@ class CreateVolumeCommand:
                                 )
 
                             self.rdmc.app.patch_handler(volume_path1, newdrive1)
-                            self.rdmc.ui.printer("Successfully added the %s sparedrive\n" % (newdrive1))
+                            self.rdmc.ui.printer("Successfully added the sparedrives %s\n" % (newdrive1))
 
                         return ReturnCodes.SUCCESS
 
@@ -289,7 +307,13 @@ class CreateVolumeCommand:
         if ilo_ver >= 6.110:
             try:
                 readCachePolicylist = self.get_allowed_list(options.storageid, "ReadCachePolicy")
-                writeCachePolicylist = self.get_allowed_list(options.storageid, "WriteCachePolicy")
+                # writeCachePolicylist = self.get_allowed_list(options.storageid, "WriteCachePolicy")
+                writeCachePolicylist = [
+                    "Off",
+                    "WriteThrough",
+                    "ProtectedWriteBack",
+                    "UnprotectedWriteBack",
+                ]
             except:
                 readCachePolicylist = ["Off", "ReadAhead"]
                 writeCachePolicylist = [
@@ -620,7 +644,7 @@ class CreateVolumeCommand:
 
             if "ReadCachePolicy" in options and options.ReadCachePolicy is not None:
                 for item in readCachePolicylist:
-                    if options.ReadCachePolicy[0].lower() == item.lower():
+                    if options.ReadCachePolicy.lower() == item.lower():
                         newdrive["ReadCachePolicy"] = item
                         itemadded = True
                         break
@@ -631,7 +655,7 @@ class CreateVolumeCommand:
 
             if "WriteCachePolicy" in options and options.WriteCachePolicy is not None:
                 for item in writeCachePolicylist:
-                    if options.WriteCachePolicy[0].lower() == item.lower():
+                    if options.WriteCachePolicy.lower() == item.lower():
                         newdrive["WriteCachePolicy"] = item
                         itemadded = True
                         break
@@ -898,6 +922,14 @@ class CreateVolumeCommand:
             default=None,
             required=True,
         )
+        qd_parser.add_argument(
+            "--storageid",
+            dest="storageid",
+            help="Use this flag to select the corresponding storageid "
+            "using either the slot number or index.\nexample: --storageid=DE123234",
+            default=None,
+            required=False,
+        )
         self.cmdbase.add_login_arguments_group(qd_parser)
         # self.options_argument_group(qd_parser)
 
@@ -911,7 +943,8 @@ class CreateVolumeCommand:
             help=cd_help,
             description=cd_help + "\n\texample: createvolume customdrive "
             "<raid-level> <physicaldrivelocations> --controller=1 "
-            "--name=drivename --spare-drives=1I:1:1,1I:1:3 --spare-type=Dedicated --capacitygib=10 "
+            "--name=drivename --spare-drives=1I:1:1,1I:1:3 "
+            "--spare-type=Dedicated --capacitygib=10 "
             "--accelerator-type=None\n\n\tOPTIONS:\n\traid-level:\t\t"
             "Raid0, Raid1, Raid1ADM, Raid10, Raid10ADM, Raid5, Raid50, "
             "Raid6, Raid60\n\tphysicaldrivelocation(s):\tLocation, Drive-name\n\t"
@@ -1048,7 +1081,8 @@ class CreateVolumeCommand:
             "volume",
             help=v_help,
             description=v_help + "\n\texample: createvolume volume "
-            "<raid-level> <physicaldrivelocations> <displayname> <iOPerfModeEnabled> <readCachePolicy> "
+            "<raid-level> <physicaldrivelocations> <displayname> "
+            "<iOPerfModeEnabled> <readCachePolicy> "
             "<writeCachePolicy> <WriteHoleProtectionPolicy> --storageid=DE009000 --controller=0 "
             "<spare-drives> <capacitygib> "
             "\n\n\t",

@@ -24,10 +24,13 @@ import os
 import re
 import time
 from ctypes import create_string_buffer
-from datetime import datetime, timezone
-
+from datetime import datetime
 import six
 from six import BytesIO
+
+if six.PY3:
+    from datetime import timezone
+
 
 import redfish
 from redfish.hpilo.risblobstore2 import BlobStore2
@@ -598,8 +601,12 @@ class IPProfilesCommand:
 
                 en_text = base64.encodebytes(buf.getvalue()).decode("utf-8")
 
-                epoch = datetime.fromtimestamp(0, tz=timezone.utc)
-                now = datetime.now(tz=timezone.utc)
+                if six.PY3:
+                    epoch = datetime.fromtimestamp(0, tz=timezone.utc)
+                    now = datetime.now(tz=timezone.utc)
+                elif six.PY2:
+                    epoch = datetime.utcfromtimestamp(0)
+                    now = datetime.utcnow()
                 delta = now - epoch
                 time_stamp = delta.total_seconds() * 1000
                 time_stamp = repr(time_stamp).split(".")[0]

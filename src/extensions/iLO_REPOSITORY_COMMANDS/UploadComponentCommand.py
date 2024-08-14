@@ -53,22 +53,16 @@ try:
         IncompatibleiLOVersionError,
         TimeOutError,
         InvalidFileInputError,
-        DeviceDiscoveryInProgress,
-        FirmwareUpdateError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         LOGGER,
         ReturnCodes,
         InvalidCommandLineErrorOPTS,
-        Encryption,
         UploadError,
-        InvalidCommandLineError,
         IncompatibleiLOVersionError,
         TimeOutError,
         InvalidFileInputError,
-        DeviceDiscoveryInProgress,
-        FirmwareUpdateError,
     )
 
 
@@ -135,6 +129,8 @@ class UploadComponentCommand:
             options.component.endswith(".fwpkg")
             or options.component.endswith(".fup")
             or options.component.endswith(".hpb")
+            or options.component.endswith(".HPb")
+            or options.component.endswith(".pup")
         ):
             fwpkg = True
             comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(self, options.component)
@@ -145,10 +141,10 @@ class UploadComponentCommand:
                 device_discovery_status = results["Oem"]["Hpe"]["DeviceDiscoveryComplete"]["DeviceDiscovery"]
                 LOGGER.info("Device Discovery Status is {}".format(device_discovery_status))
                 # check for device discovery
-                if ("DeviceDiscoveryComplete" not in device_discovery_status):
-                    raise DeviceDiscoveryInProgress(
-                        "Device Discovery in progress...Please retry flashing firmware after 10 minutes"
-                    )
+                # if ("DeviceDiscoveryComplete" not in device_discovery_status):
+                #    raise DeviceDiscoveryInProgress(
+                #        "Device Discovery in progress...Please retry flashing firmware after 10 minutes"
+                #    )
             if ctype in ["C", "BC"]:
                 options.component = comp[0]
             # else:
@@ -158,8 +154,8 @@ class UploadComponentCommand:
             raise IncompatibleiLOVersionError("iLO Repository commands are only available on iLO 5.")
 
         filestoupload = self._check_and_split_files(options)
-
-        if self.componentvalidation(options, filestoupload):
+        validation = self.componentvalidation(options, filestoupload)
+        if validation:
             start_time = time.time()
             ret = ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
 
@@ -178,9 +174,13 @@ class UploadComponentCommand:
             elif fwpkg:
                 if os.path.exists(loc):
                     shutil.rmtree(loc)
+        elif not validation and options.forceupload:
+            self.rdmc.ui.printer(
+                "Component " + filestoupload[0][0] + " is already present in repository ,Hence skipping the re upload\n"
+            )
+            ret = ReturnCodes.SUCCESS
         else:
             ret = ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
-
         self.cmdbase.logout_routine(self, options)
         # Return code
         return ret
@@ -227,6 +227,18 @@ class UploadComponentCommand:
                             )
                             validation = False
                             break
+                    elif (
+                        comp["Filename"].upper() == str(filehndl[0]).upper()
+                        and options.forceupload
+                        and prevfile != filehndl[0].upper()
+                    ):
+                        if comp["Locked"]:
+                            options.update_repository = False
+                        else:
+                            options.update_repository = True
+                        if not options.update_target and comp["Locked"]:
+                            validation = False
+                            break
                     if options.update_repository:
                         if (
                             comp["Filename"].upper() == str(filehndl[0]).upper()
@@ -239,6 +251,14 @@ class UploadComponentCommand:
                                 "containing the file and try again OR use taskqueue command "
                                 "to put the component to installation queue\n"
                             )
+                            validation = False
+                            break
+                        elif (
+                            comp["Filename"].upper() == str(filehndl[0]).upper()
+                            and prevfile != filehndl[0].upper()
+                            and comp["Locked"]
+                            and options.forceupload
+                        ):
                             validation = False
                             break
                     prevfile = str(comp["Filename"].upper())
@@ -415,7 +435,10 @@ class UploadComponentCommand:
             )
 
             if res.status == 400 and res.dict is None:
-                self.rdmc.ui.error("Component " + filename + " was not uploaded , iLO returned 400 error code. Check if the user has all privileges to perform the operation.\n")
+                self.rdmc.ui.error(
+                    "Component " + filename + " was not uploaded , iLO returned 400 error code. "
+                    "Check if the user has all privileges to perform the operation.\n"
+                )
                 return ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
 
             if res.status != 200:
@@ -552,6 +575,7 @@ class UploadComponentCommand:
                 user = options.user
                 passwrd = options.password
                 dll, fhandle = self.create_new_chif_for_upload(user, passwrd)
+                self.rdmc.app.current_client.connection._conn.channel.dll = dll
 
             dll.uploadComponent.argtypes = [c_char_p, c_char_p, c_char_p, c_uint32]
             dll.uploadComponent.restype = c_int
@@ -628,9 +652,10 @@ class UploadComponentCommand:
                     LOGGER.info("Component {} uploaded successfully".format(filename))
                     self.rdmc.ui.printer("Component " + filename + " uploaded successfully.\n")
                     self.rdmc.ui.printer("[200] The operation completed successfully.\n")
-                    if not self.wait_for_state_change():
-                        # Failed to upload the component.
-                        raise UploadError("Error while processing the component.")
+                    if not options.update_target:
+                        if not self.wait_for_state_change():
+                            # Failed to upload the component.
+                            raise UploadError("Error while processing the component.")
 
                 multiupload = True
 
@@ -641,7 +666,8 @@ class UploadComponentCommand:
                     BlobStore2.unloadchifhandle(dll)
                     # Restore old chif channel
                     dll = dll_bk
-                    LOGGER.info("Created new chif channel for updating recovery set")
+                    self.rdmc.app.current_client.connection._conn.channel.dll = dll_bk
+                    LOGGER.info("Restored the old chif channel\n")
 
         except Exception as excep:
             LOGGER.error("Exception occured, {}".format(excep))

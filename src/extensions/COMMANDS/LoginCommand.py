@@ -20,7 +20,6 @@
 import getpass
 import os
 import socket
-
 import redfish.ris
 
 try:
@@ -32,7 +31,7 @@ try:
         ReturnCodes,
         UsernamePasswordRequiredError,
     )
-except ImportError:
+except ModuleNotFoundError:
     from ilorest.rdmc_helper import (
         ReturnCodes,
         InvalidCommandLineError,
@@ -107,6 +106,24 @@ class LoginCommand:
         # Return code
         return ReturnCodes.SUCCESS
 
+    def perform_login(self, options, skipbuild, user_ca_cert_data):
+        self.rdmc.app.login(
+            username=self.username,
+            password=self.password,
+            sessionid=self.sessionid,
+            base_url=self.url,
+            path=options.path,
+            skipbuild=skipbuild,
+            includelogs=options.includelogs,
+            biospassword=self.biospassword,
+            is_redfish=self.rdmc.opts.is_redfish,
+            proxy=self.rdmc.opts.proxy,
+            user_ca_cert_data=user_ca_cert_data,
+            json_out=self.rdmc.json,
+            login_otp=self.login_otp,
+            log_dir=self.rdmc.log_dir,
+        )
+
     def loginfunction(self, line, skipbuild=None, json_out=False):
         """Main worker function for login class
 
@@ -175,61 +192,21 @@ class LoginCommand:
             if "blobstore" in self.url and (options.waitforOTP or options.login_otp):
                 options.waitforOTP = None
                 options.login_otp = None
-                self.rdmc.ui.printer("Warning: For local inband mode, TFA is not supported, options --wait_for_otp "
-                                     "and --otp will be ignored\n")
+                self.rdmc.ui.printer(
+                    "Warning: For local inband mode, TFA is not supported, options --wait_for_otp "
+                    "and --otp will be ignored\n"
+                )
 
             if options.waitforOTP:
                 try:
-                    self.rdmc.app.login(
-                        username=self.username,
-                        password=self.password,
-                        sessionid=self.sessionid,
-                        base_url=self.url,
-                        path=options.path,
-                        skipbuild=skipbuild,
-                        includelogs=options.includelogs,
-                        biospassword=self.biospassword,
-                        is_redfish=self.rdmc.opts.is_redfish,
-                        proxy=self.rdmc.opts.proxy,
-                        user_ca_cert_data=user_ca_cert_data,
-                        json_out=self.rdmc.json,
-                        login_otp=self.login_otp,
-                    )
+                    self.perform_login(options, skipbuild, user_ca_cert_data)
                 except redfish.rest.connections.OneTimePasscodeError:
                     self.rdmc.ui.printer("One Time Passcode Sent to registered email.\n")
                     ans = input("Enter OTP: ")
                     self.login_otp = ans
-                    self.rdmc.app.login(
-                        username=self.username,
-                        password=self.password,
-                        sessionid=self.sessionid,
-                        base_url=self.url,
-                        path=options.path,
-                        skipbuild=skipbuild,
-                        includelogs=options.includelogs,
-                        biospassword=self.biospassword,
-                        is_redfish=self.rdmc.opts.is_redfish,
-                        proxy=self.rdmc.opts.proxy,
-                        user_ca_cert_data=user_ca_cert_data,
-                        json_out=self.rdmc.json,
-                        login_otp=self.login_otp,
-                    )
+                    self.perform_login(options, skipbuild, user_ca_cert_data)
             else:
-                self.rdmc.app.login(
-                    username=self.username,
-                    password=self.password,
-                    sessionid=self.sessionid,
-                    base_url=self.url,
-                    path=options.path,
-                    skipbuild=skipbuild,
-                    includelogs=options.includelogs,
-                    biospassword=self.biospassword,
-                    is_redfish=self.rdmc.opts.is_redfish,
-                    proxy=self.rdmc.opts.proxy,
-                    user_ca_cert_data=user_ca_cert_data,
-                    json_out=self.rdmc.json,
-                    login_otp=self.login_otp,
-                )
+                self.perform_login(options, skipbuild, user_ca_cert_data)
         except ServerDownOrUnreachableError as excp:
             self.rdmc.ui.printer("The following error occurred during login: '%s'\n" % str(excp.__class__.__name__))
 

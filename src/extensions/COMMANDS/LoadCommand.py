@@ -1,5 +1,5 @@
 ###
-# Copyright 2016-2021 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2016-2023 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ class LoadCommand:
             "hostname> -u admin -p password",
             "summary": "Loads the server configuration settings from a file.",
             "aliases": [],
-            "auxcommands": ["CommitCommand", "SelectCommand"],
+            "auxcommands": ["CommitCommand", "SelectCommand", "RawPatchCommand"],
         }
         self.filenames = None
         self.mpfilename = None
@@ -95,6 +95,28 @@ class LoadCommand:
         templist = [
             "SecureBootCurrentBoot",
             "@odata.etag",
+            "Id",
+            "AutoNeg",
+            "FQDN",
+            "FullDuplex",
+            "HostName",
+            "IPv6Addresses",
+            "IPv6DefaultGateway",
+            "LinkStatus",
+            "MaxIPv6StaticAddresses",
+            "Name",
+            "NameServers",
+            "PermanentMACAddress",
+            "ConfigurationSettings",
+            "InterfaceType",
+            "NICSupportsIPv6",
+            "DomainName",
+            "IPV6",
+            "DNSServers",
+            "MACAddress",
+            "VLAN",
+            "SpeedMbps",
+            "DateTime",
         ]
         remove_data = self.rdmc.app.removereadonlyprops(tmp, False, True, templist)
         return remove_data
@@ -138,22 +160,6 @@ class LoadCommand:
                 try:
                     with open(files, "r") as myfile:
                         loadcontents = json.load(myfile)
-                #        for loadcontent in loadcontents:
-                #            if 'Comments' in loadcontent:
-                #                if "SerialNumber" in loadcontent["Comments"]:
-                #                    del (loadcontent["Comments"]["SerialNumber"])
-                #            for _, v in loadcontent.items():
-                #                for _, v in v.items():
-                #                    if "Attributes" in v:
-                #                        if 'SerialNumber' in v['Attributes']:
-                #                            del (v["Attributes"]["SerialNumber"])
-                #                        if 'ProductId' in v['Attributes']:
-                #                            del (v["Attributes"]["ProductId"])
-                #                    else:
-                #                        if 'SerialNumber' in v:
-                #                            del (v["SerialNumber"])
-                #                        if 'ProductId' in v:
-                #                            del (v["ProductId"])
                 except:
                     raise InvalidFileFormattingError("Invalid file formatting found in file %s" % files)
 
@@ -170,6 +176,7 @@ class LoadCommand:
                     raise MultipleServerConfigError("One or more servers failed to load given configuration.")
 
             results = False
+            eth_conf = False
             validation_errs = []
 
             for loadcontent in loadcontents:
@@ -178,6 +185,41 @@ class LoadCommand:
 
                     if content == "Comments":
                         continue
+
+                    if "EthernetInterface" in content:
+                        if options.force_network_config:
+                            import platform
+                            import tempfile
+
+                            patchpath = "/redfish/v1/Managers/1/EthernetInterfaces/1/"
+
+                            try:
+                                payload = loadcontent[content][patchpath]
+                            except KeyError:
+                                continue
+
+                            payload = loadcontent[content][patchpath]
+                            remove_odata = self.securebootremovereadonly(payload)
+                            payload.update(remove_odata)
+                            if "StaticNameServers" in payload:
+                                payload["StaticNameServers"] = [
+                                    item for item in payload["StaticNameServers"] if item != "::"
+                                ]
+                            tempdir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
+                            temp_file = os.path.join(tempdir, "temp_patch.json")
+                            out_file = open(temp_file, "w")
+                            patch_payload = {patchpath: payload}
+                            json.dump(patch_payload, out_file, indent=6)
+                            out_file.close()
+                            self.auxcommands["rawpatch"].run(temp_file + " --service")
+                            os.remove(temp_file)
+                            eth_conf = True
+                            continue
+                        else:
+                            self.rdmc.ui.printer(
+                                "Skipping network configurations as" " --force_network_config is not included.\n"
+                            )
+                            continue
 
                     inputlist.append(content)
                     if options.biospassword:
@@ -240,7 +282,10 @@ class LoadCommand:
                 raise redfish.ris.ValidationError()
 
             if not results:
-                self.rdmc.ui.printer("No differences found from current configuration.\n")
+                if eth_conf:
+                    continue
+                else:
+                    self.rdmc.ui.printer("No differences found from current configuration.\n")
 
         # Return code
         if returnvalue:
@@ -259,7 +304,7 @@ class LoadCommand:
             options.latestschema = True
 
         try:
-            self.cmdbase.login_select_validation(self, options)
+            self.cmdbase.login_validation(self, options)
         except Exception:
             if options.mpfilename:
                 pass
@@ -512,5 +557,13 @@ class LoadCommand:
             help="Use this flag to perform a reboot command function after"
             " completion of operations.  For help with parameters and"
             " descriptions regarding the reboot flag, run help reboot.",
+            default=None,
+        )
+        customparser.add_argument(
+            "--force_network_config",
+            dest="force_network_config",
+            help="Use this flag to force set network configuration."
+            "Network settings will be skipped if the flag is not included.",
+            action="store_true",
             default=None,
         )

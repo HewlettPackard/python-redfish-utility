@@ -94,9 +94,7 @@ class StatusCommand:
                     val = (
                         ["List Manipulation"]
                         if content["op"] == "move"
-                        else [content["value"].strip("\"'")]
-                        if len(content["value"])
-                        else [""]
+                        else [content["value"].strip("\"'")] if len(content["value"]) else [""]
                     )
                     cont = reduce(
                         createdict,

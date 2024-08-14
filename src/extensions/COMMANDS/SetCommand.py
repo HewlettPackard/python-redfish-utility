@@ -1,5 +1,5 @@
 ###
-# Copyright 2016-2021 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2016-2023 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ class SetCommand:
                 "RebootCommand",
                 "RawPatchCommand",
                 "SelectCommand",
+                "LogoutCommand",
             ],
         }
         self.cmdbase = None
@@ -92,6 +93,12 @@ class SetCommand:
         fsel = None
         fval = None
         if args:
+            if "ethernetinterface" in self.rdmc.app.selector.lower() and "ipv4addresses" in args[0].lower():
+                raise InvalidCommandLineError(
+                    "For security reasons this request is discarded. "
+                    "Use `rawpatch` or the `load --force_network_config` command "
+                    "to modify the IP configuration of the ilO.\n"
+                )
             if options.filter:
                 try:
                     (fsel, fval) = str(options.filter).strip("'\" ").split("=")
@@ -205,8 +212,8 @@ class SetCommand:
             if options.reboot and not options.commit:
                 self.auxcommands["reboot"].run(options.reboot)
 
-            # if options.logout:
-            #    self.logoutobj.run("")
+            if options.logout:
+                self.auxcommands["logout"].run("")
 
         else:
             raise InvalidCommandLineError("Missing parameters for 'set' command.\n")
@@ -273,21 +280,23 @@ class SetCommand:
                     if val:
                         if val[0] == "[" and val[-1] == "]":
                             val = val[1:-1].split(",")
-                    if val.isnumeric():
+                    if val.isdigit():
                         val = int(val)
                 patch_data = dict()
                 payload = {newargs[-1]: val} if newargs else {sel: val}
                 if newargs:
                     for key in newargs[:-1][::-1]:
-                        payload = {key: payload}
+                        if key == "PowerControl":
+                            payload = {key: [payload]}
+                        else:
+                            payload = {key: payload}
                         patch_data.update(payload)
                         if "Oem" in key:
                             if "managernetworkprotocol." or "thermal." in self.rdmc.app.selector:
                                 import platform
                                 import tempfile
-                                from pathlib import Path
 
-                                tempdir = Path("/tmp" if platform.system() == "Darwin" else tempfile.gettempdir())
+                                tempdir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
                                 temp_file = os.path.join(tempdir, "temp_patch.json")
                                 out_file = open(temp_file, "w")
                                 if "managernetworkprotocol." in self.rdmc.app.selector:
@@ -301,6 +310,19 @@ class SetCommand:
                                 self.auxcommands["rawpatch"].run(temp_file + " --service")
                                 self.auxcommands["select"].run(self.rdmc.app.selector + " --refresh")
                                 os.remove(temp_file)
+                    if "PowerControl" in payload.keys():
+                        import platform
+                        import tempfile
+
+                        tempdir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
+                        temp_file = os.path.join(tempdir, "temp_patch.json")
+                        out_file = open(temp_file, "w")
+                        patch_path = "/redfish/v1/Chassis/1/Power"
+                        patch_payload = {patch_path: payload}
+                        json.dump(patch_payload, out_file, indent=6)
+                        out_file.close()
+                        self.auxcommands["rawpatch"].run(temp_file + " --service")
+                        os.remove(temp_file)
 
     def run(self, line, skipprint=False, help_disp=False):
         """Main set function
@@ -317,6 +339,7 @@ class SetCommand:
             ("Oem/Hpe/EnhancedDownloadPerformanceEnabled" in line[0])
             or ("Oem/Hpe/ThermalConfiguration" in line[0])
             or ("Oem/Hpe/FanPercentMinimum" in line[0])
+            or ("Power" in line[0])
         ):
             self.patchfunction(line)
         else:

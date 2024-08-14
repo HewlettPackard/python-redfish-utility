@@ -1,5 +1,5 @@
 ###
-# Copyright 2016-2021 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2016-2023 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,7 +46,9 @@ class FirmwareUpdateCommand:
             "usage": None,
             "description": "Apply a firmware "
             "update to the current logged in server.\n\texample: "
-            "firmwareupdate <url/hostname>/images/image.bin",
+            "firmwareupdate <url/hostname>/images/image.bin\n\t"
+            "update based on targets GPU .\n\texample: "
+            "firmwareupdate <url/hostname> --targets <id>",
             "summary": "Perform a firmware update on the currently logged in server.",
             "aliases": [],
             "auxcommands": [],
@@ -73,13 +75,19 @@ class FirmwareUpdateCommand:
                 return ReturnCodes.SUCCESS
             else:
                 raise InvalidCommandLineErrorOPTS("")
+        # Third Party FW
+        args[0] = args[0].lower()
+        if args and (".pup" in args[0] or ".fup" in args[0] or ".hpb" in args[0] or ".HPb" in args[0]):
+            raise InvalidCommandLineErrorOPTS("For flashing 3rd party firmwares, please use flashfwpkg command")
 
-        self.firmwareupdatevalidation(options)
-        if args:
+        # Supports only .bin/fwpkg/full/vme Firmware files.
+        if args and (".bin" in args[0] or ".fwpkg" in args[0] or ".full" in args[0] or ".vme" in args[0]):
             if args[0].startswith('"') and args[0].endswith('"'):
                 args[0] = args[0][1:-1]
         else:
-            raise InvalidCommandLineErrorOPTS("No arguments supplied")
+            raise InvalidCommandLineErrorOPTS("Please input URL pointing to a .bin or .fwpkg or .full or .vme firmware")
+
+        self.firmwareupdatevalidation(options)
 
         action = None
         uri = "FirmwareURI"
@@ -100,28 +108,54 @@ class FirmwareUpdateCommand:
         bodydict = results.resp.dict
 
         try:
-            for item in bodydict["Actions"]:
-                if self.rdmc.app.typepath.defs.isgen10:
-                    if "SimpleUpdate" in item:
+            if options.targets:
+                for item in bodydict["Oem"]["Hpe"]["Actions"]:
+                    if "AddFromUri" in item:
                         action = item.split("#")[-1]
-
                     uri = "ImageURI"
-                    options.tpmenabled = False
-                elif "InstallFromURI" in item:
-                    action = "InstallFromURI"
+                    if action:
+                        put_path = bodydict["Oem"]["Hpe"]["Actions"][item]["target"]
+                        break
+            else:
+                for item in bodydict["Actions"]:
+                    if self.rdmc.app.typepath.defs.isgen10:
+                        if "SimpleUpdate" in item:
+                            action = item.split("#")[-1]
 
-                if action:
-                    put_path = bodydict["Actions"][item]["target"]
-                    break
+                        uri = "ImageURI"
+                        # options.tpmenabled = False
+                    elif "InstallFromURI" in item:
+                        action = "InstallFromURI"
+
+                    if action:
+                        put_path = bodydict["Actions"][item]["target"]
+                        break
         except:
             put_path = update_path
             action = "Reset"
 
-        if options.tpmenabled:
-            body = {"Action": action, uri: args[0], "TPMOverrideFlag": True}
-        else:
+        if "AddFromUri" in action:
+            body = {
+                "Action": action,
+                uri: args[0],
+                "TPMOverrideFlag": options.tpmenabled,
+            }
+        elif "SimpleUpdate" in action:
             body = {"Action": action, uri: args[0]}
-
+        if options.targets:
+            targets = []
+            target_list = options.targets.split(",")
+            for target in target_list:
+                target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + str(target) + "/"
+                targets.append(target_url)
+            verified = self.verify_targets(options.targets)
+            if not verified:
+                self.rdmc.ui.error("Provided target was not available, Please provide valid target id\n")
+                return ReturnCodes.INVALID_TARGET_ERROR
+            body["UpdateTarget"] = options.updatetarget
+            body["UpdateRepository"] = options.updaterepository
+            body["Targets"] = targets
+            self.rdmc.ui.printer('payload: "%s"\n' % body)
         self.rdmc.app.post_handler(put_path, body, silent=True, service=True)
 
         self.rdmc.ui.printer("\nStarting upgrade process...\n\n")
@@ -132,6 +166,18 @@ class FirmwareUpdateCommand:
         self.cmdbase.logout_routine(self, options)
         # Return code
         return ReturnCodes.SUCCESS
+
+    def verify_targets(self, target):
+        target_list = target.split(",")
+        for target in target_list:
+            try:
+                target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + target
+                dd = self.rdmc.app.get_handler(target_url, service=True, silent=True)
+                if dd.status == 404:
+                    return False
+            except:
+                return False
+        return True
 
     def showupdateprogress(self, path):
         """handler function for updating the progress
@@ -147,7 +193,10 @@ class FirmwareUpdateCommand:
 
         while True:
             if counter == 100:
-                raise FirmwareUpdateError("Error occurred while updating the firmware.")
+                raise FirmwareUpdateError(
+                    "Error occurred while updating the firmware. Check if TPM is enabled. "
+                    "And if TPM enabled provide --tpmenabled flag"
+                )
             else:
                 counter += 1
 
@@ -249,4 +298,23 @@ class FirmwareUpdateCommand:
             action="store_true",
             help="Use this flag if the server you are currently logged into" " has a TPM chip installed.",
             default=False,
+        )
+        customparser.add_argument(
+            "--updatetarget",
+            dest="updatetarget",
+            action="store_true",
+            help="UpdateTarget set as true/false" "if true firmware updates",
+            default=True,
+        )
+        customparser.add_argument(
+            "--updaterepository",
+            dest="updaterepository",
+            action="store_false",
+            help="UpdateRepository set as true or false" " if true it will add repository.",
+            default=True,
+        )
+        customparser.add_argument(
+            "--targets",
+            help="If targets value specify a comma separated\t" "firmwareinventory id only",
+            metavar="targets_indices",
         )

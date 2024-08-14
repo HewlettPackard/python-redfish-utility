@@ -1085,9 +1085,7 @@ class CertificateCommand:
         subcommand_parser = customparser.add_subparsers(dest="command")
 
         # gen csr sub-parser
-        gen_csr_help = (
-            "This command has been deprecated. Please use the below example command to execute the same function."
-        )
+        gen_csr_help = "Please use the below example command to execute the same function."
         gen_csr_parser = subcommand_parser.add_parser(
             "csr",
             help=gen_csr_help,
@@ -1109,7 +1107,7 @@ class CertificateCommand:
         gen_csr_parser.add_argument(
             "csr_commonname",
             help="Organization common name. i.e. Common Organization Name.",
-            metavar="ORGNAME",
+            metavar="ORGCNAME",
         )
         gen_csr_parser.add_argument(
             "csr_country",
@@ -1406,7 +1404,7 @@ class CertificateCommand:
         gencsr_parser.add_argument(
             "gencsr_commonname",
             help="Organization common name. i.e. Common Organization Name.",
-            metavar="ORGNAME",
+            metavar="ORGCNAME",
         )
         gencsr_parser.add_argument(
             "gencsr_country",
@@ -1450,7 +1448,7 @@ class CertificateCommand:
         autoenroll_parser.add_argument(
             "autoenroll_commonname",
             help="Organization common name. i.e. Common Organization Name.",
-            metavar="ORGNAME",
+            metavar="ORGCNAME",
         )
         autoenroll_parser.add_argument(
             "autoenroll_country",
@@ -1472,7 +1470,7 @@ class CertificateCommand:
         autoenroll_parser.add_argument(
             "autoenroll_ScepService",
             help="Scep service enable or disable",
-            metavar="AESECPSERVICE",
+            metavar="AESCEPSERVICE",
         )
         autoenroll_parser.add_argument(
             "autoenroll_includeIP",

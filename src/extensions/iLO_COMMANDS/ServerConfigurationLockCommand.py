@@ -47,12 +47,12 @@ class ServerConfigurationLockCommand:
             "name": "serverconfiglock",
             "usage": None,
             "description": "To to perform validation checks on raw JSON data "
-                           "server.\n\texample: serverconfiglock\n\t"
-                           "example: serverconfiglock enable --serverconfiglockpassword=AWS@123456789 "
-                           "--serverconfiglockexcludefwrevs=True\t serverconfiglockexcludefwrevs set True or False\n\t"
-                           "example: serverconfiglock disable --serverconfiglockpassword=AWS@1234 "
-                           "--serverconfiglockdisable=True\t serverconfiglockdisable set True or False\n\t"
-                           "example: serverconfiglock display",
+            "server.\n\texample: serverconfiglock\n\t"
+            "example: serverconfiglock enable --serverconfiglockpassword=AWS@123456789 "
+            "--serverconfiglockexcludefwrevs=True\t serverconfiglockexcludefwrevs set True or False\n\t"
+            "example: serverconfiglock disable --serverconfiglockpassword=AWS@1234 "
+            "--serverconfiglockdisable=True\t serverconfiglockdisable set True or False\n\t"
+            "example: serverconfiglock display",
             "summary": "The BIOS feature “Server Configuration Lock” supports certain parameters,"
             "including a password. This password has a 16 to 31 character limit. "
             "“Server Configuration Lock” is not one of the special commands in iLO REST.",
@@ -105,14 +105,13 @@ class ServerConfigurationLockCommand:
         """
         Enable/Disable the SCL config function
         """
-        import re
         if options.serverconfiglockpassword:
             ser_cf_password = options.serverconfiglockpassword
         self.serverconfiglockpassword_validation(options)
         if options.serverconfiglockexcludefwrevs.lower() == "true":
-            serverconfrevs = True
+            serverconfrevs = "True"
         elif options.serverconfiglockexcludefwrevs.lower() == "false":
-            serverconfrevs = False
+            serverconfrevs = "False"
         else:
             raise InvalidCommandLineError("ServerConfigLockExcludeFwRevs value invalid set only true or false")
         body = {"ServerConfigLockPassword": ser_cf_password, "ServerConfigLockExcludeFwRevs": serverconfrevs}
@@ -138,9 +137,9 @@ class ServerConfigurationLockCommand:
             ser_cf_password = options.serverconfiglockpassword
         self.serverconfiglockpassword_validation(options)
         if options.serverconfiglockdisable.lower() == "true":
-            sclockdisable = True
+            sclockdisable = "True"
         elif options.serverconfiglockdisable.lower() == "false":
-            sclockdisable = False
+            sclockdisable = "False"
         else:
             raise InvalidCommandLineError("ServerConfigLockDisable value invalid set only true or false")
         body = {"ServerConfigLockPassword": ser_cf_password, "ServerConfigLockDisable": sclockdisable}
@@ -194,15 +193,14 @@ class ServerConfigurationLockCommand:
         if options.serverconfiglockpassword:
             password = options.serverconfiglockpassword
         if len(password) < 16 or len(password) > 31:
-            LOGGER.info("Length of password requires min of 16 and max of 31 character "
-                        "excluding '/' character.\n")
-            raise InvalidPasswordLengthError("Length of password requires min of 16 and max of 31 character "
-                                             "excluding '/' character.\n")
+            LOGGER.info("Length of password requires min of 16 and max of 31 character " "excluding '/' character.\n")
+            raise InvalidPasswordLengthError(
+                "Length of password requires min of 16 and max of 31 character " "excluding '/' character.\n"
+            )
         elif re.search("[0-9]", password) is None:
             print("Make sure your password has a number in it\n")
         elif re.search("[A-Z]", password) is None:
             print("Make sure your password has a capital letter in it\n")
-
 
     def serverconfiglockvalidation(self, options):
         """new command method validation function"""

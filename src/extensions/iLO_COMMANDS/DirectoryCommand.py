@@ -76,13 +76,13 @@ class _DirectoryParse(Action):
             setattr(namespace, self.dest, True)
         elif option_strings == "--removerolemap":
             setattr(namespace, self.dest, {"remove": []})
-            for role in next(iter(values)).split(";"):
+            for role in next(iter(values)).split("#"):
                 role = role.replace('"', "")
                 if role:
                     namespace.roles["remove"].append(role)
         elif option_strings == "--addrolemap":
             setattr(namespace, self.dest, {"add": []})
-            for role in next(iter(values)).split(";"):
+            for role in next(iter(values)).split("#"):
                 role = role.replace('"', "")
                 if role and re.match(".*:.*", role):
                     privs = role.split(":")[0].split(";")
@@ -212,6 +212,12 @@ class DirectoryCommand:
                 keytab = options.keytab
             try:
                 directory_settings = self.directory_helper(results, options)
+                if "ldap" in line and options.roles and "add" in options.roles:
+                    role_val = options.roles["add"]
+                    for r in role_val:
+                        if ";" in r.split(":")[0]:
+                            name = "ActiveDirectory"
+                            break
             except IndexError:
                 directory_settings = self.directory_helper(results, options)
 
@@ -228,7 +234,7 @@ class DirectoryCommand:
                 if getattr(options, "json", False):
                     # self.rdmc.ui.print_out_json({name: results, 'LocalAccountAuth': local_auth,
                     #                             "Oem": {"Hpe": oem}})
-                    text_content = self.print(results, oem, local_auth, name)
+                    text_content = self.print_s(results, oem, local_auth, name)
                     self.rdmc.ui.print_out_json(text_content)
                 else:
                     self.print_settings(results, oem, local_auth, name)
@@ -267,8 +273,8 @@ class DirectoryCommand:
 
                                 priv_patches[mapping["RemoteGroup"]] = privs
                                 mapping["LocalRole"] = "ReadOnly"
-                except Exception:
-                    pass
+                except Exception as excp:
+                    self.rdmc.ui.error(excp)
                 self.rdmc.ui.printer("Changing settings...\n")
                 try:
                     self.rdmc.app.patch_handler(path, payload)
@@ -434,7 +440,7 @@ class DirectoryCommand:
                     self.rdmc.ui.printer("Status: %s\n" % test["Status"])
                     self.rdmc.ui.printer("Notes: %s\n\n" % test["Notes"])
 
-    def print(self, settings, oem_settings, local_auth_setting, name):
+    def print_s(self, settings, oem_settings, local_auth_setting, name):
         setting = "Kerberos" if name == "ActiveDirectory" else name
         enable = str(settings["ServiceEnabled"])
         serviceaddress = settings["ServiceAddresses"][0]
@@ -707,10 +713,10 @@ class DirectoryCommand:
             description=ldap_help + "\n\n\tSimply show LDAP configuration:\n\t\tdirectory ldap\n\n"
             "To modify the LDAP username, password, service address, search strings or "
             "enable/disable LDAP.\n\t\tdirectory ldap <username> <password> "
-            "--serviceaddress x.x.y.z --addsearch string1, string2 --enable.\n\n\tTo add role "
-            'mapping.\n\t\tdirectory ldap <username> <password> --addrolemap "LocalRole1:"'
-            '"RemoteGroup3,LocalRole2:RemoteGroup4:SID.\n\n\tTo remove role mapping.\n\t\t'
-            "directory ldap <username> <password> --removerolemap LocalRole1, LocalRole2." + privilege_help,
+            '--serviceaddress x.x.y.z --addsearch "string1;string2" --enable.\n\n\tTo add role '
+            'mapping.\n\t\tdirectory ldap <username> <password> --addrolemap "LocalRole1:'
+            'RemoteGroup3#LocalRole2:RemoteGroup4:SID".\n\n\tTo remove role mapping.\n\t\t'
+            "directory ldap <username> <password> --removerolemap LocalRole1#LocalRole2." + privilege_help,
             formatter_class=RawDescriptionHelpFormatter,
         )
         ldap_parser.add_argument(
@@ -767,10 +773,10 @@ class DirectoryCommand:
             dest="roles",
             nargs="*",
             action=_DirectoryParse,
-            help="Optionally add this flag to add or remove Role Mapping(s) for the LDAP and "
-            "Kerberos services. Remove EX: --removerolemap LocalRole1,LocalRole2 "
-            'Add EX: --addrolemap "LocalRole1:RemoteGroup3,LocalRole2:RemoteGroup4\n\n"'
-            'SID EX: --addrolemap "LocalRole1:RemoteGroup2:SID,LocalRole2:RemoteGroup5:SID'
+            help="Optionally add this flag to add or remove Role Mapping(s) for the LDAP."
+            " Remove EX: --removerolemap LocalRole1#LocalRole2 "
+            'Add EX: --addrolemap "LocalRole1:RemoteGroup3#LocalRole2:RemoteGroup4\n\n"'
+            'SID EX: --addrolemap "LocalRole1:RemoteGroup2:SID#LocalRole2:RemoteGroup5:SID"'
             "\n\nNOTE 1: Create a custom local role group (and subsequently assign to a role map)"
             "by adding the numbers associated with privilege(s) desired separated by a semicolon"
             "(;)\n\nNOTE 2: SID is optional",

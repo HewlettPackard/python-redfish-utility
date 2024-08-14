@@ -19,6 +19,8 @@
 
 from six.moves import input
 
+from redfish.ris import InstanceNotFoundError
+
 try:
     from rdmc_helper import (
         InvalidCommandLineError,
@@ -80,6 +82,14 @@ class DeleteVolumeCommand:
 
         self.deletevolumevalidation(options)
         ilo_ver = self.rdmc.app.getiloversion()
+        if ilo_ver < 6.110:
+            try:
+                self.auxcommands["select"].selectfunction("StorageController.")
+                content = self.rdmc.app.getprops()
+                ilo_ver = 6.110
+            except Exception:
+                pass
+
         if ilo_ver >= 6.110:
             if not options.storageid:
                 raise InvalidCommandLineError(
@@ -149,6 +159,19 @@ class DeleteVolumeCommand:
                 if not controllist:
                     raise InvalidCommandLineError("")
             else:
+                try:
+                    controllers = self.auxcommands["storagecontroller"].storagecontroller(options, single_use=True)
+                    options.command = "volume"
+                    ilo_ver = 6.110
+                except InstanceNotFoundError:
+                    if not options.storageid:
+                        raise InvalidCommandLineError(
+                            "--storageid option is mandatory. Please input storageid as well so that "
+                            "controllers/volumes can be identified.\n"
+                        )
+                    controllers = self.auxcommands["storagecontroller"].storagecontroller(options, single_use=True)
+                    options.command = "volume"
+                    ilo_ver = 6.110
                 if options.controller.isdigit():
                     slotlocation = self.get_location_from_id(options.controller)
                     if slotlocation:
@@ -412,7 +435,7 @@ class DeleteVolumeCommand:
         customparser.add_argument(
             "--force",
             dest="force",
-            help="""Use this flag to override the "are you sure?" text when """ """deleting a volume.""",
+            help="""Use this flag to override the "are you sure?" text when deleting a volume.""",
             action="store_true",
             default=False,
         )

@@ -179,7 +179,7 @@ class BootOrderCommand:
 
         currentsettings = self.rdmc.app.get_handler(self.rdmc.app.typepath.defs.systempath, service=True, silent=True)
 
-        if bootmode and bootmode.get("BootMode", None) == "Uefi":
+        if bootmode and bootmode[0].get("BootMode", None) == "Uefi":
             if self.rdmc.app.typepath.defs.isgen9:
                 uefionetimebootsettings = self.auxcommands["get"].getworkerfunction(
                     ["Boot/UefiTargetBootSourceOverrideSupported"],
@@ -195,7 +195,7 @@ class BootOrderCommand:
                     options,
                     results=True,
                     uselist=True,
-                )["Boot"]
+                )[0]["Boot"]
                 finaluefi = []
                 if "UefiTargetBootSourceOverride@Redfish.AllowableValues" in bootsettings:
                     uefionetimebootsettings = bootsettings["UefiTargetBootSourceOverride@Redfish.AllowableValues"]
@@ -231,7 +231,7 @@ class BootOrderCommand:
                     UI().print_out_json(bootsettings)
             elif len(args) == 1 and args[0][0] == "[":
                 bootlist = args[0][1:-1].split(",")
-                currentlist = bootsettings["PersistentBootConfigOrder"]
+                currentlist = bootsettings[0]["PersistentBootConfigOrder"]
 
                 if not isinstance(currentlist, list):
                     templist = ast.literal_eval(currentlist[1:-1])
@@ -281,7 +281,7 @@ class BootOrderCommand:
 
                     self.auxcommands["set"].run("PersistentBootConfigOrder=" + newlist)
             else:
-                currlist = bootsettings["PersistentBootConfigOrder"]
+                currlist = bootsettings[0]["PersistentBootConfigOrder"]
                 if not isinstance(currlist, list):
                     templist = ast.literal_eval(currlist[1:-1])
                     currlist = [n.strip() for n in templist]
@@ -316,16 +316,16 @@ class BootOrderCommand:
             if options.onetimeboot is not None:
                 entry = options.onetimeboot
 
-                if not bootstatus["Boot"]["BootSourceOverrideEnabled"] == "Once":
+                if not bootstatus[0]["Boot"]["BootSourceOverrideEnabled"] == "Once":
                     bootoverride = " Boot/BootSourceOverrideEnabled=Once"
             elif options.continuousboot is not None:
                 entry = options.continuousboot
 
-                if not bootstatus["Boot"]["BootSourceOverrideEnabled"] == "Continuous":
+                if not bootstatus[0]["Boot"]["BootSourceOverrideEnabled"] == "Continuous":
                     bootoverride = " Boot/BootSourceOverrideEnabled=Continuous"
             else:
                 entry = "JacksBootOption"
-                if not bootstatus["Boot"]["BootSourceOverrideEnabled"] == "Disabled":
+                if not bootstatus[0]["Boot"]["BootSourceOverrideEnabled"] == "Disabled":
                     if currentsettings.dict["Boot"]["BootSourceOverrideEnabled"] == "Disabled":
                         bootoverride = "Boot/BootSourceOverrideTarget=None" " Boot/BootSourceOverrideEnabled=Disabled"
                     else:
@@ -334,17 +334,17 @@ class BootOrderCommand:
             newlist = ""
 
             if entry.lower() in (
-                item.lower() for item in onetimebootsettings["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype]
+                item.lower() for item in onetimebootsettings[0]["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype]
             ):
                 if entry and isinstance(entry, six.string_types):
                     entry = entry.upper()
 
                 entry = self.searchcasestring(
                     entry,
-                    onetimebootsettings["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype],
+                    onetimebootsettings[0]["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype],
                 )
 
-                if not entry == targetstatus["Boot"]["BootSourceOverrideTarget"]:
+                if not entry == targetstatus[0]["Boot"]["BootSourceOverrideTarget"]:
                     newlist += " Boot/BootSourceOverrideTarget=" + entry
 
                 if bootoverride:
@@ -542,10 +542,10 @@ class BootOrderCommand:
         if content is None:
             raise BootOrderMissingEntriesError("No entries found in " "current boot order.\n\n")
         else:
-            self.print_boot_helper(content, "\nCurrent Persistent Boot " "Order:", bootsources=bootsources)
+            self.print_boot_helper(content[0], "\nCurrent Persistent Boot " "Order:", bootsources=bootsources)
 
-        bootstatusval = bootstatus["Boot"]["BootSourceOverrideEnabled"]
-        boottoval = targetstatus["Boot"]["BootSourceOverrideTarget"]
+        bootstatusval = bootstatus[0]["Boot"]["BootSourceOverrideEnabled"]
+        boottoval = targetstatus[0]["Boot"]["BootSourceOverrideTarget"]
         if bootstatusval == "Continuous":
             self.rdmc.ui.printer("Current continuous boot: {0}\n\n".format(boottoval))
         elif bootstatusval == "Once":
@@ -554,20 +554,27 @@ class BootOrderCommand:
         if onetimecontent is None:
             raise BootOrderMissingEntriesError("No entries found for one time boot options.\n\n")
         else:
-            self.print_boot_helper(onetimecontent["Boot"], "Continuous and one time boot options:")
+            self.print_boot_helper(onetimecontent[0]["Boot"], "Continuous and one time boot options:")
 
-        if bootmode and any([bootmode.get(boot, None) == "Uefi" for boot in bootmode]):
+        if bootmode and any([bootmode[0].get(boot, None) == "Uefi" for boot in bootmode[0]]):
             if uefionetimecontent is None:
                 self.rdmc.ui.printer("Continuous and one time boot uefi options:\n")
                 self.rdmc.ui.printer(
                     "No entries found for one-time UEFI options or boot source mode " "is not set to UEFI."
                 )
             else:
-                self.print_boot_helper(
-                    uefionetimecontent["Boot"],
-                    "Continuous and one time boot uefi options:",
-                    bootsources=bootsources,
-                )
+                if isinstance(uefionetimecontent, dict):
+                    self.print_boot_helper(
+                        uefionetimecontent["Boot"],
+                        "Continuous and one time boot uefi options:",
+                        bootsources=bootsources,
+                    )
+                else:
+                    self.print_boot_helper(
+                        uefionetimecontent[0]["Boot"],
+                        "Continuous and one time boot uefi options:",
+                        bootsources=bootsources,
+                    )
 
     def print_boot_helper(self, content, outstring, indent=0, bootsources=None):
         """Print boot helper

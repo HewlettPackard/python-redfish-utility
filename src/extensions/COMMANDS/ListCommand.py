@@ -19,12 +19,14 @@
 
 try:
     from rdmc_helper import (
+        UI,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         ReturnCodes,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
+        UI,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         ReturnCodes,
@@ -70,7 +72,12 @@ class ListCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        self.listvalidation(options)
+        selector = options.selector.lower() if options.selector else self.rdmc.app.selector.lower()
+
+        if "securityservice" in selector:
+            self.cmdbase.login_validation(self, options)
+        else:
+            self.listvalidation(options)
 
         fvals = (None, None)
 
@@ -83,8 +90,27 @@ class ListCommand:
                 fvals = (sel.strip(), val.strip())
             except:
                 raise InvalidCommandLineError("Invalid filter" " parameter format [filter_attribute]=[filter_value]")
+        if options.selector:
+            self.rdmc.app.selector = options.selector
+        elif self.rdmc.app.selector:
+            options.selector = self.rdmc.app.selector
+        if "securityservice" in options.selector.lower():
+            url = "/redfish/v1/Managers/1/SecurityService/"
+            contents = self.rdmc.app.get_handler(url, service=True, silent=True).dict
+            security_contents = []
 
-        self.auxcommands["get"].getworkerfunction(args, options, filtervals=fvals, uselist=False)
+            if options and options.json and contents:
+                UI().print_out_json(contents)
+            elif not args:
+                UI().print_out_human_readable(contents)
+            else:
+                attr = args[0]
+                contents_lower = {k.lower(): v for k, v in contents.items()}
+                security_contents.append({attr: contents_lower[attr.lower()]})
+            if security_contents:
+                UI().print_out_human_readable(security_contents)
+        else:
+            self.auxcommands["get"].getworkerfunction(args, options, filtervals=fvals, uselist=False)
 
         self.cmdbase.logout_routine(self, options)
         # Return code

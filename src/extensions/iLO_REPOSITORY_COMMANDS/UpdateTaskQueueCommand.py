@@ -1,5 +1,5 @@
 # ##
-# Copyright 2016-2021 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2016-2023 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ try:
         NoContentsFoundForOperationError,
         ReturnCodes,
         TaskQueueError,
+        LOGGER,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -37,6 +38,7 @@ except ImportError:
         NoContentsFoundForOperationError,
         ReturnCodes,
         TaskQueueError,
+        LOGGER,
     )
 
 __subparsers__ = ["create"]
@@ -103,7 +105,7 @@ class UpdateTaskQueueCommand:
             self.createtask(options.keywords, options)
         else:
             if options.resetqueue:
-                self.resetqueue()
+                self.resetqueue(options)
             elif options.cleanqueue:
                 self.cleanqueue()
             self.printqueue(options)
@@ -112,7 +114,7 @@ class UpdateTaskQueueCommand:
         # Return code
         return ReturnCodes.SUCCESS
 
-    def resetqueue(self):
+    def resetqueue(self, options):
         """Deletes everything in the update task queue"""
         tasks = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/UpdateTaskQueue/")
         if not tasks:
@@ -122,7 +124,21 @@ class UpdateTaskQueueCommand:
 
         for task in tasks:
             self.rdmc.ui.printer("Deleting: %s\n" % task["Name"])
-            self.rdmc.app.delete_handler(task["@odata.id"])
+            if "RecoveryPrivilege" in task and task["RecoveryPrivilege"]:
+                self.rdmc.ui.printer("This task is associated with updating recovery set\n")
+                if not (options.user and options.password):
+                    raise TaskQueueError("Deleting this task needs " "--user and --password options, delete failed\n")
+                if "blobstore" in self.rdmc.app.current_client.base_url:
+                    LOGGER.info("Logging out of the session without user and password")
+                    self.rdmc.app.current_client.logout()
+                    LOGGER.info("Logging in with user and password for deleting system recovery set")
+                    self.rdmc.app.current_client._user_pass = (options.user, options.password)
+                    self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
+                    self.rdmc.app.delete_handler(task["@odata.id"])
+                else:
+                    self.rdmc.app.delete_handler(task["@odata.id"])
+            else:
+                self.rdmc.app.delete_handler(task["@odata.id"])
 
     def cleanqueue(self):
         """Deletes all finished or errored tasks in the update task queue"""
@@ -154,7 +170,16 @@ class UpdateTaskQueueCommand:
         for task in tasks:
             usedcomp = None
             newtask = None
-
+            if options.targets:
+                targets = []
+                target_list = options.targets.split(",")
+                for target in target_list:
+                    target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + str(target) + "/"
+                    targets.append(target_url)
+                verified = self.verify_targets(options.targets)
+                if not verified:
+                    self.rdmc.ui.error("Provided target was not available, Please provide valid target id\n")
+                    return ReturnCodes.INVALID_TARGET_ERROR
             try:
                 usedcomp = int(task)
                 newtask = {
@@ -163,6 +188,8 @@ class UpdateTaskQueueCommand:
                     "WaitTimeSeconds": usedcomp,
                     "UpdatableBy": ["Bmc"],
                 }
+                if options.targets:
+                    newtask["Targets"] = targets
             except ValueError:
                 pass
 
@@ -206,7 +233,6 @@ class UpdateTaskQueueCommand:
                     raise NoContentsFoundForOperationError(
                         "Component " "referenced is not present on iLO Drive: %s" % task
                     )
-
                 newtask = {
                     "Name": "Update-%s %s"
                     % (
@@ -218,10 +244,24 @@ class UpdateTaskQueueCommand:
                     "UpdatableBy": usedcomp["UpdatableBy"],
                     "TPMOverride": tpmflag,
                 }
+                if options.targets:
+                    newtask["Targets"] = targets
 
             self.rdmc.ui.printer('Creating task: "%s"\n' % newtask["Name"])
-
+            self.rdmc.ui.printer('payload: "%s"\n' % newtask)
             self.rdmc.app.post_handler(path, newtask)
+
+    def verify_targets(self, target):
+        target_list = target.split(",")
+        for target in target_list:
+            try:
+                target_url = "/redfish/v1/UpdateService/FirmwareInventory/" + target
+                dd = self.rdmc.app.get_handler(target_url, service=True, silent=True)
+                if dd.status == 404:
+                    return False
+            except:
+                return False
+        return True
 
     def printqueue(self, options):
         """Prints the update task queue
@@ -347,9 +387,10 @@ class UpdateTaskQueueCommand:
             help=create_help,
             description=create_help + "\n\n\tCreate a new task for 30 secs:\n\t\ttaskqueue "
             "create 30\n\n\tCreate a new reboot task.\n\t\ttaskqueue create reboot"
-            "\n\n\tCreate a new component task.\n\t\ttaskqueue create compname.exe"
+            "\n\n\tCreate a new component task.\n\t\ttaskqueue create compname"
             "\n\n\tCreate multiple tasks at once.\n\t\ttaskqueue create 30 "
-            '"compname.exe compname2.exe reboot"',
+            '"compname compname2 reboot"'
+            "\n\n\tCreate a new task using targets: \n\t\t taskqueue create compname --targets <id>\n\n\t",
             formatter_class=RawDescriptionHelpFormatter,
         )
         create_parser.add_argument(
@@ -361,5 +402,11 @@ class UpdateTaskQueueCommand:
             nargs="+",
             default="",
         )
+        create_parser.add_argument(
+            "--targets",
+            help="If targets value specify a comma separated\t" "firmwareinventory id only",
+            metavar="targets_indices",
+        )
+
         self.cmdbase.add_login_arguments_group(create_parser)
         self.options_argument_group(create_parser)

@@ -24,21 +24,25 @@ from datetime import datetime
 
 try:
     from rdmc_helper import (
+        LOGGER,
         IncompatibleiLOVersionError,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         InvalidFileInputError,
         NoContentsFoundForOperationError,
         ReturnCodes,
+        InstallsetError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
+        LOGGER,
         IncompatibleiLOVersionError,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         InvalidFileInputError,
         NoContentsFoundForOperationError,
         ReturnCodes,
+        InstallsetError,
     )
 
 
@@ -109,14 +113,14 @@ class InstallSetCommand:
                     options.name = options.name[1:-1]
         if hasattr(options, "removeall"):
             if options.removeall:
-                self.removeinstallsets()
+                self.removeinstallsets(options)
         if options.command.lower() == "add":
             if not options.json:
                 raise InvalidCommandLineError("add command requires an install set file.")
             else:
-                self.addinstallset(options.json, options.name)
+                self.addinstallset(options.json, options)
         elif options.command.lower() == "delete" and (hasattr(options, "removeall") and not options.removeall):
-            self.deleteinstallset(options.name)
+            self.deleteinstallset(options)
         # elif options.command.lower() == "delete" and not hasattr(options, "removeall"):
         #     self.deleteinstallset(options.name)
         elif options.command.lower() == "invoke":
@@ -128,7 +132,7 @@ class InstallSetCommand:
         # Return code
         return ReturnCodes.SUCCESS
 
-    def addinstallset(self, setfile, name):
+    def addinstallset(self, setfile, options):
         """Adds an install set
         :param setfile: filename of install set
         :type setfile: str.
@@ -140,10 +144,10 @@ class InstallSetCommand:
 
         sets = self.rdmc.app.getcollectionmembers(path)
 
-        if not name:
-            name = str(datetime.now())
-            name = name.replace(":", "")
-            name = name.replace(" ", "T")
+        if not options.name:
+            options.name = str(datetime.now())
+            options.name = options.name.replace(":", "")
+            options.name = options.name.replace(" ", "T")
         try:
             inputfile = open(setfile, "r")
             sequences = json.loads(inputfile.read())
@@ -153,7 +157,7 @@ class InstallSetCommand:
         listtype = self.validatefile(sequences)
 
         if listtype:
-            body = {"Name": name, "Sequence": sequences}
+            body = {"Name": options.name, "Sequence": sequences}
         else:
             body = sequences
             if "Sequence" in body:
@@ -179,11 +183,29 @@ class InstallSetCommand:
             if setvar["Name"] == body["Name"]:
                 raise InvalidCommandLineError("Install set name is already in use.")
 
-        self.rdmc.app.post_handler(path, body)
+        # self.rdmc.app.post_handler(path, body)
+        if "IsRecovery" in body and body["IsRecovery"]:
+            self.rdmc.ui.printer("This is a system recovery install set: %s\n" % body["Name"])
+            self.rdmc.ui.warn("Adding system recovery set: %s\n" % body["Name"])
+            if not (options.user and options.password):
+                raise InstallsetError(
+                    "Adding system recovery set needs to be passed with " "--user and --password options, add failed\n"
+                )
+            if "blobstore" in self.rdmc.app.current_client.base_url:
+                LOGGER.info("Logging out of the session without user and password")
+                self.rdmc.app.current_client.logout()
+                LOGGER.info("Logging in with user and password for deleting system recovery set")
+                self.rdmc.app.current_client._user_pass = (options.user, options.password)
+                self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
+                self.rdmc.app.post_handler(path, body)
+            else:
+                self.rdmc.app.post_handler(path, body)
+        else:
+            self.rdmc.app.post_handler(path, body)
 
     def invokeinstallset(self, options):
-        """Deletes the named set
-        :param name: string of the install set name to delete
+        """Invokes the named set
+        :param name: string of the install set name to invoke
         :type name: str.
         """
         path = None
@@ -202,26 +224,43 @@ class InstallSetCommand:
         payload = self.checkpayloadoptions(options)
         self.rdmc.app.post_handler(path, payload)
 
-    def deleteinstallset(self, name):
+    def deleteinstallset(self, options):
         """Deletes the named set
 
         :param name: string of the install set name to delete
         :type name: str.
         """
-        path = None
+        self.rdmc.ui.printer("Deleting install set: %s...\n" % options.name)
         sets = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/InstallSets/")
+        found = False
 
         for setvar in sets:
-            if setvar["Name"] == name:
+            if setvar["Name"] == options.name:
+                found = True
                 path = setvar["@odata.id"]
-
-        if path:
-            self.rdmc.ui.printer("Deleting install set: %s...\n" % name)
-            self.rdmc.app.delete_handler(path)
-        else:
+                if "IsRecovery" in setvar and setvar["IsRecovery"]:
+                    self.rdmc.ui.printer("This is a system recovery install set: %s\n" % setvar["Name"])
+                    self.rdmc.ui.warn("Deleting system recovery set: %s\n" % setvar["Name"])
+                    if not (options.user and options.password):
+                        raise InstallsetError(
+                            "Deleting system recovery set needs to be passed with "
+                            "--user and --password options, delete failed\n"
+                        )
+                    if "blobstore" in self.rdmc.app.current_client.base_url:
+                        LOGGER.info("Logging out of the session without user and password")
+                        self.rdmc.app.current_client.logout()
+                        LOGGER.info("Logging in with user and password for deleting system recovery set")
+                        self.rdmc.app.current_client._user_pass = (options.user, options.password)
+                        self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
+                        self.rdmc.app.delete_handler(path)
+                    else:
+                        self.rdmc.app.delete_handler(path)
+                else:
+                    self.rdmc.app.delete_handler(path)
+        if not found:
             raise NoContentsFoundForOperationError("Unable to find the specified install set.")
 
-    def removeinstallsets(self):
+    def removeinstallsets(self, options):
         """Removes all install sets"""
         sets = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/InstallSets/")
 
@@ -232,21 +271,39 @@ class InstallSetCommand:
 
         for setvar in sets:
             if setvar["IsRecovery"]:
-                self.rdmc.ui.warn("Skipping delete of recovery set: %s\n" % setvar["Name"])
+                self.rdmc.ui.warn("Attempting to delete recovery set: %s\n" % setvar["Name"])
+                if not (options.user and options.password):
+                    raise InstallsetError(
+                        "Deleting system recovery set needs to be passed with "
+                        "--user and --password options, delete failed\n"
+                    )
+                self.rdmc.ui.warn("Deleting system recovery set: %s\n" % setvar["Name"])
+                LOGGER.debug(
+                    "This is to inform that ,Recovery install set %s will also be "
+                    "deleted as RemoveAll option is being used\n" % setvar["Name"]
+                )
+
+                if "blobstore" in self.rdmc.app.current_client.base_url:
+                    LOGGER.info("Logging out of the session without user and password")
+                    self.rdmc.app.current_client.logout()
+                    LOGGER.info("Logging in with user and password for deleting system recovery set")
+                    self.rdmc.app.current_client._user_pass = (options.user, options.password)
+                    self.rdmc.app.current_client.login(self.rdmc.app.current_client.auth_type)
+                    self.rdmc.app.delete_handler(setvar["@odata.id"])
+                else:
+                    self.rdmc.app.delete_handler(setvar["@odata.id"])
             else:
                 self.rdmc.ui.printer("Deleting install set: %s\n" % setvar["Name"])
                 self.rdmc.app.delete_handler(setvar["@odata.id"])
 
     def build_json_out(self, options):
         sets = self.rdmc.app.getcollectionmembers("/redfish/v1/UpdateService/InstallSets/")
-        list_content = []
+        list_content = dict()
         for setvar in sets:
-            if setvar["IsRecovery"]:
-                recovery = "[Recovery Set]"
-            else:
-                recovery = ""
-            content = {setvar["Name"]: {recovery}}
-            list_content.append(content)
+            content = dict()
+            content[setvar["Name"]] = dict()
+            content[setvar["Name"]].update({"IsRecovery": setvar["IsRecovery"]})
+            list_content.update(content)
 
             if "Sequence" not in list(setvar.keys()):
                 content.update({"No Sequences in set."})
@@ -256,16 +313,16 @@ class InstallSetCommand:
                 if "Filename" in list(item.keys()):
                     name = item["Name"]
                     filename_cmd = "%s %s" % (item["Command"], item["Filename"])
-                    content.update({name: {filename_cmd}})
+                    content[setvar["Name"]].update({name: {filename_cmd}})
                 elif "WaitTimeSeconds" in list(item.keys()):
                     wait_name = item["Name"]
                     wait_command = "%s %s seconds" % (
                         item["Command"],
                         str(item["WaitTimeSeconds"]),
                     )
-                    content.update({wait_name: {wait_command}})
+                    content[setvar["Name"]].update({wait_name: {wait_command}})
                 else:
-                    content.update({item["Name"]: {item["Command"]}})
+                    content[setvar["Name"]].update({item["Name"]: {item["Command"]}})
         return list_content
 
     def printinstallsets(self, options):
@@ -428,6 +485,7 @@ class InstallSetCommand:
             metavar="JSONFILE",
         )
         add_parser.add_argument("-n", "--name", dest="name", help="Install set name.", default=None)
+
         self.cmdbase.add_login_arguments_group(add_parser)
 
         # invoke sub-parser

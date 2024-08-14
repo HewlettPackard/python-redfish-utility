@@ -1,5 +1,5 @@
 ###
-# Copyright 2016-2021 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2016-2023 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 # -*- coding: utf-8 -*-
 """ Virtual Media Command for rdmc """
-import sys
 
 try:
     from rdmc_helper import (
@@ -106,6 +105,7 @@ class VirtualMediaCommand:
             ids = {ind: id for ind, id in enumerate(ids)}
             for path in paths:
                 paths[path] = paths[path]["@odata.id"]
+            # paths = self.uniquevalmaker(paths)
         else:
             isredfish = False
             paths = self.auxcommands["get"].getworkerfunction("links/self/href", options, results=True, uselist=False)
@@ -134,6 +134,26 @@ class VirtualMediaCommand:
         self.cmdbase.logout_routine(self, options)
         # Return code
         return ReturnCodes.SUCCESS
+
+    def uniquevalmaker(self, paths):
+        unique_values = set(paths.values())
+
+        res = {}
+        i = 0
+        for val in unique_values:
+            if val.endswith("/"):
+                val = val[:-1]
+                res[i] = val
+                i = i + 1
+            else:
+                res[i] = val
+                i = i + 1
+        i = 0
+        res1 = dict()
+        for val in set(res.values()):
+            res1[i] = val
+            i = i + 1
+        return res1
 
     def vmremovehelper(self, args, options, paths, isredfish, ilover):
         """Worker function to remove virtual media
@@ -193,7 +213,12 @@ class VirtualMediaCommand:
         path = None
         if not args[1].startswith("http://") and not args[1].startswith("https://"):
             raise InvalidCommandLineError("Virtual media path must be a URL.")
-
+        if args[0] in "1":
+            if not args[1].endswith(".img"):
+                raise InvalidCommandLineError("Only .img files are allowed")
+        if args[0] in "2":
+            if not args[1].endswith(".iso"):
+                raise InvalidCommandLineError("Only .iso files are allowed")
         if isredfish:
             path, body = self.vmredfishhelper("insert", args[0], args[1])
         else:
@@ -228,8 +253,8 @@ class VirtualMediaCommand:
                     return ReturnCodes.SUCCESS
             except rmc_helper.IloLicenseError:
                 raise IloLicenseError("Error:License Key Required\n")
-            except Exception:
-                sys.stdout.write("Please unmount/Eject virtual media and try it again \n")
+            # except Exception:
+            #     self.rdmc.ui.printer("Please unmount/Eject virtual media and try it again\n")
 
     def vmdefaulthelper(self, options, paths):
         """Worker function to reset virtual media config to default
@@ -262,8 +287,8 @@ class VirtualMediaCommand:
         if getattr(options, "json", False):
             json_str = dict()
             json_str["MediaTypes"] = dict()
-        else:
-            self.rdmc.ui.printer("Available Virtual Media Options:\n")
+        # else:
+        #     self.rdmc.ui.printer("Available Virtual Media Options:\n")
 
         for image in images:
             media = ""
