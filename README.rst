@@ -52,7 +52,7 @@ Documentation
 ~~~~~~~~~~~~~
  For further usage please refer to our slate documentation:
 
- `https://hewlettpackard.github.io/python-redfish-utility <https://hewlettpackard.github.io/python-redfish-utility>`_
+ `https://servermanagementportal.ext.hpe.com/docs/redfishclients/ilorest-userguide/ <https://servermanagementportal.ext.hpe.com/docs/redfishclients/ilorest-userguide/>`_
 
 Contributing
 ----------
