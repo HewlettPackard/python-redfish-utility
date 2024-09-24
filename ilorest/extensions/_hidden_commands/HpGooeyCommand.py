@@ -545,7 +545,7 @@ class HpGooeyCommand:
         resp = self.rdmc.app.get_handler(path, silent=True, service=True, uncache=True)
         if resp.status == 200:
             data = resp.ori
-            if data is not b'':
+            if data != b'':
                 if "hpm" in path.lower():
                     self.rdmc.ui.printer("Successfully read HPM Birth Certificate.\n")
                 else:

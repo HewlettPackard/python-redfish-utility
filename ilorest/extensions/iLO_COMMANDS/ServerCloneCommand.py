@@ -856,8 +856,8 @@ class ServerCloneCommand:
         typelist = []
         for _x in self._fdata:
             for _y in server_avail_types:
-                _x1 = re.split("#|\.", _x)
-                _y1 = re.split("#|\.", _y)
+                _x1 = re.split("#|.", _x)
+                _y1 = re.split("#|.", _y)
                 if _x1[0] == "":
                     _x1.pop(0)
                 if _y1[0] == "":

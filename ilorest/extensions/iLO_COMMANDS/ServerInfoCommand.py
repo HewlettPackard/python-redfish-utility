@@ -359,7 +359,7 @@ class ServerInfoCommand:
                 if match.value.lower() == "absent":
                     arr = None
                     statepath = "/" + str(match.full_path).replace(".", "/")
-                    arr = re.split("[\[\]]", statepath)
+                    arr = re.split("[[]]", statepath)
                     if arr:
                         removedict = None
                         start = arr[0].split("/")
