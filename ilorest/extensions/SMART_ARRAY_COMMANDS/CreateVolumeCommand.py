@@ -137,20 +137,20 @@ class CreateVolumeCommand:
                     options.command = "volume"
                     ilo_ver = 6.110
             try:
-                logical_drives = self.rdmc.app.get_handler(
-                    "/redfish/v1/Systems/1/Storage/" + options.storageid + "/Volumes/",
-                    silent=True,
-                    service=True,
-                ).dict["Members"]
-                for volume_list in logical_drives:
-                    volume = self.rdmc.app.get_handler(volume_list["@odata.id"], silent=True, service=True).dict
-                    if (
-                        ("Status" in volume)
-                        and (volume["Status"]["State"] == "Enabled")
-                        and ("RAIDType" in volume)
-                        and (volume["RAIDType"] == "None")
-                    ):
-                        self.rdmc.app.delete_handler(volume["@odata.id"], {}, silent=True, service=True)
+                # logical_drives = self.rdmc.app.get_handler(
+                #     "/redfish/v1/Systems/1/Storage/" + options.storageid + "/Volumes/",
+                #     silent=True,
+                #     service=True,
+                # ).dict["Members"]
+                # for volume_list in logical_drives:
+                #     volume = self.rdmc.app.get_handler(volume_list["@odata.id"], silent=True, service=True).dict
+                #     if (
+                #         ("Status" in volume)
+                #         and (volume["Status"]["State"] == "Enabled")
+                #         and ("RAIDType" in volume)
+                #         and (volume["RAIDType"] == "None")
+                #     ):
+                # self.rdmc.app.delete_handler(volume["@odata.id"], {}, silent=True, service=True)
 
                 controller = controllers[next(iter(controllers))]
                 (create_flag, newdrive) = self.createvolume(options, controller)
@@ -757,10 +757,12 @@ class CreateVolumeCommand:
                         drivechecks = (True, True, True, True)
                     if drivechecks[0] and drivechecks[1] and drivechecks[2]:
                         if controller.get("Links"):
-                            newdrive["Links"]["DataDrives"][drive] = controller["physical_drives"][drive]
+                            newdrive["Links"]["Drives"][int(drive)] = {
+                                "@odata.id": controller["physical_drives"][drive]["@odata.id"]
+                            }
                         else:
                             if not ilo_ver >= 6.110:
-                                newdrive["links"]["DataDrives"][drive] = controller["physical_drives"][drive]
+                                newdrive["links"]["DataDrives"][int(drive)] = controller["physical_drives"][drive]
                         accepted_drives += 1
                         changes = True
                         if accepted_drives == newdrive_count:

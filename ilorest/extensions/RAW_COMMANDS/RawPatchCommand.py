@@ -122,7 +122,7 @@ class RawPatchCommand:
                 )
             )
 
-        elif all([re.match("^\/(\S+\/?)+$", key) for key in contentsholder]):
+        elif all([re.match("^/(S+/?)+$", key) for key in contentsholder]):
             for path, body in contentsholder.items():
                 results.append(
                     self.rdmc.app.patch_handler(

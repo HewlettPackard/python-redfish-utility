@@ -97,7 +97,6 @@ class _AccountParse(Action):
 
 
 class IloAccountsCommand:
-
     """command to manipulate/add ilo user accounts"""
 
     def __init__(self):

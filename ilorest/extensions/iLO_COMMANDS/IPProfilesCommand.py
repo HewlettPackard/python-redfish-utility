@@ -27,6 +27,7 @@ from ctypes import create_string_buffer
 from datetime import datetime
 import six
 from six import BytesIO
+
 if six.PY3:
     from datetime import timezone
 

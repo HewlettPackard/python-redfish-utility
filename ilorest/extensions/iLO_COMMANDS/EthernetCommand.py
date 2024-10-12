@@ -96,8 +96,8 @@ class EthernetCommand:
             "ethernet --enable_enhanced_downloads"
             "\n\n\tDisable Enhanced Download Performance.\n\t  "
             "ethernet --disable_enhanced_downloads"
-            "\n\n\tConfigure Domain Name Servers (DNS) in a list: <DNS1> <DNS2>\n\t"
-            "ethernet --nameservers 8.8.8.8,1.1.1.1 OR ethernet --nameservers "
+            "\n\n\tConfigure Domain Name Servers (DNS) in a list: <DNS1> <DNS2> <DNS3>\n\t"
+            "ethernet --nameservers 8.8.8.8,1.1.1.1,2.2.2.2 OR ethernet --nameservers "
             "dns_resolver1.aws.com,dns_resolver2.aws.com"
             "\n\n\tConfigure Static IPv4 Settings. Provide a list of network settings\n\t"
             "ethernet --network_ipv4 <ipv4 address>,<ipv4 gateway>,<ipv4 network mask>"
@@ -428,7 +428,7 @@ class EthernetCommand:
 
         if options.nameservers:
             usr_data = re.split("[, ]", options.nameservers)
-            if len(usr_data) <= 2:
+            if len(usr_data) <= 3:
                 ipv6_list = list()
                 ipv4_list = list()
                 static_list = list()
@@ -570,14 +570,13 @@ class EthernetCommand:
                                         for _path in data[eth_config_type]:
                                             if "managers" in _path.lower():
                                                 try:
+                                                    oemhp = self.rdmc.app.typepath.defs.oemhp
                                                     data[eth_config_type][_path]["DHCPv4"]["UseNTPServers"] = True
                                                     data[eth_config_type][_path]["DHCPv6"]["UseNTPServers"] = True
-                                                    data[eth_config_type][_path]["Oem"]
-                                                    [self.rdmc.app.typepath.defs.oemhp]["DHCPv4"][
+                                                    data[eth_config_type][_path]["Oem"][oemhp]["DHCPv4"][
                                                         "UseNTPServers"
                                                     ] = True
-                                                    data[eth_config_type][_path]["Oem"]
-                                                    [self.rdmc.app.typepath.defs.oemhp]["DHCPv6"][
+                                                    data[eth_config_type][_path]["Oem"][oemhp]["DHCPv6"][
                                                         "UseNTPServers"
                                                     ] = True
                                                     self.load_ethernet_aux(
@@ -620,14 +619,15 @@ class EthernetCommand:
                                     for _path in data[eth_config_type]:
                                         if "managers" in _path.lower():
                                             try:
+                                                oemhp = self.rdmc.app.typepath.defs.oemhp
                                                 data[eth_config_type][_path]["DHCPv4"]["UseNTPServers"] = True
                                                 data[eth_config_type][_path]["DHCPv6"]["UseNTPServers"] = True
-                                                data[eth_config_type][_path]["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                                    "DHCPv4"
-                                                ]["UseNTPServers"] = True
-                                                data[eth_config_type][_path]["Oem"][self.rdmc.app.typepath.defs.oemhp][
-                                                    "DHCPv6"
-                                                ]["UseNTPServers"] = True
+                                                data[eth_config_type][_path]["Oem"][oemhp]["DHCPv4"][
+                                                    "UseNTPServers"
+                                                ] = True
+                                                data[eth_config_type][_path]["Oem"][oemhp]["DHCPv6"][
+                                                    "UseNTPServers"
+                                                ] = True
                                                 self.load_ethernet_aux(
                                                     eth_config_type,
                                                     _path,
@@ -954,8 +954,14 @@ class EthernetCommand:
         # verify dependencies on those flags which are to be applied are eliminated
         if (
             "IPv4Addresses" in flags
+            and "Address" in flags["IPv4Addresses"][0]
+            and "Address" in curr_sel.dict["IPv4Addresses"][0]
             and flags["IPv4Addresses"][0]["Address"] == curr_sel.dict["IPv4Addresses"][0]["Address"]
+            and "Gateway" in flags["IPv4Addresses"][0]
+            and "Gateway" in curr_sel.dict["IPv4Addresses"][0]
             and flags["IPv4Addresses"][0]["Gateway"] == curr_sel.dict["IPv4Addresses"][0]["Gateway"]
+            and "SubnetMask" in flags["IPv4Addresses"][0]
+            and "SubnetMask" in curr_sel.dict["IPv4Addresses"][0]
             and flags["IPv4Addresses"][0]["SubnetMask"] == curr_sel.dict["IPv4Addresses"][0]["SubnetMask"]
         ):
             del flags["IPv4Addresses"]
@@ -1159,8 +1165,8 @@ class EthernetCommand:
             "--nameservers",
             dest="nameservers",
             help="Configure physical and shared management network interface domain name "
-            "servers (DNS) in a list as follows: <DNS1> <DNS2> "
-            "Ex: ethernet --nameservers 8.8.8.8,1.1.1.1, ethernet --nameservers dns_resolver1.aws.com, "
+            "servers (DNS) in a list as follows: <DNS1> <DNS2> <DNS3>"
+            "Ex: ethernet --nameservers 8.8.8.8,1.1.1.1,2.2.2.2 ethernet --nameservers dns_resolver1.aws.com, "
             "dns_resolver2.aws.com",
             default=None,
         )

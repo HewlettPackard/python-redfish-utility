@@ -195,7 +195,7 @@ class RdmcCommandBase(CommandBase):
             if getattr(options, "sessionid", False):
                 inputline.extend(["--sessionid", options.sessionid])
 
-            logobj.loginfunction(inputline)
+            logobj.loginfunction(inputline, skipbuild=skipbuild)
             loggedin = True
 
         if not (loggedin or client or options.url or cmdinstance.rdmc.app.typepath.url):

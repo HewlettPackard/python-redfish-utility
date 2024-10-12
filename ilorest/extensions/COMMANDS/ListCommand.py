@@ -90,6 +90,8 @@ class ListCommand:
                 fvals = (sel.strip(), val.strip())
             except:
                 raise InvalidCommandLineError("Invalid filter" " parameter format [filter_attribute]=[filter_value]")
+        if "StorageController." in options.selector.lower():
+            options.selector = "storagecontrollercollection"
         if options.selector:
             self.rdmc.app.selector = options.selector
         elif self.rdmc.app.selector:

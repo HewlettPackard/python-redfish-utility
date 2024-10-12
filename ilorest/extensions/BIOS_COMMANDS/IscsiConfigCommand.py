@@ -177,7 +177,11 @@ class IscsiConfigCommand:
 
         bios = "/redfish/v1/systems/1/bios/"
         bios_dict = self.rdmc.app.get_handler(bios, silent=True, service=True).dict
-        for attr, val in bios_dict["Attributes"].items():
+        if "Attributes" in bios_dict:
+            bios_dict_attributes = bios_dict["Attributes"].items()
+        else:
+            bios_dict_attributes = bios_dict.items()
+        for attr, val in bios_dict_attributes:
             if "NetworkBoot" in str(val):
                 enable_disable[attr] = val
         # Enabled NIC only listing
@@ -207,7 +211,7 @@ class IscsiConfigCommand:
             "BiosPciSettingsMappings", options, results=True, uselist=True
         )
 
-        for item in pcisettingsmap["BiosPciSettingsMappings"]:
+        for item in pcisettingsmap[0]["BiosPciSettingsMappings"]:
             if "Associations" in item:
                 if "EmbNicEnable" in item["Associations"] or "EmbNicConfig" in item["Associations"]:
                     _ = [devicealloc.append(x) for x in item["Subinstances"]]
@@ -422,7 +426,7 @@ class IscsiConfigCommand:
         )
 
         devicealloc = list()
-        for item in pcisettingsmap["BiosPciSettingsMappings"]:
+        for item in pcisettingsmap[0]["BiosPciSettingsMappings"]:
             if "Associations" in item:
                 if "EmbNicEnable" in item["Associations"] or "EmbNicConfig" in item["Associations"]:
                     _ = [devicealloc.append(x) for x in item["Subinstances"]]
@@ -559,7 +563,7 @@ class IscsiConfigCommand:
         )
 
         devicealloc = list()
-        for item in pcisettingsmap["BiosPciSettingsMappings"]:
+        for item in pcisettingsmap[0]["BiosPciSettingsMappings"]:
             if "Associations" in item:
                 # self.rdmc.ui.printer("Assoc 1 : %s\n" % (item["Associations"]))
                 # self.rdmc.ui.printer("Sub 1 : %s\n" % (item["Subinstances"]))
@@ -595,7 +599,7 @@ class IscsiConfigCommand:
                 results=True,
                 uselist=False,
                 filtervals=("MemberType", "HpServerPciDevice.*"),
-            )["Items"]
+            )[0]["Items"]
 
         self.auxcommands["select"].selectfunction(self.rdmc.app.typepath.defs.hpiscsisoftwareinitiatortype)
         iscsiinitiatorname = self.auxcommands["get"].getworkerfunction(
@@ -604,10 +608,10 @@ class IscsiConfigCommand:
 
         disabledlist = self.pcidevicehelper(devicealloc, iscsipath, bootpath, pcideviceslist)
 
-        self.print_out_iscsi_configuration(iscsiinitiatorname, devicealloc, pcideviceslist)
+        self.print_out_iscsi_configuration(iscsiinitiatorname[0], devicealloc, pcideviceslist)
 
         if disabledlist:
-            self.print_out_iscsi_configuration(iscsiinitiatorname, disabledlist, pcideviceslist, disabled=True)
+            self.print_out_iscsi_configuration(iscsiinitiatorname[0], disabledlist, pcideviceslist, disabled=True)
 
     def modifyoptionhelper(self, options, iscsisettingspath):
         """Helper function to modify options for iscsi
@@ -771,7 +775,11 @@ class IscsiConfigCommand:
 
             bios = "/redfish/v1/systems/1/bios/"
             bios_dict = self.rdmc.app.get_handler(bios, silent=True, service=True).dict
-            for attr, val in bios_dict["Attributes"].items():
+            if "Attributes" in bios_dict:
+                bios_dict_items = bios_dict["Attributes"].items()
+            else:
+                bios_dict_items = bios_dict.items()
+            for attr, val in bios_dict_items:
                 if "NetworkBoot" in str(val):
                     nics = re.findall("\\d+", attr)
                     enable_disable[attr] = nics

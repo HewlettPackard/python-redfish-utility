@@ -60,6 +60,7 @@ class SetCommand:
                 "RebootCommand",
                 "RawPatchCommand",
                 "SelectCommand",
+                "LogoutCommand",
             ],
         }
         self.cmdbase = None
@@ -92,6 +93,12 @@ class SetCommand:
         fsel = None
         fval = None
         if args:
+            if "ethernetinterface" in self.rdmc.app.selector.lower() and "ipv4addresses" in args[0].lower():
+                raise InvalidCommandLineError(
+                    "For security reasons this request is discarded. "
+                    "Use `rawpatch` or the `load --force_network_config` command "
+                    "to modify the IP configuration of the ilO.\n"
+                )
             if options.filter:
                 try:
                     (fsel, fval) = str(options.filter).strip("'\" ").split("=")
@@ -205,8 +212,8 @@ class SetCommand:
             if options.reboot and not options.commit:
                 self.auxcommands["reboot"].run(options.reboot)
 
-            # if options.logout:
-            #    self.logoutobj.run("")
+            if options.logout:
+                self.auxcommands["logout"].run("")
 
         else:
             raise InvalidCommandLineError("Missing parameters for 'set' command.\n")
@@ -285,7 +292,10 @@ class SetCommand:
                             payload = {key: payload}
                         patch_data.update(payload)
                         if "Oem" in key:
-                            if "managernetworkprotocol." or "thermal." in self.rdmc.app.selector:
+                            if (
+                                "managernetworkprotocol." in self.rdmc.app.selector
+                                or "thermal." in self.rdmc.app.selector
+                            ):
                                 import platform
                                 import tempfile
 
@@ -332,7 +342,8 @@ class SetCommand:
             ("Oem/Hpe/EnhancedDownloadPerformanceEnabled" in line[0])
             or ("Oem/Hpe/ThermalConfiguration" in line[0])
             or ("Oem/Hpe/FanPercentMinimum" in line[0])
-            or ("Power" in line[0])
+            or ("PowerControl" in line[0])
+            or ("drive" in self.rdmc.app.selector.lower())
         ):
             self.patchfunction(line)
         else:

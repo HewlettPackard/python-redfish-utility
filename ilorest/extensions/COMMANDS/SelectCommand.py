@@ -69,6 +69,15 @@ class SelectCommand:
             selector = args[0]
             selections = self.rdmc.app.select(selector=selector, path_refresh=options.ref)
 
+            if "storage" in selector.lower():
+                storage_url = "/redfish/v1/Systems/1/Storage/"
+                list_storageid = self.rdmc.app.get_handler(storage_url, silent=True, service=True).dict["Members"]
+                for val in list_storageid:
+                    storageid_fromurl = val["@odata.id"]
+                    ctr = self.rdmc.app.get_handler(storageid_fromurl, silent=True, service=True).dict
+                    if "Controllers" in ctr:
+                        ctr_url = ctr["Controllers"]["@odata.id"]
+                        self.rdmc.app.get_handler(ctr_url, silent=True, service=True).dict
             if self.rdmc.opts.verbose and selections:
                 templist = list()
                 self.rdmc.ui.printer("Selected option(s): ")

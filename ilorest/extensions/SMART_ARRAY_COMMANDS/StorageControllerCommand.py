@@ -476,16 +476,14 @@ class StorageControllerCommand:
             if st_content.dict["Members"]:
                 st_content = st_content.dict["Members"]
 
-                # st_content = self.rdmc.app.getprops()
-                if self.rdmc.opts.verbose or not options.json:
-                    sys.stdout.write("---------------------------------\n")
-                    sys.stdout.write("List of RDE storage devices\n")
-                    sys.stdout.write("---------------------------------\n")
+                if not options.json:
+                    if self.rdmc.opts.verbose:
+                        sys.stdout.write("---------------------------------\n")
+                        sys.stdout.write("List of RDE storage devices\n")
+                        sys.stdout.write("---------------------------------\n")
                 if options.json:
                     outjson = dict()
                 for st_controller in st_content:
-                    # path = st_controller["Members"]
-                    # for mem in path:
                     for val in st_controller.values():
                         if "DE" in val:
                             st = self.rdmc.app.get_handler(val, silent=True, service=True).dict
@@ -1328,9 +1326,6 @@ class StorageControllerCommand:
                 sys.stdout.write("SerialNumber: %s\n" % get_ctr["SerialNumber"])
 
         elif options.controllers and print_ctrl and options.json:
-            sys.stdout.write("---------------------------------------------------\n")
-            sys.stdout.write("List of Controllers in this Storage ID %s\n" % options.storageid)
-            sys.stdout.write("---------------------------------------------------\n")
             list_ctr = controllers
             for lst in list_ctr:
                 l_data = lst["@odata.id"]
@@ -1369,6 +1364,8 @@ class StorageControllerCommand:
 
     def print_list_volumes(self, options, volumes, print_ctrl):
         v_data = []
+        if options.json:
+            vol_data = dict()
         if not options.json:
             sys.stdout.write("\nVolume Details:\n")
             if not volumes:
@@ -1382,9 +1379,7 @@ class StorageControllerCommand:
                 sys.stdout.write("RAIDType: %s\n\t" % getvolumes["RAIDType"])
                 sys.stdout.write("VolumeUniqueId: %s\n\t" % getvolumes["Identifiers"][0]["DurableName"])
                 sys.stdout.write("Health: %s\n\n" % getvolumes["Status"]["Health"])
-
             elif options.json is not None:
-                vol_data = dict()
                 vol_data.update({"Id": getvolumes["Id"]})
                 vol_data.update({"Name": getvolumes["Name"]})
                 vol_data.update({"Health": getvolumes["Status"]["Health"]})
@@ -1643,13 +1638,13 @@ class StorageControllerCommand:
                     printed = True
                 if single_use:
                     logicaldrives.update({tmp["Id"]: tmp})
-            if getattr(options, "json", False) and ldrive_ident:
-                UI().print_out_json(outjson)
-                printed = True
-            if getattr(options, "ldrive", False) and not ldrive_ident:
-                sys.stdout.write("\tVolume '%s' was not found.\n" % options.ldrive)
-            elif not found_entries and print_ctrl:
-                sys.stdout.write("\tVolumes not found.\n")
+        if getattr(options, "json", False) and ldrive_ident:
+            UI().print_out_json(outjson)
+            printed = True
+        if getattr(options, "ldrive", False) and not ldrive_ident:
+            sys.stdout.write("\tVolume '%s' was not found.\n" % options.ldrive)
+        elif not found_entries and print_ctrl:
+            sys.stdout.write("\tVolumes not found.\n")
         if not getattr(options, "logicaldrives", False) and not printed:
             if getattr(options, "ldrive", False):
                 raise InvalidCommandLineError("\tVolume '%s' does not exists.\n" % getattr(options, "ldrive", False))
@@ -1990,6 +1985,8 @@ class StorageControllerCommand:
         :param options: command line options
         :type options: list.
         """
+        if options.json:
+            self.rdmc.json = True
         self.cmdbase.login_select_validation(self, options)
 
         if getattr(options, "sa_conf_filename", False):

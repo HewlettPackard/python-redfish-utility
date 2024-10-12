@@ -248,7 +248,7 @@ class HpGooeyCommand:
         elif options.mountgaius:
             try:
                 bs2.gaius_media_mount()
-                sys.stdout.write("Checking mounted gauis media...")
+                sys.stdout.write("Checking mounted gaius media...")
                 self.check_mount_path("EMBEDDED")
                 sys.stdout.write("Done\n")
             except PartitionMoutingError:
@@ -329,8 +329,9 @@ class HpGooeyCommand:
             sys.stderr.write("No command entered")
 
     def local_run(self, options):
+        log_dir = self.rdmc.log_dir
         bs2 = risblobstore2.BlobStore2()
-        risblobstore2.BlobStore2.initializecreds(options.user, options.password)
+        risblobstore2.BlobStore2.initializecreds(options.user, options.password,log_dir)
         bs2.gethprestchifhandle()
 
         if options.write:
@@ -545,7 +546,7 @@ class HpGooeyCommand:
         resp = self.rdmc.app.get_handler(path, silent=True, service=True, uncache=True)
         if resp.status == 200:
             data = resp.ori
-            if data is not b'':
+            if data != b"":
                 if "hpm" in path.lower():
                     self.rdmc.ui.printer("Successfully read HPM Birth Certificate.\n")
                 else:
@@ -583,7 +584,6 @@ class HpGooeyCommand:
                 self.rdmc.ui.printer("Successfully deleted Birth Certificate.\n")
         else:
             raise StandardBlobErrorHandler("remote or vnic delete failure")
-
 
     def check_mount_path(self, label):
         """Get mount folder path."""

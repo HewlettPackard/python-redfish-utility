@@ -83,6 +83,8 @@ class SaveCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
+        if options.multisave:
+            options.selector = ""
         if (
             hasattr(options, "selector")
             and "hpbaseconfigs" not in options.selector.lower()
@@ -172,7 +174,7 @@ class SaveCommand:
                 "bios" in options.selector.lower()
                 or "hpbaseconfigs" in options.selector.lower()
                 or "hpebaseconfigs" in options.selector.lower()
-            ):
+            ) and (options.multisave is None or options.multisave == ""):
                 raise KeyError
             content = self.rdmc.app.getprops(insts=instances)
             try:
@@ -184,10 +186,10 @@ class SaveCommand:
                     raise iLORisCorruptionError(
                         "iLO Database seems to be corrupted. Please check. Reboot the server to " "restore\n"
                     )
-        except:
+        except Exception:
             config_path = None
             contents = list()
-            if options.selector.lower() == "bios.":
+            if options.selector.lower() == "bios." or "bios.v" in options.selector.lower():
                 config_path = ["/redfish/v1/systems/1/bios/settings/"]
             elif options.selector.lower() == "bios":
                 config_path = ["/redfish/v1/systems/1/bios/settings/", "/redfish/v1/systems/1/bios/mappings/"]

@@ -75,14 +75,19 @@ class FirmwareUpdateCommand:
                 return ReturnCodes.SUCCESS
             else:
                 raise InvalidCommandLineErrorOPTS("")
+        # Third Party FW
+        args[0] = args[0].lower()
+        if args and (".pup" in args[0] or ".fup" in args[0] or ".hpb" in args[0] or ".HPb" in args[0]):
+            raise InvalidCommandLineErrorOPTS("For flashing 3rd party firmwares, please use flashfwpkg command")
 
-        self.firmwareupdatevalidation(options)
-        # Supports only .bin Firmware files.
+        # Supports only .bin/fwpkg/full/vme Firmware files.
         if args and (".bin" in args[0] or ".fwpkg" in args[0] or ".full" in args[0] or ".vme" in args[0]):
             if args[0].startswith('"') and args[0].endswith('"'):
                 args[0] = args[0][1:-1]
         else:
             raise InvalidCommandLineErrorOPTS("Please input URL pointing to a .bin or .fwpkg or .full or .vme firmware")
+
+        self.firmwareupdatevalidation(options)
 
         action = None
         uri = "FirmwareURI"

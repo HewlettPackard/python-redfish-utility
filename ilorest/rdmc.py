@@ -116,6 +116,7 @@ try:
         UnableToDecodeError,
         UnabletoFindDriveError,
         UploadError,
+        UploadPowerOffError,
         UsernamePasswordRequiredError,
         iLORisCorruptionError,
         ResourceNotReadyError,

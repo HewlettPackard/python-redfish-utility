@@ -70,6 +70,7 @@ class CertificateCommand:
         self.auxcommands = dict()
         self.view = None
         self.importcert = None
+        self.exportcert = None
         self.delete = None
         self.gencsr = None
         self.autoenroll = None
@@ -508,13 +509,13 @@ class CertificateCommand:
         str_type = "PlatformCert"
         ss_instance = next(iter(self.rdmc.app.select("SecurityService." + ".", path_refresh=True)))
         if options.ldevid_cert:
-            str_type = "iLO lDevID"
+            str_type = "iLOLDevID"
         elif options.idevid_cert:
-            str_type = "iLO iDevID"
+            str_type = "iLOIDevID"
         elif options.systemiak_cert:
-            str_type = "System IAK"
+            str_type = "SystemIAK"
         elif options.systemidevid_cert:
-            str_type = "System iDevID"
+            str_type = "SystemIDevID"
         instance_path_uri = (
             (ss_instance.dict[str_type]["Certificates"][self.rdmc.app.typepath.defs.hrefstring])
             if ss_instance.dict.get("SystemIAK")

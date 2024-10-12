@@ -231,7 +231,7 @@ class BootOrderCommand:
                     UI().print_out_json(bootsettings)
             elif len(args) == 1 and args[0][0] == "[":
                 bootlist = args[0][1:-1].split(",")
-                currentlist = bootsettings["PersistentBootConfigOrder"]
+                currentlist = bootsettings[0]["PersistentBootConfigOrder"]
 
                 if not isinstance(currentlist, list):
                     templist = ast.literal_eval(currentlist[1:-1])
@@ -281,7 +281,7 @@ class BootOrderCommand:
 
                     self.auxcommands["set"].run("PersistentBootConfigOrder=" + newlist)
             else:
-                currlist = bootsettings["PersistentBootConfigOrder"]
+                currlist = bootsettings[0]["PersistentBootConfigOrder"]
                 if not isinstance(currlist, list):
                     templist = ast.literal_eval(currlist[1:-1])
                     currlist = [n.strip() for n in templist]
@@ -316,16 +316,16 @@ class BootOrderCommand:
             if options.onetimeboot is not None:
                 entry = options.onetimeboot
 
-                if not bootstatus["Boot"]["BootSourceOverrideEnabled"] == "Once":
+                if not bootstatus[0]["Boot"]["BootSourceOverrideEnabled"] == "Once":
                     bootoverride = " Boot/BootSourceOverrideEnabled=Once"
             elif options.continuousboot is not None:
                 entry = options.continuousboot
 
-                if not bootstatus["Boot"]["BootSourceOverrideEnabled"] == "Continuous":
+                if not bootstatus[0]["Boot"]["BootSourceOverrideEnabled"] == "Continuous":
                     bootoverride = " Boot/BootSourceOverrideEnabled=Continuous"
             else:
                 entry = "JacksBootOption"
-                if not bootstatus["Boot"]["BootSourceOverrideEnabled"] == "Disabled":
+                if not bootstatus[0]["Boot"]["BootSourceOverrideEnabled"] == "Disabled":
                     if currentsettings.dict["Boot"]["BootSourceOverrideEnabled"] == "Disabled":
                         bootoverride = "Boot/BootSourceOverrideTarget=None" " Boot/BootSourceOverrideEnabled=Disabled"
                     else:
@@ -334,17 +334,17 @@ class BootOrderCommand:
             newlist = ""
 
             if entry.lower() in (
-                item.lower() for item in onetimebootsettings["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype]
+                item.lower() for item in onetimebootsettings[0]["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype]
             ):
                 if entry and isinstance(entry, six.string_types):
                     entry = entry.upper()
 
                 entry = self.searchcasestring(
                     entry,
-                    onetimebootsettings["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype],
+                    onetimebootsettings[0]["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype],
                 )
 
-                if not entry == targetstatus["Boot"]["BootSourceOverrideTarget"]:
+                if not entry == targetstatus[0]["Boot"]["BootSourceOverrideTarget"]:
                     newlist += " Boot/BootSourceOverrideTarget=" + entry
 
                 if bootoverride:

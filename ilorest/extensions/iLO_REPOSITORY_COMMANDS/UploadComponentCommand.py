@@ -53,6 +53,7 @@ try:
         IncompatibleiLOVersionError,
         TimeOutError,
         InvalidFileInputError,
+        UploadPowerOffError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -129,9 +130,17 @@ class UploadComponentCommand:
             options.component.endswith(".fwpkg")
             or options.component.endswith(".fup")
             or options.component.endswith(".hpb")
+            or options.component.endswith(".HPb")
+            or options.component.endswith(".pup")
         ):
             fwpkg = True
-            comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(self, options.component)
+            try:
+                comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(self, options.component, options)
+            except UploadPowerOffError:
+                self.rdmc.ui.error(
+                    "Server power is On,Kindly Power Off the server,to be able to flash the B- component \n"
+                )
+                return ReturnCodes.UPLOAD_POWEROFF_ERROR
             # if pldm firmware
             if pldmfw:
                 path = self.rdmc.app.typepath.defs.systempath
@@ -423,7 +432,10 @@ class UploadComponentCommand:
                 output = fle.read()
             data.append(("file", (ilo_upload_filename, output, "application/octet-stream")))
 
-            self.rdmc.ui.printer("Uploading component " + filename + ".\n")
+            if options.update_repository:
+                self.rdmc.ui.printer("Uploading component " + filename + ".\n")
+            if options.update_target:
+                self.rdmc.ui.printer("Flashing component " + filename + ".\n")
             res = self.rdmc.app.post_handler(
                 str(urltosend),
                 data,
@@ -442,7 +454,10 @@ class UploadComponentCommand:
             if res.status != 200:
                 return ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
             else:
-                self.rdmc.ui.printer("Component " + filename + " uploading successfully.\n")
+                if options.update_repository:
+                    self.rdmc.ui.printer("Component " + filename + " uploading successfully.\n")
+                if options.update_target:
+                    self.rdmc.ui.printer("Component " + filename + " flashing successfully.\n")
 
             if not self.wait_for_state_change():
                 # Failed to upload the component.
@@ -632,7 +647,10 @@ class UploadComponentCommand:
                     else:
                         dispatchflag = ctypes.c_uint32(0x00000001 | 0x00000004 | 0x00000010 | 0x00000020)
 
-                self.rdmc.ui.printer("Uploading component " + filename + "\n")
+                if options.update_repository:
+                    self.rdmc.ui.printer("Uploading component " + filename + "\n")
+                if options.update_target:
+                    self.rdmc.ui.printer("Flashing component " + filename + "\n")
 
                 ret = dll.uploadComponent(
                     ctypes.create_string_buffer(compsigpath.encode("utf-8")),
@@ -648,7 +666,10 @@ class UploadComponentCommand:
                     upload_failed = True
                 else:
                     LOGGER.info("Component {} uploaded successfully".format(filename))
-                    self.rdmc.ui.printer("Component " + filename + " uploaded successfully.\n")
+                    if options.update_repository:
+                        self.rdmc.ui.printer("Component " + filename + " uploaded successfully.\n")
+                    if options.update_target:
+                        self.rdmc.ui.printer("Component " + filename + " flashed successfully.\n")
                     self.rdmc.ui.printer("[200] The operation completed successfully.\n")
                     if not options.update_target:
                         if not self.wait_for_state_change():

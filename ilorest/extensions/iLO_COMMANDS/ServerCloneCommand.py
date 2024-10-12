@@ -669,22 +669,22 @@ class ServerCloneCommand:
         :returns: returns list of types
         """
         supported_types_dict = {
-            "ManagerAccount": ["4", "5", "6"],
-            "AccountService": ["4", "5", "6"],
-            "Bios": ["4", "5", "6"],
-            "Manager": ["4", "5", "6"],
-            "SNMP": ["4", "5", "6"],
-            "iLOLicense": ["4", "5", "6"],
-            "ManagerNetworkService": ["4", "5", "6"],
-            "EthernetNetworkInterface": ["4", "5", "6"],
-            "iLODateTime": ["4", "5", "6"],
-            "iLOFederationGroup": ["4", "5", "6"],
-            "iLOSSO": ["4", "5", "6"],
-            "ESKM": ["4", "5", "6"],
-            "ComputerSystem": ["4", "5", "6"],
+            "ManagerAccount": ["4", "5", "6", "7"],
+            "AccountService": ["4", "5", "6", "7"],
+            "Bios": ["4", "5", "6", "7"],
+            "Manager": ["4", "5", "6", "7"],
+            "SNMP": ["4", "5", "6", "7"],
+            "iLOLicense": ["4", "5", "6", "7"],
+            "ManagerNetworkService": ["4", "5", "6", "7"],
+            "EthernetNetworkInterface": ["4", "5", "6", "7"],
+            "iLODateTime": ["4", "5", "6", "7"],
+            "iLOFederationGroup": ["4", "5", "6", "7"],
+            "iLOSSO": ["4", "5", "6", "7"],
+            "ESKM": ["4", "5", "6", "7"],
+            "ComputerSystem": ["4", "5", "6", "7"],
             # "EthernetInterface": ["4", "5", "6"],
-            "ServerBootSettings": ["4", "5", "6"],
-            "SecureBoot": ["4", "5", "6"],
+            "ServerBootSettings": ["4", "5", "6", "7"],
+            "SecureBoot": ["4", "5", "6", "7"],
             "SmartStorageConfig": ["5"],
             "HpSmartStorage": ["4"],
             "HpeSmartStorage": ["5"],
@@ -856,8 +856,8 @@ class ServerCloneCommand:
         typelist = []
         for _x in self._fdata:
             for _y in server_avail_types:
-                _x1 = re.split("#|\.", _x)
-                _y1 = re.split("#|\.", _y)
+                _x1 = re.split("#|.", _x)
+                _y1 = re.split("#|.", _y)
                 if _x1[0] == "":
                     _x1.pop(0)
                 if _y1[0] == "":

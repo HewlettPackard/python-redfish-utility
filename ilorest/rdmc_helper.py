@@ -202,6 +202,7 @@ class ReturnCodes(object):
     DEVICE_DISCOVERY_IN_PROGRESS = 105
     INSTALLSET_ERROR = 106
     INVALID_TARGET_ERROR = 107
+    UPLOAD_POWEROFF_ERROR = 108
 
     # **** ComputeOpsManagement Errors****
     CLOUD_CONNECT_TIMEOUT = 111
@@ -483,6 +484,10 @@ class UploadError(RdmcError):
 
     pass
 
+class UploadPowerOffError(RdmcError):
+    """Raised when the server power is On while uploading B- component"""
+
+    pass
 
 class TimeOutError(RdmcError):
     """Raised when the update service times out"""
@@ -713,7 +718,6 @@ class UI(object):
         :param content: content to be printed out
         :type content: str.
         """
-        content = OrderedDict(sorted(list(content.items()), key=lambda x: x[0]))
         content = json.dumps(content, indent=2, cls=redfish.ris.JSONEncoder)
         self.printer(content, verbose_override=True)
         self.printer("\n")

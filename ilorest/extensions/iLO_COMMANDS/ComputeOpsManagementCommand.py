@@ -143,15 +143,21 @@ class ComputeOpsManagementCommand:
             except:
                 raise ProxyConfigFailedError("Clearing Proxy Server Configuration Failed.\n")
 
+    def get_cloud_status(self):
+        path = self.rdmc.app.typepath.defs.managerpath
+        resp = self.rdmc.app.get_handler(path, service=False, silent=True)
+        if resp.status != 200:
+            raise SessionExpired("Invalid session. Please logout and log back in or include credentials.")
+        status = resp.dict["Oem"]["Hpe"]["CloudConnect"]["CloudConnectStatus"]
+        return status
+
     def connect_cloud(self, activationkey=None):
         """cloud connect function
 
         :param activationkey: activation key
         :type activationkey: str.
         """
-        path = self.rdmc.app.typepath.defs.managerpath
-        resp = self.rdmc.app.get_handler(path, service=False, silent=True)
-        status = resp.dict["Oem"]["Hpe"]["CloudConnect"]["CloudConnectStatus"]
+        status = self.get_cloud_status()
         if status == "Connected":
             self.rdmc.ui.printer("Warning: ComputeOpsManagement is already connected.\n")
             return ReturnCodes.SUCCESS
@@ -186,31 +192,31 @@ class ComputeOpsManagementCommand:
                     "activation key and network or proxy settings and try again.\n"
                 )
             else:
-                path = self.rdmc.app.typepath.defs.managerpath
-                resp = self.rdmc.app.get_handler(path, service=False, silent=True)
-                status = resp.dict["Oem"]["Hpe"]["CloudConnect"]["CloudConnectStatus"]
+                status = self.get_cloud_status()
                 # self.rdmc.ui.printer("ComputeOpsManagement connection status is %s.\n" % status)
                 if status == "Connected":
                     # Check again after 10 seconds before breaking the loop
                     time.sleep(10)
-                    resp = self.rdmc.app.get_handler(path, service=False, silent=True)
-                    status = resp.dict["Oem"]["Hpe"]["CloudConnect"]["CloudConnectStatus"]
+                    status = self.get_cloud_status()
                     if status == "Connected":
                         self.rdmc.ui.printer("\n")
                         self.rdmc.ui.printer("ComputeOpsManagement connection is successful.\n")
                         break
+                # If connection has failed while checking waiting for success message
+                if status == "ConnectionFailed":
+                    self.rdmc.ui.printer("\n")
+                    raise CloudConnectFailedError(
+                        "ComputeOpsManagement connection Failed. Please check the "
+                        "activation key and network or proxy settings and try again.\n"
+                    )
                 else:
                     self.rdmc.ui.printer("..")
                     i = i + 1
 
     def disconnect_cloud(self):
         """cloud disconnect function"""
-        path = self.rdmc.app.typepath.defs.managerpath
-        resp = self.rdmc.app.get_handler(path, service=False, silent=True)
-        if resp.status != 200:
-            raise SessionExpired("Invalid session. Please logout and log back in or include credentials.")
-        cloud_status = resp.dict["Oem"]["Hpe"]["CloudConnect"]["CloudConnectStatus"]
-        if cloud_status == "Connected":
+        cloud_status = self.get_cloud_status()
+        if cloud_status == "Connected" or cloud_status == "ConnectionFailed":
             path = self.rdmc.app.typepath.defs.managerpath + "Actions" + self.rdmc.app.typepath.defs.oempath
             path = path + "/HpeiLO.DisableCloudConnect"
             body = dict()
@@ -218,6 +224,10 @@ class ComputeOpsManagementCommand:
                 if path:
                     self.rdmc.ui.printer("Disconnecting ComputeOpsManagement...\n", verbose_override=True)
                     self.rdmc.app.post_handler(path, body)
+                    time.sleep(10)
+                    cloud_status = self.get_cloud_status()
+                    if cloud_status == "NotEnabled":
+                        self.rdmc.ui.printer("The operation completed successfully.\n")
             except:
                 raise CloudConnectFailedError("ComputeOpsManagement is not disconnected.\n")
         else:
@@ -244,7 +254,8 @@ class ComputeOpsManagementCommand:
         if cloud_info["CloudConnectStatus"] != "NotEnabled":
             if "CloudActivateURL" in cloud_info:
                 output += "CloudActivateURL : %s\n" % (cloud_info["CloudActivateURL"])
-            output += "ActivationKey : %s\n" % (cloud_info["ActivationKey"])
+            if "ActivationKey" in cloud_info:
+                output += "ActivationKey : %s\n" % (cloud_info["ActivationKey"])
         if not json:
             self.rdmc.ui.printer(output, verbose_override=True)
         else:
@@ -289,7 +300,7 @@ class ComputeOpsManagementCommand:
             if options.command.lower() == "connect":
                 if options.proxy:
                     self.proxy_config(options.proxy)
-                if options.activationkey and options.activationkey.isalnum() and len(options.activationkey) <= 32:
+                if options.activationkey:
                     self.connect_cloud(activationkey=options.activationkey)
                 elif not options.activationkey:
                     self.connect_cloud()
