@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 extras = {}
 
 setup(name='ilorest',
-      version='4.8.0.0',
+      version='5.3.0.0',
       description='HPE iLORest Tool',
       author='Hewlett Packard Enterprise',
       author_email='rajeevalochana.kallur@hpe.com',
@@ -16,6 +16,8 @@ setup(name='ilorest',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
+          'Programming Language :: Python :: 3.12',
+          'Programming Language :: Python :: 3.13',
           'Topic :: Communications'
       ],
       keywords='Hewlett Packard Enterprise',
@@ -48,5 +50,5 @@ setup(name='ilorest',
           'future',
           'enum; python_version <= "2.7.19"',
           'futures; python_version <= "2.7.19"',
-          'python-ilorest-library >= "4.8.0.0"'
+          'python-ilorest-library >= "5.3.0.0"'
       ])
