@@ -50,5 +50,5 @@ setup(name='ilorest',
           'future',
           'enum; python_version <= "2.7.19"',
           'futures; python_version <= "2.7.19"',
-          'python-ilorest-library >= "5.3.0.0"'
+          'python-ilorest-library >= 5.3.0.0'
       ])
