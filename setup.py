@@ -1,9 +1,12 @@
 from setuptools import find_packages, setup
+import site
+
+site_packages = site.getsitepackages()
 
 extras = {}
 
 setup(name='ilorest',
-      version='5.3.0.0',
+      version='6.0.0.0',
       description='HPE iLORest Tool',
       author='Hewlett Packard Enterprise',
       author_email='rajeevalochana.kallur@hpe.com',
@@ -17,13 +20,13 @@ setup(name='ilorest',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
-          'Programming Language :: Python :: 3.13',
           'Topic :: Communications'
       ],
       keywords='Hewlett Packard Enterprise',
       url='https://github.com/HewlettPackard/python-redfish-utility',
-      packages=find_packages('.'),
+      packages=find_packages('.', exclude=["tests", "docs"]),
       package_dir={'': '.'},
+      package_data={"ilorest.chiflibrary": ["ilorest_chif.dll", "ilorest_chif.so"]},
       entry_points={
         'console_scripts': [
           'ilorest = ilorest.rdmc:ilorestcommand',
@@ -35,7 +38,8 @@ setup(name='ilorest',
           'colorama >= 0.4.4',
           'jsonpointer >= 2.0',
           'six >= 1.15.0',
-          'ply >= 3.11',
+          'ply',
+          'requests',
           'decorator >= 4.4.2',
           'jsonpatch >= 1.28',
           'jsonpath-rw >= 1.4.0',
@@ -50,5 +54,5 @@ setup(name='ilorest',
           'future',
           'enum; python_version <= "2.7.19"',
           'futures; python_version <= "2.7.19"',
-          'python-ilorest-library >= 5.3.0.0'
+          'python-ilorest-library >= 6.0.0.0',
       ])
