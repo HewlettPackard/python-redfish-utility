@@ -21,6 +21,9 @@ import getpass
 import os
 import socket
 import redfish.ris
+from redfish.hpilo.vnichpilo import AppAccount
+from redfish.rest.connections import ChifDriverMissingOrNotFound, VnicNotEnabledError
+import requests
 
 try:
     from rdmc_helper import (
@@ -30,6 +33,11 @@ try:
         PathUnavailableError,
         ReturnCodes,
         UsernamePasswordRequiredError,
+        VnicExistsError,
+        VnicLoginError,
+        NoAppAccountError,
+        GenBeforeLoginError,
+        AppAccountExistsError,
     )
 except ModuleNotFoundError:
     from ilorest.rdmc_helper import (
@@ -39,6 +47,11 @@ except ModuleNotFoundError:
         PathUnavailableError,
         Encryption,
         UsernamePasswordRequiredError,
+        VnicExistsError,
+        VnicLoginError,
+        NoAppAccountError,
+        GenBeforeLoginError,
+        AppAccountExistsError,
     )
 
 from redfish.rest.v1 import ServerDownOrUnreachableError
@@ -106,23 +119,80 @@ class LoginCommand:
         # Return code
         return ReturnCodes.SUCCESS
 
-    def perform_login(self, options, skipbuild, user_ca_cert_data):
-        self.rdmc.app.login(
-            username=self.username,
-            password=self.password,
-            sessionid=self.sessionid,
-            base_url=self.url,
-            path=options.path,
-            skipbuild=skipbuild,
-            includelogs=options.includelogs,
-            biospassword=self.biospassword,
-            is_redfish=self.rdmc.opts.is_redfish,
-            proxy=self.rdmc.opts.proxy,
-            user_ca_cert_data=user_ca_cert_data,
-            json_out=self.rdmc.json,
-            login_otp=self.login_otp,
-            log_dir=self.rdmc.log_dir,
-        )
+    def perform_login(self, options, skipbuild, user_ca_cert_data, args, app_obj):
+        ilo_ver = self.get_ilover_beforelogin(args, app_obj, options)
+
+        if ilo_ver < 7 or (ilo_ver >= 7 and (options.usechif or options.noapptoken or args)):
+            self.rdmc.app.login(
+                username=self.username,
+                password=self.password,
+                sessionid=self.sessionid,
+                base_url=self.url,
+                path=options.path,
+                skipbuild=skipbuild,
+                includelogs=options.includelogs,
+                biospassword=self.biospassword,
+                is_redfish=self.rdmc.opts.is_redfish,
+                proxy=self.rdmc.opts.proxy,
+                user_ca_cert_data=user_ca_cert_data,
+                json_out=self.rdmc.json,
+                login_otp=self.login_otp,
+                log_dir=self.rdmc.log_dir,
+            )
+        else:
+            if options.hostappname or options.hostappid or options.salt:
+                if not (options.hostappname and options.hostappid and options.salt):
+                    raise InvalidCommandLineError("Please enter all the necessary host application information.\n")
+
+            # Code to check if vnic is enabled.
+            vnic_enabled = self.rdmc.app.vexists(app_obj)
+            if not vnic_enabled:
+                raise VnicExistsError(
+                    "Unable to access iLO using virtual NIC. "
+                    "Please ensure virtual NIC is enabled in iLO. "
+                    "Ensure that virtual NIC in the host OS is "
+                    "configured properly. Refer to documentation for more information.\n"
+                )
+
+            # To check if appaccount exists. If not, error out.
+            try:
+                apptoken_exists = self.rdmc.app.token_exists(app_obj)
+            except Exception as excp:
+                raise AppAccountExistsError("Error occurred while checking if app account exists.\n")
+
+            # If appaccount doesn't exist
+            if not apptoken_exists:
+                raise NoAppAccountError(
+                    "The app account is not available for this host application. "
+                    "Please retry using the --no_app_account option or generate "
+                    "an application account using the appaccount create command.\n"
+                )
+
+            try:
+                # Function will log in, retrieve session id, call build monolith, .save()
+                self.rdmc.app.vnic_login(
+                    app_obj=app_obj,
+                    path=options.path,
+                    skipbuild=skipbuild,
+                    includelogs=options.includelogs,
+                    json_out=self.rdmc.json,
+                    base_url=self.url,
+                    username=self.username,
+                    password=self.password,
+                    log_dir=self.rdmc.log_dir,
+                    login_otp=self.login_otp,
+                    is_redfish=self.rdmc.opts.is_redfish,
+                    proxy=self.rdmc.opts.proxy,
+                    user_ca_cert_data=user_ca_cert_data,
+                    biospassword=self.biospassword,
+                    sessionid=self.sessionid,
+                )
+            except Exception as excp:
+                raise VnicLoginError(
+                    """Error occurred while performing login using app account.
+                    Check if application account exists using 'appaccount details' command.
+                    Otherwise, try with --no_app_account option.\n"""
+                )
 
     def loginfunction(self, line, skipbuild=None, json_out=False):
         """Main worker function for login class
@@ -142,7 +212,16 @@ class LoginCommand:
             else:
                 raise InvalidCommandLineError("Invalid command line arguments")
 
-        self.loginvalidation(options, args)
+        app_obj = AppAccount(
+            appname=options.hostappname,
+            appid=options.hostappid,
+            salt=options.salt,
+            username=options.user,
+            password=options.password,
+            log_dir=self.rdmc.log_dir if self.rdmc.opts.debug else None,
+        )
+
+        self.loginvalidation(options, args, app_obj)
 
         # if proxy server provided in command line as --useproxy, it will be used,
         # otherwise it will the environment variable setting.
@@ -199,14 +278,14 @@ class LoginCommand:
 
             if options.waitforOTP:
                 try:
-                    self.perform_login(options, skipbuild, user_ca_cert_data)
+                    self.perform_login(options, skipbuild, user_ca_cert_data, args, app_obj)
                 except redfish.rest.connections.OneTimePasscodeError:
                     self.rdmc.ui.printer("One Time Passcode Sent to registered email.\n")
                     ans = input("Enter OTP: ")
                     self.login_otp = ans
-                    self.perform_login(options, skipbuild, user_ca_cert_data)
+                    self.perform_login(options, skipbuild, user_ca_cert_data, args, app_obj)
             else:
-                self.perform_login(options, skipbuild, user_ca_cert_data)
+                self.perform_login(options, skipbuild, user_ca_cert_data, args, app_obj)
         except ServerDownOrUnreachableError as excp:
             self.rdmc.ui.printer("The following error occurred during login: '%s'\n" % str(excp.__class__.__name__))
 
@@ -229,7 +308,7 @@ class LoginCommand:
             except Exception as excp:
                 raise redfish.ris.InstanceNotFoundError(excp)
 
-    def loginvalidation(self, options, args):
+    def loginvalidation(self, options, args, app_obj):
         """Login helper function for login validations
 
         :param options: command line options
@@ -278,14 +357,34 @@ class LoginCommand:
         if options.biospassword:
             self.biospassword = options.biospassword
 
+        ilo_ver = self.get_ilover_beforelogin(args, app_obj, options)
+
+        if ilo_ver >= 7:
+            if not args:
+                if self.username and self.password and not options.noapptoken and not options.usechif:
+                    options.noapptoken = True
+                if options.noapptoken:
+                    if (
+                        not self.username or not self.password
+                    ):  # Add another check to see if username and password is present in environment variables
+                        raise UsernamePasswordRequiredError(
+                            "Please enter username and password in order to login without app account.\n"
+                        )
+                    options.force_vnic = True
+
         # Assignment of url in case no url is entered
         if getattr(options, "force_vnic", False):
             if not (getattr(options, "ca_cert_bundle", False) or getattr(options, "user_certificate", False)):
                 if not (self.username and self.password) and not options.sessionid:
-                    raise UsernamePasswordRequiredError("Please provide credentials to login with VNIC")
+                    raise UsernamePasswordRequiredError("Please provide credentials to login with virtual NIC.\n")
             self.url = "https://16.1.15.1"
         else:
-            self.url = "blobstore://."
+            if ilo_ver >= 7 and not options.usechif:
+                # TO DO
+                # self.url = self.rdmc.app.GetIPAddress()
+                self.url = "https://16.1.15.1"
+            else:
+                self.url = "blobstore://."
 
         if args:
             # Any argument should be treated as an URL
@@ -300,12 +399,51 @@ class LoginCommand:
                 or hasattr(options, "user_root_ca_key")
                 or hasattr(options, "user_root_ca_password")
             ):
-                if not (options.username and options.password):
+                if not (options.user and options.password):
                     raise InvalidCommandLineError("Empty username or password was entered.")
         else:
             # Check to see if there is a URL in config file
             if self.rdmc.config.url:
                 self.url = self.rdmc.config.url
+
+    def get_ilover_beforelogin(self, args, app_obj, options):
+        try:
+            if args:
+                path = "https://" + args[0] + "/redfish/v1"
+                data = requests.get(path, verify=False)
+                json_data = data.json()
+                try:
+                    Oem_Hpe = json_data["Oem"]["Hpe"]
+                except KeyError:
+                    Oem_Hpe = json_data["Oem"]["Hp"]
+                if "ManagerType" in Oem_Hpe["Manager"][0]:
+                    ilo_ver = int(Oem_Hpe["Manager"][0]["ManagerType"].split(" ")[1])
+                else:
+                    manager_data = Oem_Hpe["Moniker"]
+                    ilo_ver = int(manager_data["PRODGEN"].split(" ")[1])
+            else:
+                ilo_ver, sec_state = self.rdmc.app.getilover_beforelogin(app_obj)
+            return ilo_ver
+        except ChifDriverMissingOrNotFound:
+            if getattr(options, "force_vnic", False):
+                return 5
+            raise
+        except VnicNotEnabledError:
+            if options.usechif:
+                return 7
+            raise VnicExistsError(
+                "Unable to access iLO using virtual NIC. "
+                "Please ensure virtual NIC is enabled in iLO. "
+                "Ensure that virtual NIC in the host OS is "
+                "configured properly. Refer to documentation for more information.\n"
+            )
+        except Exception as e:
+            raise GenBeforeLoginError(
+                "An error occurred while retrieving the iLO generation. "
+                "Please ensure that the virtual NIC is enabled for iLO7 based "
+                "servers, or that the CHIF driver is installed for iLO5 and iLO6 "
+                "based servers.\n"
+            )
 
     def definearguments(self, customparser):
         """Wrapper function for new command main function
@@ -349,4 +487,26 @@ class LoginCommand:
             " wish to work with a type that is different from the one"
             " you currently have selected.",
             default=None,
+        )
+        customparser.add_argument(
+            "--no_app_token",
+            "--no_app_account",
+            dest="noapptoken",
+            help="Include this parameter in order to login to iLO7 and above with credentials and not app account.",
+            default=None,
+            action="store_true",
+        )
+        customparser.add_argument("--hostappid", dest="hostappid", help="Parameter to specify hostappid", default=None)
+        customparser.add_argument(
+            "--hostappname", dest="hostappname", help="Parameter to specify hostappname", default=None
+        )
+        customparser.add_argument(
+            "--salt", dest="salt", help="Parameter to specify application owned salt", default=None
+        )
+        customparser.add_argument(
+            "--use_chif",
+            dest="usechif",
+            help="Include this parameter in order to operate iLO7 and above using chif.",
+            default=None,
+            action="store_true",
         )

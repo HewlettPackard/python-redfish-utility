@@ -18,8 +18,6 @@
 """This is the helper module for RDMC"""
 
 # ---------Imports---------
-from __future__ import unicode_literals
-
 import os
 import sys
 from argparse import (
@@ -29,31 +27,16 @@ from argparse import (
     RawDescriptionHelpFormatter,
     _ArgumentGroup,
 )
-from builtins import bytes, int, object, str, super
-
 from redfish.ris import NothingSelectedError
 
 try:
-    import cliutils
-except ImportError:
-    from ilorest import cliutils
-
-try:
-    import versioning
-except ImportError:
-    from ilorest import versioning
-try:
-    import rdmc_helper
-except ImportError:
-    from ilorest import rdmc_helper
-
-try:
-    from rdmc_helper import InvalidCommandLineErrorOPTS
-except ImportError:
+    from ilorest import cliutils, versioning, rdmc_helper
     from ilorest.rdmc_helper import InvalidCommandLineErrorOPTS
-
-
-# from extensions.COMMANDS import LoginCommand, SelectCommand
+except ImportError:
+    import cliutils
+    import versioning
+    import rdmc_helper
+    from rdmc_helper import InvalidCommandLineErrorOPTS
 
 # ---------End of imports---------
 
@@ -221,6 +204,13 @@ class RdmcCommandBase(CommandBase):
         :type skipbuild: bool.
         """
         inputline = list()
+
+        if cmdinstance.ident["name"] == "detectilo" or cmdinstance.ident["name"] == "appaccount":
+            try:
+                client = cmdinstance.rdmc.app.current_client
+                return client
+            except Exception:
+                return None
 
         self.login_validation(cmdinstance, options, skipbuild=skipbuild)
         logobj = cmdinstance.rdmc.load_command(cmdinstance.rdmc.search_commands("LoginCommand"))

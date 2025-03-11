@@ -81,7 +81,11 @@ class FirmwareUpdateCommand:
             raise InvalidCommandLineErrorOPTS("For flashing 3rd party firmwares, please use flashfwpkg command")
 
         # Supports only .bin/fwpkg/full/vme Firmware files.
-        if args and (".bin" in args[0] or ".fwpkg" in args[0] or ".full" in args[0] or ".vme" in args[0]):
+        if (
+            args
+            and (".bin" in args[0] or ".fwpkg" in args[0] or ".full" in args[0] or ".vme" in args[0])
+            or ".lpk" in args[0]
+        ):
             if args[0].startswith('"') and args[0].endswith('"'):
                 args[0] = args[0][1:-1]
         else:

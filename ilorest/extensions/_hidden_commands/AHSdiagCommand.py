@@ -188,7 +188,7 @@ class AHSdiagCommand:
         data = bytearray(ptrreq[:size][:])
 
         if self.rdmc.opts.debug:
-            LOGGER.info("Sending data to chif:{0}\n".format(bytes(data)))
+            LOGGER.debug("Sending data to chif:{0}\n".format(bytes(data)))
 
         resp = self.channel.chif_packet_exchange(data)
 
@@ -222,7 +222,7 @@ class AHSdiagCommand:
         ptrreq = self.lib.getreq()
         data = bytearray(ptrreq[:size][:])
         if self.rdmc.opts.debug:
-            LOGGER.info("Sending data to chif:{0}\n".format(data))
+            LOGGER.debug("Sending data to chif:{0}\n".format(data))
         try:
             resp = self.channel.chif_packet_exchange(data)
         except Exception:

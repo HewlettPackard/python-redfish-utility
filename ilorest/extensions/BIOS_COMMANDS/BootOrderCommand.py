@@ -334,7 +334,8 @@ class BootOrderCommand:
             newlist = ""
 
             if entry.lower() in (
-                item.lower() for item in onetimebootsettings[0]["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype]
+                item.lower()
+                for item in onetimebootsettings[0]["Boot"][self.rdmc.app.typepath.defs.bootoverridetargettype]
             ):
                 if entry and isinstance(entry, six.string_types):
                     entry = entry.upper()

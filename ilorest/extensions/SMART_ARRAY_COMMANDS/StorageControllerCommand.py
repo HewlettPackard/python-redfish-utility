@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Storage Controller Command for rdmc """
+"""Storage Controller Command for rdmc"""
 import json
 import sys
 from argparse import RawDescriptionHelpFormatter
@@ -299,20 +299,17 @@ class StorageControllerCommand:
                 for i in sel:
                     res = i["@odata.id"]
                     if "DE" in res:
-                        break
-                    else:
-                        continue
-                storage_id_url = res + "?$expand=."
-                getval = self.rdmc.app.get_handler(storage_id_url, silent=True, service=True).dict
-                vol = self.get_volume(options)
-                ctr = self.controller_id(options)
-                getval = self.rdmc.app.removereadonlyprops(getval, False, True)
-                storage.update(getval)
-                getval["Controllers"]["Members"].append(ctr)
-                del getval["Controllers"]["Members"][0]
-                getval["Volumes"]["Members"].append(vol)
-                del getval["Volumes"]["Members"][0]
-                all_stgcntrl[getval["Id"]] = getval
+                        storage_id_url = res + "?$expand=."
+                        getval = self.rdmc.app.get_handler(storage_id_url, silent=True, service=True).dict
+                        vol = self.get_volume(options)
+                        ctr = self.controller_id(options)
+                        getval = self.rdmc.app.removereadonlyprops(getval, False, True)
+                        storage.update(getval)
+                        getval["Controllers"]["Members"].append(ctr)
+                        del getval["Controllers"]["Members"][0]
+                        getval["Volumes"]["Members"].append(vol)
+                        del getval["Volumes"]["Members"][0]
+                        all_stgcntrl[getval["Id"]] = getval
                 self.file_handler(self.config_file, "w", options, all_stgcntrl, sk=True)
                 sys.stdout.write("Storage Controller configuration saved to '%s'.\n" % self.config_file)
             else:
@@ -367,57 +364,81 @@ class StorageControllerCommand:
         if options.command == "load":
             if ilo_ver >= 6.110:
                 storage_load = self.file_handler(self.config_file, operation="rb", options=options)
-                controller_id = storage_load["Controllers"]
-                logical_id = storage_load["Volumes"]
-                physical_id = storage_load["Drives"]
-                if controller_id:
-                    for data in controller_id:
-                        id_controller = controller_id[data].get("@odata.id")
-                        controllers = self.rdmc.app.get_handler(id_controller, silent=True).dict
-                        readonly_removed_controllers = self.storagecontrollerremovereadonly(controllers)
-                        readonly_removed = storage_load["Controllers"]
-                        for controller, val in readonly_removed.items():
-                            for i in readonly_removed_controllers:
-                                try:
-                                    if (i in val) and (controllers[i] != val[i]):
-                                        body = {str(i): val[i]}
-                                        self.rdmc.app.patch_handler(id_controller, body)
-                                except:
-                                    sys.stdout.write("Unable to update the property " "for: '%s'.\n" % i)
-                                    continue
-                if logical_id:
-                    for logical_data in logical_id:
-                        id_logical = logical_id[logical_data].get("@odata.id")
-                        logicals = self.rdmc.app.get_handler(id_logical, silent=True).dict
-                        readonly_removed_logical = self.storagecontrollerremovereadonly(logicals)
-                        readonly_logical = storage_load["Volumes"]
-                        for logical, val in readonly_logical.items():
-                            for lg in readonly_removed_logical:
-                                try:
-                                    if (lg in val) and (logicals[lg] != val[lg]):
-                                        body = {str(lg): val[lg]}
-                                        self.rdmc.app.patch_handler(id_logical, body)
-                                except:
-                                    sys.stdout.write("Unable to update the property " "for: '%s'.\n" % lg)
-                                    continue
-                if physical_id:
-                    for physical_data in physical_id:
-                        id_physical = physical_id[physical_data].get("@odata.id")
-                        physicals = self.rdmc.app.get_handler(id_physical, silent=True).dict
-                        readonly_removed_physical = self.storagecontrollerremovereadonly(physicals)
-                        readonly_physical = storage_load["Drives"]
-                        for logical, val in readonly_physical.items():
-                            for lg in readonly_removed_physical:
-                                try:
-                                    if (lg in val) and (physicals[lg] != val[lg]):
-                                        body = {str(lg): val[lg]}
-                                        self.rdmc.app.patch_handler(id_physical, body)
-                                except:
-                                    sys.stdout.write("Unable to update the property " "for: '%s'.\n" % lg)
-                                    continue
-                sys.stdout.write(
-                    "Storage Controller configuration loaded. Reboot the server to " "finalize the configuration.\n"
-                )
+                for starageid in storage_load:
+
+                    controller_id = storage_load[starageid]["Controllers"]
+                    logical_id = storage_load[starageid]["Volumes"]
+                    physical_id = storage_load[starageid]["Drives"]
+
+                    if controller_id:
+                        if "Members" in controller_id:
+                            id_controller = "/redfish/v1/Systems/1/Storage/" + starageid
+                            controllers = self.rdmc.app.get_handler(id_controller, silent=True).dict
+                            readonly_removed_controllers = self.storagecontrollerremovereadonly(controllers)
+                            readonly_removed = controller_id
+                            self.load_property_helper(readonly_removed, readonly_removed_controllers, id_controller)
+                        else:
+                            for data in controller_id:
+                                id_controller = controller_id[data].get("@odata.id")
+                                controllers = self.rdmc.app.get_handler(id_controller, silent=True).dict
+                                readonly_removed_controllers = self.storagecontrollerremovereadonly(controllers)
+                                readonly_removed = storage_load["Controllers"]
+                                for controller, val in readonly_removed.items():
+                                    for i in readonly_removed_controllers:
+                                        try:
+                                            if (i in val) and (controllers[i] != val[i]):
+                                                body = {str(i): val[i]}
+                                                self.rdmc.app.patch_handler(id_controller, body)
+                                        except:
+                                            sys.stdout.write("Unable to update the property " "for: '%s'.\n" % i)
+                                            continue
+                    if logical_id:
+                        if "Members" in logical_id:
+                            id_logical = "/redfish/v1/Systems/1/Storage/" + starageid + "/Volumes/1"
+                            logicals = self.rdmc.app.get_handler(id_logical, silent=True).dict
+                            readonly_removed_logical = self.storagecontrollerremovereadonly(logicals)
+                            readonly_logical = logical_id
+                            self.load_property_helper(readonly_logical, readonly_removed_logical, id_logical)
+                        else:
+                            for logical_data in logical_id:
+                                id_logical = logical_id[logical_data].get("@odata.id")
+                                logicals = self.rdmc.app.get_handler(id_logical, silent=True).dict
+                                readonly_removed_logical = self.storagecontrollerremovereadonly(logicals)
+                                readonly_logical = storage_load["Volumes"]
+                                for logical, val in readonly_logical.items():
+                                    for lg in readonly_removed_logical:
+                                        try:
+                                            if (lg in val) and (logicals[lg] != val[lg]):
+                                                body = {str(lg): val[lg]}
+                                                self.rdmc.app.patch_handler(id_logical, body)
+                                        except:
+                                            sys.stdout.write("Unable to update the property " "for: '%s'.\n" % lg)
+                                            continue
+                    if physical_id:
+                        if "Members" in physical_id:
+                            id_physical = "/redfish/v1/Systems/1/Storage/" + starageid + "/Drives"
+                            physicals = self.rdmc.app.get_handler(id_physical, silent=True).dict
+                            readonly_removed_physical = self.storagecontrollerremovereadonly(physicals)
+                            readonly_physical = physical_id
+                            self.load_property_helper(readonly_physical, readonly_removed_physical, id_physical)
+                    else:
+                        for physical_data in physical_id:
+                            id_physical = physical_id[physical_data].get("@odata.id")
+                            physicals = self.rdmc.app.get_handler(id_physical, silent=True).dict
+                            readonly_removed_physical = self.storagecontrollerremovereadonly(physicals)
+                            readonly_physical = storage_load["Drives"]
+                            for logical, val in readonly_physical.items():
+                                for lg in readonly_removed_physical:
+                                    try:
+                                        if (lg in val) and (physicals[lg] != val[lg]):
+                                            body = {str(lg): val[lg]}
+                                            self.rdmc.app.patch_handler(id_physical, body)
+                                    except:
+                                        sys.stdout.write("Unable to update the property " "for: '%s'.\n" % lg)
+                                        continue
+                    sys.stdout.write(
+                        "Storage Controller configuration loaded. Reboot the server to " "finalize the configuration.\n"
+                    )
 
             else:
                 controllers = self.file_handler(self.config_file, operation="rb", options=options)
@@ -466,6 +487,17 @@ class StorageControllerCommand:
         # Return code
         return ReturnCodes.SUCCESS
 
+    def load_property_helper(self, readonly, readonly_removed, id):
+        for item, val in readonly.items():
+            for lg in readonly_removed:
+                try:
+                    if (lg in val) and (item[lg] != val[lg]):
+                        body = {str(lg): val[lg]}
+                        self.rdmc.app.patch_handler(id, body)
+                except:
+                    sys.stdout.write("Unable to update the property " "for: '%s'.\n" % lg)
+                    continue
+
     def list_all_storages(self, options, print_ctrl=False, single_use=False):
         # self.auxcommands["select"].selectfunction("StorageCollection.")
         st_url = "/redfish/v1/Systems/1/Storage/"
@@ -476,7 +508,7 @@ class StorageControllerCommand:
             if st_content.dict["Members"]:
                 st_content = st_content.dict["Members"]
 
-                if not options.json:
+                if "json" in options and not options.json:
                     if self.rdmc.opts.verbose:
                         sys.stdout.write("---------------------------------\n")
                         sys.stdout.write("List of RDE storage devices\n")
@@ -1364,7 +1396,7 @@ class StorageControllerCommand:
 
     def print_list_volumes(self, options, volumes, print_ctrl):
         v_data = []
-        if options.json:
+        if "json" in options and options.json:
             vol_data = dict()
         if not options.json:
             sys.stdout.write("\nVolume Details:\n")
@@ -1565,79 +1597,84 @@ class StorageControllerCommand:
             silent=True,
             service=True,
         ).dict["Members"]
+        found = False
         for tmp in list_volumes:
-            tmp = tmp["@odata.id"]
-            tmp = self.rdmc.app.get_handler(tmp, silent=True, service=True).dict
-            try:
-                std_v = options.storageid in tmp["@odata.id"]
-            except:
-                std_v = tmp["@odata.id"]
-            if std_v:
+            if not found:
+                tmp = tmp["@odata.id"]
+                tmp = self.rdmc.app.get_handler(tmp, silent=True, service=True).dict
+                try:
+                    std_v = options.storageid in tmp["@odata.id"]
+                except:
+                    std_v = tmp["@odata.id"]
+                if std_v:
+                    if getattr(options, "ldrive", False):
+                        ldrive_ident = False
+                    else:
+                        ldrive_ident = True
                 if getattr(options, "ldrive", False):
-                    ldrive_ident = False
-                else:
-                    ldrive_ident = True
-            if getattr(options, "ldrive", False):
-                if options.ldrive != tmp["Id"]:
-                    continue
-                else:
-                    ldrive_ident = True
+                    if options.ldrive != tmp["Id"]:
+                        continue
+                    else:
+                        ldrive_ident = True
+                        found = True
 
-            if "Identifiers" in tmp:
-                durablename = tmp["Identifiers"]
-                if durablename is not None:
-                    d_name = [name["DurableName"] for name in durablename]
-                found_entries = True
+                if "Identifiers" in tmp:
+                    durablename = tmp["Identifiers"]
+                    if durablename is not None:
+                        d_name = [name["DurableName"] for name in durablename]
+                    found_entries = True
 
-                drives = []
-                d_data = tmp["Links"]["Drives"]
-                for dd in d_data:
-                    drive = dd["@odata.id"]
-                    drive_data = self.rdmc.app.get_handler(drive, silent=True).dict
-                    location = drive_data["PhysicalLocation"]["PartLocation"]["ServiceLabel"]
-                    loc = location.split(":")
-                    del loc[0]
-                    if len(loc) == 3:
-                        temp_str = str(loc[0].split("=")[1] + ":" + loc[1].split("=")[1] + ":" + loc[2].split("=")[1])
-                        location = temp_str
-                        drives.append(location)
-                volumes = ", ".join(str(item) for item in drives)
-                if print_ctrl and ldrive_ident and options.ldrive is None and not getattr(options, "json", False):
-                    sys.stdout.write(
-                        "\t[%s]: Name %s RAIDType %s VUID %s Capacity %s Bytes - Health %s\n"
-                        % (
-                            tmp["Id"],
-                            tmp["Name"],
-                            tmp["RAIDType"],
-                            d_name[0],
-                            tmp["CapacityBytes"],
-                            tmp["Status"]["Health"],
+                    drives = []
+                    d_data = tmp["Links"]["Drives"]
+                    for dd in d_data:
+                        drive = dd["@odata.id"]
+                        drive_data = self.rdmc.app.get_handler(drive, silent=True).dict
+                        location = drive_data["PhysicalLocation"]["PartLocation"]["ServiceLabel"]
+                        loc = location.split(":")
+                        del loc[0]
+                        if len(loc) == 3:
+                            temp_str = str(
+                                loc[0].split("=")[1] + ":" + loc[1].split("=")[1] + ":" + loc[2].split("=")[1]
+                            )
+                            location = temp_str
+                            drives.append(location)
+                    volumes = ", ".join(str(item) for item in drives)
+                    if print_ctrl and ldrive_ident and options.ldrive is None and not getattr(options, "json", False):
+                        sys.stdout.write(
+                            "\t[%s]: Name %s RAIDType %s VUID %s Capacity %s Bytes - Health %s\n"
+                            % (
+                                tmp["Id"],
+                                tmp["Name"],
+                                tmp["RAIDType"],
+                                d_name[0],
+                                tmp["CapacityBytes"],
+                                tmp["Status"]["Health"],
+                            )
                         )
-                    )
-                elif getattr(options, "json", False) and ldrive_ident:
-                    outjson["volumes"][tmp["Id"]] = dict()
-                    outjson["volumes"][tmp["Id"]]["VolumeName"] = tmp["Name"]
-                    outjson["volumes"][tmp["Id"]]["RAIDType"] = tmp["RAIDType"]
-                    outjson["volumes"][tmp["Id"]]["VolumeUniqueIdentifier"] = d_name[0]
-                    # if options.ldrive:
-                    #    outjson["volumes"][tmp["Id"]]["Drive Location"] = volumes
-                    outjson["volumes"][tmp["Id"]]["Capacity"] = tmp["CapacityBytes"]
-                    outjson["volumes"][tmp["Id"]]["Health"] = tmp["Status"]["Health"]
-                    printed = True
-                elif print_ctrl and ldrive_ident and options.ldrive is not None:
-                    sys.stdout.write(
-                        "\tId: %s\n\tName: %s\n\tRaidType: %s\n\tVolumeUniqueId: %s\n\tCapacity: %s Bytes\n\n"
-                        % (
-                            tmp["Id"],
-                            tmp["Name"],
-                            tmp["RAIDType"],
-                            d_name[0],
-                            tmp["CapacityBytes"],
+                    elif getattr(options, "json", False) and ldrive_ident:
+                        outjson["volumes"][tmp["Id"]] = dict()
+                        outjson["volumes"][tmp["Id"]]["VolumeName"] = tmp["Name"]
+                        outjson["volumes"][tmp["Id"]]["RAIDType"] = tmp["RAIDType"]
+                        outjson["volumes"][tmp["Id"]]["VolumeUniqueIdentifier"] = d_name[0]
+                        # if options.ldrive:
+                        #    outjson["volumes"][tmp["Id"]]["Drive Location"] = volumes
+                        outjson["volumes"][tmp["Id"]]["Capacity"] = tmp["CapacityBytes"]
+                        outjson["volumes"][tmp["Id"]]["Health"] = tmp["Status"]["Health"]
+                        printed = True
+                    elif print_ctrl and ldrive_ident and options.ldrive is not None:
+                        sys.stdout.write(
+                            "\tId: %s\n\tName: %s\n\tRaidType: %s\n\tVolumeUniqueId: %s\n\tCapacity: %s Bytes\n\n"
+                            % (
+                                tmp["Id"],
+                                tmp["Name"],
+                                tmp["RAIDType"],
+                                d_name[0],
+                                tmp["CapacityBytes"],
+                            )
                         )
-                    )
-                    printed = True
-                if single_use:
-                    logicaldrives.update({tmp["Id"]: tmp})
+                        printed = True
+                    if single_use:
+                        logicaldrives.update({tmp["Id"]: tmp})
         if getattr(options, "json", False) and ldrive_ident:
             UI().print_out_json(outjson)
             printed = True
@@ -1985,7 +2022,7 @@ class StorageControllerCommand:
         :param options: command line options
         :type options: list.
         """
-        if options.json:
+        if "json" in options and options.json:
             self.rdmc.json = True
         self.cmdbase.login_select_validation(self, options)
 

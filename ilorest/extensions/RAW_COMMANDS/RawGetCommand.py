@@ -20,6 +20,9 @@
 import json
 
 import redfish
+import requests
+from urllib.parse import urljoin
+import sys
 
 try:
     from rdmc_helper import (
@@ -76,10 +79,13 @@ class RawGetCommand:
 
         headers = {}
 
-        if hasattr(options, "sessionid") and options.sessionid:
-            _ = self.sessionvalidation(options)
+        if getattr(options, "no_auth"):
+            pass
         else:
-            self.getvalidation(options)
+            if hasattr(options, "sessionid") and options.sessionid:
+                _ = self.sessionvalidation(options)
+            else:
+                self.getvalidation(options)
 
         if options.path.endswith("?=."):
             path = options.path
@@ -114,6 +120,21 @@ class RawGetCommand:
             if "/" in extra_path:
                 extra_path_list = extra_path.split("/")
                 extra_path_list = list(filter(None, extra_path_list))
+        if getattr(options, "no_auth"):
+            if options.url:
+                url = "https://" + options.url.rstrip("/")
+            else:
+                url = "https://16.1.15.1"
+            path = urljoin(url, options.path.lstrip("/"))
+            try:
+                response = requests.get(path, verify=False)
+                if response.status_code == 200:
+                    data = response.json()
+                    self.rdmc.ui.printer("%s\n" % json.dumps(data, indent=4))
+                return ReturnCodes.SUCCESS
+            except Exception as e:
+                sys.stdout.write("Error: Failed to complete operation.\n")
+                return ReturnCodes.INVALID_COMMAND_LINE_ERROR
 
         results = self.rdmc.app.get_handler(
             options.path,
@@ -124,6 +145,7 @@ class RawGetCommand:
             username=options.user,
             password=options.password,
             base_url=options.url,
+            noauth=options.no_auth,
         )
         result = None
         if results.dict:
@@ -280,5 +302,12 @@ class RawGetCommand:
             dest="expand",
             action="store_true",
             help="""Use this flag to expand the path specified using the """ """expand notation '?$expand=.'""",
+            default=False,
+        )
+        customparser.add_argument(
+            "--no_auth",
+            dest="no_auth",
+            action="store_true",
+            help="""Use this flag to enable service mode and increase the function speed""",
             default=False,
         )

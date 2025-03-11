@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Create Volume Command for rdmc """
+"""Create Volume Command for rdmc"""
 
 from argparse import RawDescriptionHelpFormatter
 
@@ -92,6 +92,7 @@ class CreateVolumeCommand:
                 self.auxcommands["select"].selectfunction("StorageController.")
                 content = self.rdmc.app.getprops()
                 if options.command == "quickdrive":
+                    options.sparedrives = None
                     raise InvalidCommandLineError(
                         "This controller is not compatible with quickdrive option. "
                         "Please use customdrive or volume option\n"
@@ -137,21 +138,6 @@ class CreateVolumeCommand:
                     options.command = "volume"
                     ilo_ver = 6.110
             try:
-                # logical_drives = self.rdmc.app.get_handler(
-                #     "/redfish/v1/Systems/1/Storage/" + options.storageid + "/Volumes/",
-                #     silent=True,
-                #     service=True,
-                # ).dict["Members"]
-                # for volume_list in logical_drives:
-                #     volume = self.rdmc.app.get_handler(volume_list["@odata.id"], silent=True, service=True).dict
-                #     if (
-                #         ("Status" in volume)
-                #         and (volume["Status"]["State"] == "Enabled")
-                #         and ("RAIDType" in volume)
-                #         and (volume["RAIDType"] == "None")
-                #     ):
-                # self.rdmc.app.delete_handler(volume["@odata.id"], {}, silent=True, service=True)
-
                 controller = controllers[next(iter(controllers))]
                 (create_flag, newdrive) = self.createvolume(options, controller)
                 if create_flag:
@@ -160,6 +146,9 @@ class CreateVolumeCommand:
                         volume_path = temp_odata.split("Controllers")[0] + "Volumes"
                         self.rdmc.ui.printer("CreateVolume path and payload: %s, %s\n" % (volume_path, newdrive))
                         result = self.rdmc.app.post_handler(volume_path, newdrive)
+                        if result.status == 400:
+                            self.rdmc.ui.error("iLO has thrown BadRequest for this command attempt \n")
+                            return ReturnCodes.RIS_ILO_RESPONSE_ERROR
 
                         self.rdmc.ui.printer("Volume created successfully  \n")
                         if options.sparedrives:
@@ -236,10 +225,16 @@ class CreateVolumeCommand:
             except IloResponseError:
                 self.rdmc.ui.error("iLO threw iLOResponseError\n")
                 return ReturnCodes.RIS_ILO_RESPONSE_ERROR
+            except InvalidSmartArrayConfigurationError as excp:
+                self.rdmc.ui.error(excp.args[0])
+                return ReturnCodes.INVALID_SMART_ARRAY_PAYLOAD
             except StopIteration:
                 self.rdmc.ui.error("Drive or Controller not exist, Please check drive or controller\n")
+            except InvalidCommandLineError as excp:
+                self.rdmc.ui.error(excp.args[0])
+                return ReturnCodes.INVALID_COMMAND_LINE_ERROR
             except Exception as excp:
-                self.rdmc.ui.error(excp)
+                self.rdmc.ui.error(excp.args[0])
 
         else:
             self.rdmc.ui.error("Provide the controller \n")
@@ -589,6 +584,7 @@ class CreateVolumeCommand:
                         for ar in array:
                             if ar in p_loc:
                                 idval.append(controller["physical_drives"][str(p_id)]["@odata.id"])
+                                array.remove(ar)
             newdrive["Links"]["Drives"] = []
             if idval is not None:
                 for id in idval:
@@ -619,18 +615,18 @@ class CreateVolumeCommand:
             if "iOPerfModeEnabled" in options and options.iOPerfModeEnabled:
                 for item in iOPerfModeEnabledlist:
                     if (
-                        options.iOPerfModeEnabled[0].lower() == item.lower()
-                        and options.iOPerfModeEnabled[0].lower() == "false"
+                        options.iOPerfModeEnabled.lower() == item.lower()
+                        and options.iOPerfModeEnabled.lower() == "false"
                     ):
-                        newdrive["IOPerfModeEnabled"] = eval(options.iOPerfModeEnabled[0])
+                        newdrive["IOPerfModeEnabled"] = eval(options.iOPerfModeEnabled)
                         itemadded = True
                         break
                     elif (
-                        options.iOPerfModeEnabled[0].lower() == item.lower()
-                        and options.iOPerfModeEnabled[0].lower() == "true"
+                        options.iOPerfModeEnabled.lower() == item.lower()
+                        and options.iOPerfModeEnabled.lower() == "true"
                     ):
                         if "SSD" in controller["SupportedDeviceProtocols"]:
-                            newdrive["IOPerfModeEnabled"] = eval(options.iOPerfModeEnabled[0])
+                            newdrive["IOPerfModeEnabled"] = eval(options.iOPerfModeEnabled)
                             itemadded = True
                             break
                         else:
@@ -671,8 +667,8 @@ class CreateVolumeCommand:
                 if options.WriteHoleProtectionPolicy is not None:
                     for item in WriteHoleProtectionPolicyList:
                         if (
-                            options.WriteHoleProtectionPolicy[0].lower() == item.lower()
-                            and options.WriteHoleProtectionPolicy[0].lower() == "yes"
+                            options.WriteHoleProtectionPolicy.lower() == item.lower()
+                            and options.WriteHoleProtectionPolicy.lower() == "yes"
                         ):
                             newdrive["WriteHoleProtectionPolicy"] = "Journaling"
                             newdrive["Links"]["JournalingMedia"] = idval
@@ -704,8 +700,8 @@ class CreateVolumeCommand:
                     drivechecks = (False, False, False, False)
                     if drives_avail < newdrive_count:
                         raise InvalidSmartArrayConfigurationError(
-                            "Unable to continue, requested "
-                            "configuration not possible with current physical drive inventory.\n"
+                            "Unable to continue, requested number of drives not actually present under the storage ID"
+                            " or the drives requested are in use by another volume\n"
                         )
                     else:
                         drivechecks = (True, False, False, False)
@@ -744,7 +740,7 @@ class CreateVolumeCommand:
                                             in_use = True
                                 else:
                                     for _data_drive in _logical_drive["Links"]["Drives"]:
-                                        if drive == _data_drive:
+                                        if drive in _data_drive["@odata.id"] and _logical_drive["RAIDType"] != "None":
                                             in_use = True
                             elif _logical_drive.get("links"):
                                 for _data_drive in _logical_drive["links"]["DataDrives"]:
@@ -757,9 +753,7 @@ class CreateVolumeCommand:
                         drivechecks = (True, True, True, True)
                     if drivechecks[0] and drivechecks[1] and drivechecks[2]:
                         if controller.get("Links"):
-                            newdrive["Links"]["Drives"][int(drive)] = {
-                                "@odata.id": controller["physical_drives"][drive]["@odata.id"]
-                            }
+                            pass
                         else:
                             if not ilo_ver >= 6.110:
                                 newdrive["links"]["DataDrives"][int(drive)] = controller["physical_drives"][drive]
@@ -809,8 +803,10 @@ class CreateVolumeCommand:
         """
 
         valid = True
-
-        if raidtype == "raid5":
+        if raidtype == "raid1":
+            if numdrives < 2:  # or options.stripsize:
+                valid = False
+        elif raidtype == "raid5":
             if numdrives < 3:  # or options.stripsize:
                 valid = False
         elif raidtype == "raid6":

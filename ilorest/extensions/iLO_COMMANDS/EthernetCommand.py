@@ -573,12 +573,10 @@ class EthernetCommand:
                                                     oemhp = self.rdmc.app.typepath.defs.oemhp
                                                     data[eth_config_type][_path]["DHCPv4"]["UseNTPServers"] = True
                                                     data[eth_config_type][_path]["DHCPv6"]["UseNTPServers"] = True
-                                                    data[eth_config_type][_path]["Oem"][oemhp]["DHCPv4"][
-                                                        "UseNTPServers"
-                                                    ] = True
-                                                    data[eth_config_type][_path]["Oem"][oemhp]["DHCPv6"][
-                                                        "UseNTPServers"
-                                                    ] = True
+                                                    data[eth_config_type][_path]["Oem"][oemhp]["DHCPv4"]\
+                                                        ["UseNTPServers"] = True
+                                                    data[eth_config_type][_path]["Oem"][oemhp]["DHCPv6"]\
+                                                        ["UseNTPServers"] = True
                                                     self.load_ethernet_aux(
                                                         eth_config_type,
                                                         _path,

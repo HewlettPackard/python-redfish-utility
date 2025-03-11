@@ -28,6 +28,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import logging
 import xml.etree.ElementTree as et
 
 from six import BytesIO, StringIO
@@ -57,11 +58,12 @@ except ImportError:
         StandardBlobErrorHandler,
     )
 
-
 if os.name == "nt":
     import win32api
 elif sys.platform != "darwin" and "VMkernel" not in platform.uname():
     import pyudev
+
+LOGGER = logging.getLogger(__name__)
 
 
 class HpGooeyCommand:
@@ -89,7 +91,6 @@ class HpGooeyCommand:
         self.rdmc = None
         self.auxcommands = dict()
 
-        # TODO: Hack for high security cred issue (We need to keep a dll handle open)
         try:
             self.lib = risblobstore2.BlobStore2.gethprestchifhandle()
         except:
@@ -154,20 +155,23 @@ class HpGooeyCommand:
             with open(options.filename[0], _read_mode) as bfh:
                 blobfiledata = bfh.read()
 
-            if options.key == "hpmbirthcert":
-                blobfiledata = self.writebirthcert(blobfiledata=blobfiledata, blobdata=None, key=options.key)
-            if options.key == "birthcert":
+            if options.key == "birthcert" or options.key == "hpmbirthcert":
                 try:
-                    bcert = self.remote_read(path)
-                    if isinstance(bcert, bytes):
-                        bcert = bcert.decode("utf-8")
-                except StandardBlobErrorHandler:
-                    bcert = ""
-                if not isinstance(bcert, bytes):
-                    blobdata = bytearray(bcert, encoding="utf-8")
-                blobfiledata = self.writebirthcert(blobfiledata=blobfiledata, blobdata=blobdata, key=options.key)
+                    filedatastr = bytes(self.remote_read(path))
+                except (StandardBlobErrorHandler, risblobstore2.BlobNotFoundError) as e:
+                    filedatastr = ""
+                if not isinstance(filedatastr, bytes):
+                    blobdata = filedatastr.encode("utf-8", "ignore")
+                else:
+                    blobdata = filedatastr
 
-            self.remote_write(path, blobfiledata)
+                blobfiledata = self.writebirthcert(blobfiledata=blobfiledata, blobdata=blobdata, key=options.key)
+                self.remote_write(path, blobfiledata)
+
+            elif "SMARTSTART" in options.key:
+                # compressed_data = self.writesmartstart(blobfiledata)
+                # self.remote_write(path, compressed_data)
+                self.remote_write(path, blobfiledata)
 
         elif options.read:
             if not (options.key and options.namespace):
@@ -179,6 +183,9 @@ class HpGooeyCommand:
 
             if options.key == "birthcert" or options.key == "hpmbirthcert":
                 filedatastr = self.readbirthcert(filedatastr, options.key)
+            # elif "SMARTSTART" in options.key:
+            # uncompressed_data = self.readsmartstart(filedatastr)
+            #   filedatastr = uncompressed_data
 
             if not isinstance(filedatastr, bytes):
                 filedatastr = filedatastr.encode("utf-8", "ignore")
@@ -194,8 +201,10 @@ class HpGooeyCommand:
                 filedata_value = filedata.getvalue()
                 if isinstance(filedata_value, bytes):
                     filedata_value = filedata_value.decode("utf-8")
-                if filedata_value == "":
+                if options.key == "hpmbirthcert" and filedata_value == "":
                     self.rdmc.ui.printer("HPM Birth Certificate does not exist!!\n")
+                elif "SMARTSTART" in options.key and filedata_value == "":
+                    self.rdmc.ui.printer("SMARTSTART data does not exist!!\n")
                 else:
                     self.rdmc.ui.printer("%s\n" % filedata_value)
 
@@ -232,6 +241,7 @@ class HpGooeyCommand:
 
         elif options.mountabsr:
             try:
+                bs2 = risblobstore2.BlobStore2()
                 bs2.absaroka_media_mount()
                 sys.stdout.write("Checking mounted absaroka repo...")
                 self.check_mount_path("REPO")
@@ -247,6 +257,7 @@ class HpGooeyCommand:
 
         elif options.mountgaius:
             try:
+                bs2 = risblobstore2.BlobStore2()
                 bs2.gaius_media_mount()
                 sys.stdout.write("Checking mounted gaius media...")
                 self.check_mount_path("EMBEDDED")
@@ -261,6 +272,7 @@ class HpGooeyCommand:
                     raise InvalidCommandLineErrorOPTS("")
         elif options.mountvid:
             try:
+                bs2 = risblobstore2.BlobStore2()
                 bs2.vid_media_mount()
                 sys.stdout.write("Checking mounted vid media...")
                 self.check_mount_path("VID")
@@ -272,6 +284,7 @@ class HpGooeyCommand:
                     raise InvalidCommandLineErrorOPTS("")
         elif options.mountflat:
             try:
+                bs2 = risblobstore2.BlobStore2()
                 bs2.mountflat()
                 sys.stdout.write("Checking mounted media in flat mode...")
                 self.check_flat_path()
@@ -283,6 +296,7 @@ class HpGooeyCommand:
                     raise InvalidCommandLineErrorOPTS("")
         elif options.unmountmedia:
             try:
+                bs2 = risblobstore2.BlobStore2()
                 self.osunmount(["REPO", "EMBEDDED", "VID", "BLACKBOX"])
                 bs2.media_unmount()
                 sys.stdout.write("Unmounting media...")
@@ -294,6 +308,7 @@ class HpGooeyCommand:
                     raise InvalidCommandLineErrorOPTS("")
         elif options.unmountvid:
             try:
+                bs2 = risblobstore2.BlobStore2()
                 self.osunmount(["VID"])
                 bs2.vid_media_unmount()
                 sys.stdout.write("Unmounting vid media...")
@@ -305,6 +320,7 @@ class HpGooeyCommand:
                     raise InvalidCommandLineErrorOPTS("")
         elif options.unmountabsr:
             try:
+                bs2 = risblobstore2.BlobStore2()
                 self.osunmount(["REPO"])
                 bs2.absr_media_unmount()
                 sys.stdout.write("Unmounting absaroka media...")
@@ -316,6 +332,7 @@ class HpGooeyCommand:
                     raise InvalidCommandLineErrorOPTS("")
         elif options.unmountgaius:
             try:
+                bs2 = risblobstore2.BlobStore2()
                 self.osunmount(["EMBEDDED", "VID", "BLACKBOX"])
                 bs2.gaius_media_unmount()
                 sys.stdout.write("Unmounting gaius media...")
@@ -331,7 +348,7 @@ class HpGooeyCommand:
     def local_run(self, options):
         log_dir = self.rdmc.log_dir
         bs2 = risblobstore2.BlobStore2()
-        risblobstore2.BlobStore2.initializecreds(options.user, options.password,log_dir)
+        risblobstore2.BlobStore2.initializecreds(options.user, options.password, log_dir)
         bs2.gethprestchifhandle()
 
         if options.write:
@@ -364,6 +381,8 @@ class HpGooeyCommand:
             if options.key == "birthcert":
                 blobdata = bytearray(bs2.read(options.key, options.namespace))
                 blobfiledata = self.writebirthcert(blobfiledata=blobfiledata, blobdata=blobdata, key=options.key)
+            # elif "SMARTSTART" in options.key:
+            #    blobfiledata = self.writesmartstart(blobfiledata=blobfiledata)
 
             errorcode = bs2.write(options.key, options.namespace, blobfiledata)
 
@@ -383,6 +402,8 @@ class HpGooeyCommand:
 
                 if options.key == "birthcert":
                     filedatastr = self.readbirthcert(filedatastr, options.key)
+                # elif "SMARTSTART" in options.key:
+                #    filedatastr = self.readsmartstart(filedatastr)
 
                 # if isinstance(filedatastr, bytes):
                 #    filedatastr = filedatastr.decode('utf-8', 'ignore')
@@ -460,7 +481,7 @@ class HpGooeyCommand:
         elif options.mountgaius:
             try:
                 bs2.gaius_media_mount()
-                self.rdmc.ui.printer("Checking mounted gauis media...")
+                self.rdmc.ui.printer("Checking mounted gaius media...")
                 self.check_mount_path("EMBEDDED")
                 self.rdmc.ui.printer("Done\n")
             except PartitionMoutingError:
@@ -541,49 +562,105 @@ class HpGooeyCommand:
             self.rdmc.ui.error("No command entered")
 
     def remote_read(self, path):
-        """Remote version of blob read"""
-        data = ""
+        """Remote version of blob read with enhanced logging"""
+        LOGGER.info(f"Attempting to read remote blob from path: {path}")
+
+        data = b""  # Ensure data is always a byte string
+
         resp = self.rdmc.app.get_handler(path, silent=True, service=True, uncache=True)
+        LOGGER.debug(f"Received response: status={resp.status}, length={len(resp.ori) if resp.ori else 0}")
+
+        error_msg = {
+            "hpm": "No HPM Birth Certificate found.",
+            "birthcert": "No Birth Certificate found.",
+            "smartstart": "No SMARTSTART data found.",
+        }
+
+        msg = {
+            "hpm": "Successfully read HPM Birth Certificate.",
+            "birthcert": "Successfully read Birth Certificate.",
+            "smartstart": "Successfully read SMARTSTART data.",
+        }
+
+        # Find matching key based on `path`
+        key = next((k for k in msg if k in path.lower()), None)
+
+        if key is None:
+            LOGGER.error("Invalid path. No matching key found.")
+            raise risblobstore2.BlobNotFoundError("Blob could not be found.")
+
         if resp.status == 200:
-            data = resp.ori
-            if data != b"":
-                if "hpm" in path.lower():
-                    self.rdmc.ui.printer("Successfully read HPM Birth Certificate.\n")
-                else:
-                    self.rdmc.ui.printer("Successfully read Birth Certificate.\n")
+            data = resp.ori or b""  # Ensure data remains bytes
+            if data:
+                self.rdmc.ui.printer(msg[key] + "\n")
+                LOGGER.info(msg[key])
             else:
-                if "hpm" in path.lower():
-                    raise risblobstore2.BlobNotFoundError("No HPM Birth Certificate found.\n")
-                else:
-                    raise risblobstore2.BlobNotFoundError("No Birth Certificate found.\n")
-        else:
-            raise StandardBlobErrorHandler("remote or vnic read failure")
+                LOGGER.error(error_msg[key])  # Use error logging before raising an exception
+                raise risblobstore2.BlobNotFoundError(error_msg[key])
+
+        elif resp.status == 404:
+            LOGGER.error(error_msg[key])
+            raise risblobstore2.BlobNotFoundError(error_msg[key])
 
         return data
 
     def remote_write(self, path, data):
-        """Remote version of blob write"""
-        # if isinstance(data, bytes):
-        #    data = data.decode('utf-8')
+        """Remote version of blob write with improved logging and error handling"""
+        LOGGER.info(f"Attempting to write remote blob at path: {path}")
+
+        # Ensure data is a string
+        # if isinstance(data, bytes) and "SMARTSTART" not in path:
+        #    data = data.decode("utf-8")
+
         resp = self.rdmc.app.post_handler(path, data, silent=True, service=True)
-        if resp.status == 201 or resp.status == 200:
-            if "hpm" in path.lower():
-                self.rdmc.ui.printer("Successfully written HPM Birth Certificate.\n")
-            else:
-                self.rdmc.ui.printer("Successfully written Birth Certificate.\n")
+        LOGGER.debug(f"Received response: status={resp.status}, data_length={len(data)}")
+
+        messages = {
+            "hpm": "Successfully written HPM Birth Certificate.",
+            "birthcert": "Successfully written Birth Certificate.",
+            "smartstart": "Successfully written SMARTSTART data.",
+        }
+
+        key = next((k for k in messages if k in path.lower()), None)
+
+        if resp.status in (200, 201) and key:
+            msg = messages[key]
+            self.rdmc.ui.printer(msg + "\n")
+            LOGGER.info(msg)
         else:
-            raise StandardBlobErrorHandler("remote or vnic write failure")
+            error_msg = f"Remote or vNIC write failure (status={resp.status})"
+            LOGGER.error(error_msg)
+            raise StandardBlobErrorHandler(error_msg)
 
     def remote_delete(self, path):
-        """Remote version of blob delete"""
+        """Remote version of blob delete with improved logging"""
+        LOGGER.info(f"Attempting to delete remote blob at path: {path}")
+
         resp = self.rdmc.app.delete_handler(path, silent=True, service=True)
-        if resp.status == 200:
-            if "hpm" in path.lower():
-                self.rdmc.ui.printer("Successfully deleted HPM Birth Certificate.\n")
-            else:
-                self.rdmc.ui.printer("Successfully deleted Birth Certificate.\n")
+        LOGGER.debug(f"Received response: status={resp.status}")
+
+        messages = {
+            "hpm": "Successfully deleted HPM Birth Certificate.",
+            "smartstart": "Successfully deleted SMARTSTART data.",
+            "birthcert": "Successfully deleted Birth Certificate.",
+        }
+
+        error_messages = {
+            "hpm": "HPM Birth Certificate could not be found or deleted.",
+            "smartstart": "SMARTSTART data could not be found or deleted.",
+            "birthcert": "Birth Certificate could not be found or deleted.",
+        }
+
+        key = next((k for k in messages if k in path.lower()), None)
+
+        if resp.status == 200 and key:
+            msg = messages[key]
+            self.rdmc.ui.printer(msg + "\n")
+            LOGGER.info(msg)
         else:
-            raise StandardBlobErrorHandler("remote or vnic delete failure")
+            error_msg = error_messages.get(key, "Blob could not be found or deleted.")
+            LOGGER.warning(error_msg)
+            raise risblobstore2.BlobNotFoundError(error_msg)
 
     def check_mount_path(self, label):
         """Get mount folder path."""
@@ -597,7 +674,7 @@ class HpGooeyCommand:
                         label = win32api.GetVolumeInformation(i + ":")[0]
                         if label == label:
                             abspathbb = i + ":\\"
-                            return (False, abspathbb)
+                            return False, abspathbb
                     except:
                         pass
             else:
@@ -610,12 +687,12 @@ class HpGooeyCommand:
 
                         if label in lin:
                             abspathbb = lin.split()[1]
-                            return (False, abspathbb)
+                            return False, abspathbb
 
                 if count > 3:
                     found, path = self.manualmount(label)
                     if found:
-                        return (True, path)
+                        return True, path
 
             count = count + 1
             time.sleep(1)
@@ -631,7 +708,7 @@ class HpGooeyCommand:
             for dev in context.list_devices(subsystem="block"):
                 if str(dev.get("ID_SERIAL")).startswith("HP_iLO_LUN"):
                     path = dev.get("DEVNAME")
-                    return (True, path)
+                    return True, path
 
             count = count + 1
             time.sleep(1)
@@ -658,9 +735,9 @@ class HpGooeyCommand:
                     stderr=subprocess.PIPE,
                 )
                 _, _ = pmount.communicate()
-                return (True, dirpath)
+                return True, dirpath
 
-        return (False, None)
+        return False, None
 
     def get_available_drives(self):
         """Obtain all drives"""
@@ -733,10 +810,14 @@ class HpGooeyCommand:
 
             data = filehand.read()
             filehand.close()
-            # if isinstance(blobdata, bytes):
-            #    data = blobdata.decode("utf-8")
-            # else:
-            #    data = blobdata
+        return data
+
+    def readsmartstart(self, blobdata):
+        blobio = BytesIO(blobdata)
+        filehand = gzip.GzipFile(mode="rb", fileobj=blobio)
+
+        data = filehand.read()
+        filehand.close()
         return data
 
     def writebirthcert(self, blobdata, blobfiledata, key):
@@ -751,17 +832,9 @@ class HpGooeyCommand:
         if filetype != "no match":
             raise StandardBlobErrorHandler
 
-        if key != "hpmbirthcert":
-            if "blobstore" in self.rdmc.app.redfishinst.base_url:
-                blobdataunpacked = self.readbirthcert(blobdata, key)
-            else:
-                if isinstance(blobdata, bytes):
-                    blobdataunpacked = blobdata.decode("utf-8")
-                else:
-                    blobdataunpacked = blobdata
-            totdata = self.parsebirthcert(blobdataunpacked, blobfiledata)
-        else:
-            totdata = self.parsebirthcert(None, blobfiledata)
+        blobdataunpacked = self.readbirthcert(blobdata, key)
+
+        totdata = self.parsebirthcert(blobdataunpacked, blobfiledata)
 
         databuf = BytesIO()
 
@@ -772,11 +845,32 @@ class HpGooeyCommand:
         compresseddata = databuf.getvalue()
         return compresseddata
 
+    def writesmartstart(self, blobfiledata):
+        """Compresses the given data using gzip and returns compressed data."""
+        try:
+            if not isinstance(blobfiledata, bytes):
+                blobfiledata = blobfiledata.encode("utf-8")  # Convert to bytes if not already
+
+            with BytesIO() as databuf:
+                with gzip.GzipFile(mode="wb", fileobj=databuf) as filehand:
+                    filehand.write(blobfiledata)
+
+                compressed_data = databuf.getvalue()
+
+            LOGGER.info(
+                f"Successfully compressed data. Original size: {len(blobfiledata)}, Compressed size: {len(compressed_data)}"
+            )
+            return compressed_data
+
+        except Exception as e:
+            LOGGER.error(f"Failed to compress data: {str(e)}", exc_info=True)
+            raise  # Re-raise the exception
+
     def parsebirthcert(self, blobdataunpacked=None, blobfiledata=None):
         """Parse birth certificate function."""
         filedata = StringIO(blobfiledata)
         if blobdataunpacked:
-            if isinstance(blobdataunpacked, bytes):
+            if isinstance(blobdataunpacked, bytes) or isinstance(blobdataunpacked, bytearray):
                 blobdataunpacked = blobdataunpacked.decode("utf-8")
             readdata = StringIO(blobdataunpacked)
 

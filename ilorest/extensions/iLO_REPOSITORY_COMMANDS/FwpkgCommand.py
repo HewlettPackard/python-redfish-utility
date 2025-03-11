@@ -15,11 +15,10 @@
 # ##
 
 # -*- coding: utf-8 -*-
-""" Fwpkg Command for rdmc """
+"""Fwpkg Command for rdmc"""
 
 import os
 import json
-import sys
 from random import randint
 import shutil
 import zipfile
@@ -41,7 +40,6 @@ try:
         UploadError,
         TaskQueueError,
         FirmwareUpdateError,
-        UploadPowerOffError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -168,7 +166,7 @@ class FwpkgCommand:
             )
 
         try:
-            components, tempdir, comptype, _ = self.preparefwpkg(self, options.fwpkg, options)
+            components, tempdir, comptype, _ = self.preparefwpkg(self, options.fwpkg)
             if comptype == "D":
                 LOGGER.error("Component Type D, Unable to flash this fwpkg file.")
                 raise InvalidFileInputError("Unable to flash this fwpkg file.")
@@ -260,9 +258,6 @@ class FwpkgCommand:
 
         except (FirmwareUpdateError, UploadError) as excp:
             raise excp
-        except UploadPowerOffError:
-            self.rdmc.ui.error("Server power is On,Kindly Power Off the server,to be able to flash the B- component \n")
-            return ReturnCodes.UPLOAD_POWEROFF_ERROR
 
         finally:
             if tempdir:
@@ -309,20 +304,7 @@ class FwpkgCommand:
                 "are finished processing. Use the taskqueue command to monitor updates.\n"
             )
 
-    def is_ripcord(self):
-        chassis_path = "/redfish/v1/Chassis/1/"
-        chassis_info = self.rdmc.app.get_handler(chassis_path, silent=True)
-        if (
-            chassis_info.obj["SKU"] == "RIPCORD"
-            or "Gen12" in chassis_info.obj["Model"]
-            or "DL340" in chassis_info.obj["Model"]
-            or "DL320" in chassis_info.obj["Model"]
-        ):
-            return True
-        else:
-            return False
-
-    def get_comp_type(self, payload, cmdname, targetupdate):
+    def get_comp_type(self, payload):
         """Get's the component type and returns it
 
         :param payload: json payload of .fwpkg file
@@ -380,58 +362,69 @@ class FwpkgCommand:
                         )
                     raise IncompatibleiLOVersionError(error_msg)
         else:
-            b_minus_flag = False
             for device in payload["Devices"]["Device"]:
                 for image in device["FirmwareImages"]:
-                    if "DirectFlashOk" not in list(image.keys()):
+                    flash_key = next((key for key in image.keys() if key.lower() == "directflashok"), None)
+
+                    if flash_key is None:
                         raise InvalidFileInputError("Cannot flash this firmware.")
-                    if "ServerPowerOff" in image and image["ServerPowerOff"]:
-                        b_minus_flag = True
-                    if not b_minus_flag:
-                        if image["DirectFlashOk"]:
-                            ctype = "A"
-                            if image["ResetRequired"]:
-                                ctype = "B"
-                                break
-                        elif image["UefiFlashable"]:
-                            ctype = "C"
-                            break
-                        else:
-                            ctype = "D"
-                    elif b_minus_flag and cmdname == "uploadcomp" and not targetupdate:
-                        if image["DirectFlashOk"]:
-                            ctype = "A"
-                            if image["ResetRequired"]:
-                                ctype = "B"
-                                break
-                        elif image["UefiFlashable"]:
-                            ctype = "C"
-                            break
-                        else:
-                            ctype = "D"
-
-                    else:
-                        systems_path = "/redfish/v1/Systems/1/"
-                        systems_info = self.rdmc.app.get_handler(systems_path, silent=True)
-                        if systems_info.obj["PowerState"] == "On" and not (
-                            self.is_ripcord() and "U69" in image["FileName"]
-                        ):
-                            raise UploadPowerOffError(
-                                "Server power is On, Kindly power off the server to be able to be flash the B- component on the server \n"
-                            )
-
-                        else:
-                            if self.is_ripcord() and "U69" in image["FileName"]:
-                                LOGGER.info(
-                                    "Flashing the B- Bios component , Please perform cold reboot of the server for iLO to complete the flashing ."
-                                )
+                    if flash_key and image[flash_key]:
+                        ctype = "A"
+                        if image["ResetRequired"]:
                             ctype = "B"
-                    b_minus_flag = False
+                            break
+                    elif image["UefiFlashable"]:
+                        ctype = "C"
+                        break
+                    else:
+                        ctype = "D"
         LOGGER.info("Component Type identified is {}".format(ctype))
         return ctype
 
     @staticmethod
-    def preparefwpkg(self, pkgfile, options):
+    def check_decoupled(self, pkgfile):
+        """check for decoupled json
+
+        :param pkgfile: Location of the .fwpkg file
+        :type pkgfile: string.
+        :returns: returns the flag for flashing and decoupling
+        :rtype: bool, bool, string
+        """
+        if os.path.dirname(pkgfile):  # This means it's not just a file name
+            base_dir = os.path.dirname(pkgfile)
+            package_file = os.path.basename(pkgfile)
+        else:
+            base_dir = os.getcwd()
+            package_file = pkgfile
+
+        package_name, _ = os.path.splitext(package_file)
+
+        # Construct the expected path for the JSON file
+        json_file_name = f"{package_name}.json"
+        json_file_path = os.path.join(base_dir, json_file_name)
+
+        # List all files in the base directory and check for a case-insensitive match
+        decoupled_flag = False
+        payload_file = None
+
+        # List all files in the base directory
+        files_in_dir = os.listdir(base_dir)
+
+        # Check if any file in the directory matches the JSON file name case-insensitively
+        for file in files_in_dir:
+            if file.lower() == json_file_name.lower():
+                # File found, set flag and read the file
+                decoupled_flag = True
+                json_file_path = os.path.join(base_dir, file)  # Update json_file_path to match the case of the file
+                with open(json_file_path, "r", encoding="utf-8") as json_file:
+                    payload_file = json.load(json_file)
+                break  # Exit once the file is found
+
+        # If the file was not found , decoupled_flag remains False
+        return decoupled_flag, payload_file
+
+    @staticmethod
+    def preparefwpkg(self, pkgfile):
         """Prepare fwpkg file for flashing
 
         :param pkgfile: Location of the .fwpkg file
@@ -446,42 +439,41 @@ class FwpkgCommand:
         tempdir = tempfile.mkdtemp()
         pldmflag = False
         pkgfile_l = pkgfile.lower()
-        target = False
-        if "update_target" in options:
-            if options.update_target:
-                target = True
-            else:
-                target = False
-
         if (
             not pkgfile_l.endswith(".fup")
             and not pkgfile_l.endswith(".hpb")
             and not pkgfile_l.endswith(".bin")
             and not pkgfile_l.endswith(".pup")
         ):
-            try:
-                zfile = zipfile.ZipFile(pkgfile)
-                zfile.extractall(tempdir)
-                zfile.close()
-            except Exception as excp:
-                raise InvalidFileInputError("Unable to unpack file. " + str(excp))
+            decoupled_flag, payload_file = self.auxcommands["flashfwpkg"].check_decoupled(self, pkgfile)
+            if not decoupled_flag:
+                try:
+                    zfile = zipfile.ZipFile(pkgfile)
+                    zfile.extractall(tempdir)
+                    zfile.close()
+                except Exception as excp:
+                    raise InvalidFileInputError("Unable to unpack file. " + str(excp))
 
-            files = os.listdir(tempdir)
+                files = os.listdir(tempdir)
 
-            if "payload.json" in files:
-                with open(os.path.join(tempdir, "payload.json"), encoding="utf-8") as pfile:
-                    data = pfile.read()
-                payloaddata = json.loads(data)
+                if "payload.json" in files:
+                    with open(os.path.join(tempdir, "payload.json"), encoding="utf-8") as pfile:
+                        data = pfile.read()
+                    payloaddata = json.loads(data)
+                else:
+                    raise InvalidFileInputError(
+                        "Invalid FWPKG component due to missing component metadata. \nPlease download the json file "
+                        "along with FWPKG component or provide FWPKG component having payload.json file"
+                    )
             else:
-                raise InvalidFileInputError("Unable to find payload.json in fwpkg file.")
-
+                payloaddata = payload_file
         if (
             not pkgfile_l.endswith(".fup")
             and not pkgfile_l.endswith(".hpb")
             and not pkgfile_l.endswith(".bin")
             and not pkgfile_l.endswith(".pup")
         ):
-            comptype = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata, self.cmdbase.name, target)
+            comptype = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata)
         else:
             comptype = "A"
 
@@ -601,6 +593,9 @@ class FwpkgCommand:
             if options.update_srs:
                 LOGGER.info("Setting --update_srs to store as recovery set.")
                 uploadcommand += " --update_srs"
+            if options.response:
+                LOGGER.info("Setting --response for extended UpdateService Status")
+                uploadcommand += " --response"
             if options.tover:
                 LOGGER.info("Setting --tpmover if tpm enabled.")
                 uploadcommand += " --tpmover"
@@ -723,6 +718,13 @@ class FwpkgCommand:
             action="store_true",
             help="Add this flag to update the System Recovery Set with the uploaded firmware. "
             "NOTE: This requires an account login with the system recovery set privilege.",
+            default=False,
+        )
+        customparser.add_argument(
+            "--response",
+            dest="response",
+            action="store_true",
+            help="Use this flag to return the iLO response body.",
             default=False,
         )
         customparser.add_argument(

@@ -192,7 +192,11 @@ class SaveCommand:
             if options.selector.lower() == "bios." or "bios.v" in options.selector.lower():
                 config_path = ["/redfish/v1/systems/1/bios/settings/"]
             elif options.selector.lower() == "bios":
-                config_path = ["/redfish/v1/systems/1/bios/settings/", "/redfish/v1/systems/1/bios/mappings/"]
+                config_path = [
+                    "/redfish/v1/systems/1/bios/settings/",
+                    "/redfish/v1/systems/1/bios/mappings/",
+                    "/redfish/v1/systems/1/bios/oem/hpe/mappings/",
+                ]
             elif "hpbaseconfigs" in options.selector.lower() or "hpebaseconfigs" in options.selector.lower():
                 config_path = [
                     "/redfish/v1/systems/1/bios/oem/hpe/baseconfigs/",
@@ -210,6 +214,8 @@ class SaveCommand:
                     "/redfish/v1/systems/1/bios/kmsconfig/baseconfigs/",
                     "/redfish/v1/systems/1/bios/boot/baseconfigs/",
                 ]
+            elif "hpebiosmapping" in options.selector.lower():
+                config_path = ["/redfish/v1/systems/1/bios/mappings", "/redfish/v1/systems/1/bios/oem/hpe/mappings/"]
             result = None
             for b in config_path:
                 try:

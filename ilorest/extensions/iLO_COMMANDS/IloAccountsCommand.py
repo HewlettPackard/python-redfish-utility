@@ -283,11 +283,21 @@ class IloAccountsCommand:
                 if any(
                     priv for priv in options.optprivs if "SystemRecoveryConfigPriv" in priv
                 ) and "SystemRecoveryConfigPriv" not in list(self.getsesprivs().keys()):
-                    raise IdTokenError(
+                    excp = IdTokenError()
+                    note_msg = ""
+                    if self.rdmc.app.getiloversion(skipschemas=True) >= 7:
+                        note_msg = (
+                            "Note: If you have logged into iLO using appaccount, "
+                            "this is an expected behaviour. Please log in through "
+                            "--no_app_account with a privileged user credentials to proceed.\n"
+                        )
+                    error_msg = (
                         "The currently logged in account must have The System "
                         "Recovery Config privilege to add the System Recovery "
-                        "Config privilege."
+                        "Config privilege.\n" + note_msg
                     )
+                    excp.message = error_msg
+                    raise excp
                 privs = self.getprivs(options)
                 body["Oem"][self.rdmc.app.typepath.defs.oemhp]["Privileges"] = privs
 
@@ -312,10 +322,20 @@ class IloAccountsCommand:
             if self.rdmc.app.typepath.defs.isgen9:
                 IncompatibleiLOVersionError("This operation is only available on gen 10 " "and newer machines.")
             elif not privs["UserConfigPriv"]:
-                raise IdTokenError(
+                excp = IdTokenError()
+                note_msg = ""
+                if self.rdmc.app.getiloversion(skipschemas=True) >= 7:
+                    note_msg = (
+                        "Note: If you have logged into iLO using appaccount, "
+                        "this is an expected behaviour. Please log in through "
+                        "--no_app_account with a privileged user credentials to proceed.\n"
+                    )
+                error_msg = (
                     "The currently logged in account must have The User "
-                    "Config privilege to manage certificates for users."
+                    "Config privilege to manage certificates for users.\n" + note_msg
                 )
+                excp.message = error_msg
+                raise excp
             else:
                 if options.command.lower() == "addcert":
                     if not acct:
@@ -356,10 +376,20 @@ class IloAccountsCommand:
         availableprivs = self.getsesprivs(availableprivsopts=True)
 
         if "UserConfigPriv" not in list(sesprivs.keys()):
-            raise IdTokenError(
+            excp = IdTokenError()
+            note_msg = ""
+            if self.rdmc.app.getiloversion(skipschemas=True) >= 7:
+                note_msg = (
+                    "Note: If you have logged into iLO using appaccount, "
+                    "this is an expected behaviour. Please log in through "
+                    "--no_app_account with a privileged user credentials to proceed.\n"
+                )
+            error_msg = (
                 "The currently logged in account does not have the User Config "
-                "privilege and cannot add or modify user accounts."
+                "privilege and cannot add or modify user accounts.\n" + note_msg
             )
+            excp.message = error_msg
+            raise excp
 
         if options.optprivs:
             for priv in options.optprivs:
@@ -372,11 +402,21 @@ class IloAccountsCommand:
                     any(priv for priv in options.optprivs if "SystemRecoveryConfigPriv" in priv)
                     and "SystemRecoveryConfigPriv" not in sesprivs.keys()
                 ):
-                    raise IdTokenError(
+                    excp = IdTokenError()
+                    note_msg = ""
+                    if self.rdmc.app.getiloversion(skipschemas=True) >= 7:
+                        note_msg = (
+                            "Note: If you have logged into iLO using appaccount, "
+                            "this is an expected behaviour. Please log in through "
+                            "--no_app_account with a privileged user credentials to proceed.\n"
+                        )
+                    error_msg = (
                         "The currently logged in account must have The System "
                         "Recovery Config privilege to add the System Recovery "
-                        "Config privilege."
+                        "Config privilege.\n" + note_msg
                     )
+                    excp.message = error_msg
+                    raise excp
                 else:
                     setprivs = {}
             for priv in options.optprivs:

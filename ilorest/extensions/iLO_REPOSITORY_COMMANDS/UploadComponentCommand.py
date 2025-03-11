@@ -15,7 +15,7 @@
 # ##
 
 # -*- coding: utf-8 -*-
-""" Upload Component Command for rdmc """
+"""Upload Component Command for rdmc"""
 
 import os
 import json
@@ -46,6 +46,7 @@ from redfish.hpilo.risblobstore2 import BlobStore2
 
 try:
     from rdmc_helper import (
+        UI,
         LOGGER,
         ReturnCodes,
         InvalidCommandLineErrorOPTS,
@@ -53,10 +54,10 @@ try:
         IncompatibleiLOVersionError,
         TimeOutError,
         InvalidFileInputError,
-        UploadPowerOffError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
+        UI,
         LOGGER,
         ReturnCodes,
         InvalidCommandLineErrorOPTS,
@@ -104,6 +105,7 @@ class UploadComponentCommand:
         self.cmdbase = None
         self.rdmc = None
         self.auxcommands = dict()
+        self.status_content = {}
 
     def run(self, line, help_disp=False):
         """Wrapper function for upload command main function
@@ -134,13 +136,7 @@ class UploadComponentCommand:
             or options.component.endswith(".pup")
         ):
             fwpkg = True
-            try:
-                comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(self, options.component, options)
-            except UploadPowerOffError:
-                self.rdmc.ui.error(
-                    "Server power is On,Kindly Power Off the server,to be able to flash the B- component \n"
-                )
-                return ReturnCodes.UPLOAD_POWEROFF_ERROR
+            comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(self, options.component)
             # if pldm firmware
             if pldmfw:
                 path = self.rdmc.app.typepath.defs.systempath
@@ -173,6 +169,7 @@ class UploadComponentCommand:
                 ret = self.uploadfunction(filestoupload, options)
 
             if ret == ReturnCodes.SUCCESS and not options.update_target:
+
                 self.rdmc.ui.printer("Uploading took %s\n" % human_readable_time(time.time() - start_time))
 
             if len(filestoupload) > 1:
@@ -188,6 +185,7 @@ class UploadComponentCommand:
             ret = ReturnCodes.SUCCESS
         else:
             ret = ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
+
         self.cmdbase.logout_routine(self, options)
         # Return code
         return ret
@@ -460,10 +458,26 @@ class UploadComponentCommand:
                     self.rdmc.ui.printer("Component " + filename + " flashing successfully.\n")
 
             if not self.wait_for_state_change():
+                if options.response:
+                    self.rdmc.ui.printer("UpdateService Status:")
+                    UI().print_out_json(self.status_content)
+                LOGGER.info("\nUpdate Service Status: {}".format(self.status_content))
                 # Failed to upload the component.
                 raise UploadError("Error while processing the component.")
 
+        if options.response:
+            self.rdmc.ui.printer("UpdateService Status:")
+            UI().print_out_json(self.status_content)
+        LOGGER.info("\nUpdate Service Status: {}".format(self.status_content))
+
         return ReturnCodes.SUCCESS
+
+    def get_update_service_status(self, result):
+        if "Result" in result["Oem"]["Hpe"]:
+            res = "MessageId:" + result["Oem"]["Hpe"]["Result"]["MessageId"]
+            complete_res = "{" + res + "}"
+            self.status_content["Result"] = complete_res
+        self.status_content["State"] = (result["Oem"]["Hpe"]["State"]).upper()
 
     def wait_for_state_change(self, wait_time=4800):
         """Wait for the iLO UpdateService to a move to terminal state.
@@ -473,14 +487,16 @@ class UploadComponentCommand:
         :type wait_time: int.
         """
         total_time = 0
+        result = dict()
         spinner = ["|", "/", "-", "\\"]
         state = ""
         self.rdmc.ui.printer("Waiting for iLO UpdateService to finish processing the component\n")
 
         while total_time < wait_time:
-            state, _ = self.get_update_service_state()
+            state, result = self.get_update_service_state()
 
             if state == "ERROR":
+                self.get_update_service_status(result)
                 return False
             elif state != "COMPLETED" and state != "IDLE" and state != "COMPLETE":
                 # Lets try again after 8 seconds
@@ -494,6 +510,7 @@ class UploadComponentCommand:
 
                 total_time += 8
             else:
+                self.get_update_service_status(result)
                 break
 
         if total_time > wait_time:
@@ -673,6 +690,10 @@ class UploadComponentCommand:
                     self.rdmc.ui.printer("[200] The operation completed successfully.\n")
                     if not options.update_target:
                         if not self.wait_for_state_change():
+                            if options.response:
+                                self.rdmc.ui.printer("UpdateService Status:")
+                                UI().print_out_json(self.status_content)
+                            LOGGER.info("\nUpdate Service Status: {}".format(self.status_content))
                             # Failed to upload the component.
                             raise UploadError("Error while processing the component.")
 
@@ -691,6 +712,15 @@ class UploadComponentCommand:
         except Exception as excep:
             LOGGER.error("Exception occured, {}".format(excep))
             raise excep
+
+        if options.response:
+            path = "/redfish/v1/UpdateService"
+            results = self.rdmc.app.get_handler(path, service=True, silent=True)
+            res = results.dict
+            self.get_update_service_status(res)
+            self.rdmc.ui.printer("UpdateService Status:")
+            UI().print_out_json(self.status_content)
+        LOGGER.info("\nUpdate Service Status: {}".format(self.status_content))
 
         if upload_failed:
             return ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
@@ -760,6 +790,13 @@ class UploadComponentCommand:
             help="Optionally include this flag if you wish to change the"
             " displayed output to JSON format. Preserving the JSON data"
             " structure makes the information easier to parse.",
+            default=False,
+        )
+        customparser.add_argument(
+            "--response",
+            dest="response",
+            action="store_true",
+            help="Use this flag to return the iLO response body.",
             default=False,
         )
         customparser.add_argument(

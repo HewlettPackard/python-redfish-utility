@@ -90,6 +90,12 @@ class IloLicenseCommand:
         if options.check_license:
             self.check_license(options, path)
             return ReturnCodes.SUCCESS
+        if options.confirm:
+            res = self.confirm_license(options, path)
+            if res:
+                return ReturnCodes.SUCCESS
+            else:
+                return ReturnCodes.ILO_LICENSE_ERROR
         if options.check_state:
             if self.rdmc.app.typepath.defs.isgen10:
                 result = self.get_license(options, path)
@@ -212,6 +218,34 @@ class IloLicenseCommand:
         else:
             self.rdmc.ui.printer("Feature supported only on gen 10 and above\n")
 
+    def confirm_license(self, options, path):
+        """
+        Confirm and Displays the license
+        """
+        uri = path + "1" + "/Actions/HpeiLOLicense.ConfirmLicense"
+        contentsholder = {}
+        if options.issueto:
+            contentsholder["IssuedTo"] = options.issueto
+        try:
+            if self.rdmc.opts.verbose:
+                self.rdmc.ui.printer("HpeiLOLicense path and payload: %s, %s\n" % (uri, contentsholder))
+            results = self.rdmc.app.post_handler(uri, contentsholder)
+            if results.status == 200:
+                self.rdmc.ui.printer("iLO License successfully confirmed.\n")
+                return True
+            else:
+                self.rdmc.ui.printer(
+                    "iLO License confirmation failed. "
+                    "Kindly check if the iLO is in factory mode or the license is advanced.\n"
+                )
+                return False
+        except:
+            self.rdmc.ui.printer(
+                "iLO License confirmation failed. "
+                "Kindly check if the iLO is in factory mode or the license is advanced.\n"
+            )
+            return False
+
     def get_license(self, options, path):
         """
         Gets the license
@@ -268,4 +302,16 @@ class IloLicenseCommand:
             dest="check_state",
             action="store_true",
             help="Checks the confirmed state and displays it",
+        )
+        customparser.add_argument(
+            "--confirm",
+            dest="confirm",
+            action="store_true",
+            help="Confirms the license",
+        )
+        customparser.add_argument(
+            "--issueto",
+            dest="issueto",
+            help="Confirms the license for issuer",
+            default=None,
         )

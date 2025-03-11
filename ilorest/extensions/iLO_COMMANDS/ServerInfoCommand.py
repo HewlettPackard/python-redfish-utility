@@ -133,10 +133,11 @@ class ServerInfoCommand:
                 except:
                     pass
                 if csysresults:
-                    info["system"]["Model"] = "%s %s" % (
+                    text = "%s %s" % (
                         csysresults["Manufacturer"],
                         csysresults["Model"],
                     )
+                    info["system"]["Model"] = re.sub(r"^(HPE)\s+\1\s+", r"\1 ", text)
                     info["system"]["Bios Version"] = csysresults["BiosVersion"]
 
                 biosresults = self.rdmc.app.select(selector=self.rdmc.app.typepath.defs.biostype)
@@ -359,7 +360,7 @@ class ServerInfoCommand:
                 if match.value.lower() == "absent":
                     arr = None
                     statepath = "/" + str(match.full_path).replace(".", "/")
-                    arr = re.split("[[]]", statepath)
+                    arr = re.split(r"[\[\]]", statepath)
                     if arr:
                         removedict = None
                         start = arr[0].split("/")
@@ -764,6 +765,7 @@ class ServerInfoCommand:
             self.rdmc.ui.printer(output, verbose_override=True)
 
         if "processor" in headers and info["processor"]:
+
             output = ""
             data = info["processor"]
             output = "------------------------------------------------\n"
@@ -774,9 +776,9 @@ class ServerInfoCommand:
                     for processor in data:
                         output += "Processor %s:\n" % processor["Id"]
                         output += "\tModel: %s\n" % processor["Model"]
-                        output += "\tStep: %s\n" % processor["ProcessorId"]["Step"]
-                        output += "\tSocket: %s\n" % processor["Socket"]
-                        output += "\tMax Speed: %s MHz\n" % processor["MaxSpeedMHz"]
+                        output += "\tStep: %s\n" % processor.get("ProcessorId", {}).get("Step", "NA")
+                        output += "\tSocket: %s\n" % processor.get("Socket", "NA")
+                        output += "\tMax Speed: %s MHz\n" % processor.get("MaxSpeedMHz", "NA")
                         try:
                             output += (
                                 "\tSpeed: %s MHz\n"
@@ -784,8 +786,8 @@ class ServerInfoCommand:
                             )
                         except KeyError:
                             pass
-                        output += "\tCores: %s\n" % processor["TotalCores"]
-                        output += "\tThreads: %s\n" % processor["TotalThreads"]
+                        output += "\tCores: %s\n" % processor.get("TotalCores", "NA")
+                        output += "\tThreads: %s\n" % processor.get("TotalThreads", "NA")
                         try:
                             for cache in processor["Oem"][self.rdmc.app.typepath.defs.oemhp]["Cache"]:
                                 output += "\t%s: %s KB\n" % (
@@ -815,8 +817,8 @@ class ServerInfoCommand:
                         output += "\tSpeed: %s MHz\n" % data["Oem"][self.rdmc.app.typepath.defs.oemhp]["RatedSpeedMHz"]
                     except KeyError:
                         pass
-                    output += "\tCores: %s\n" % data["TotalCores"]
-                    output += "\tThreads: %s\n" % data["TotalThreads"]
+                    output += "\tCores: %s\n" % data.get("TotalCores", "NA")
+                    output += "\tThreads: %s\n" % data.get("TotalThreads", "NA")
                     try:
                         for cache in data["Oem"][self.rdmc.app.typepath.defs.oemhp]["Cache"]:
                             output += "\t%s: %s KB\n" % (

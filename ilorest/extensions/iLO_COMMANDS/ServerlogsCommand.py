@@ -167,6 +167,7 @@ class ServerlogsCommand:
         :param options: command line options
         :type options: list.
         """
+        ilover = self.rdmc.app.getiloversion()
         if not options.service:
             raise InvalidCommandLineError("Please select a log type using the --selectlog option.")
 
@@ -182,6 +183,7 @@ class ServerlogsCommand:
             options.service.lower() == "ahs"
             and (not self.rdmc.app.typepath.url or self.rdmc.app.typepath.url.startswith("blobstore"))
             and not options.clearlog
+            and ilover < 7
         ):
             if options.customiseAHS is not None:
                 current_date = str(datetime.datetime.now()).split()[0]
@@ -193,7 +195,12 @@ class ServerlogsCommand:
             self.downloadahslocally(options=options)
             return
         elif options.service.lower() == "ahs":
-            path = self.returnahspath(options)
+            if ilover >= 7 and self.rdmc.app.typepath.url.startswith("blobstore"):
+                raise InvalidCommandLineError(
+                    "Download of AHS is not supported via chif in iLO7.\n" "Kindly re-login with VNIC and re execute.\n"
+                )
+            else:
+                path = self.returnahspath(options)
         else:
             raise InvalidCommandLineError("Log opted does not exist!")
 

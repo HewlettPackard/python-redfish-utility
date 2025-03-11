@@ -286,11 +286,17 @@ class ServerCloneCommand:
             self.gatherandsavefunction(self.getilotypes(options), options)
         elif self.load:
             self._fdata = self.file_handler(self.clone_file, operation="r+", options=options)
-            data = self._fdata["#ManagerAccount.v1_3_0.ManagerAccount"]
-            if "#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup" in self._fdata:
-                fed_data = self._fdata["#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup"]
-            else:
-                fed_data = dict()
+            # data = self._fdata["#ManagerAccount.v1_3_0.ManagerAccount"]
+            # if "#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup" in self._fdata:
+            #     fed_data = self._fdata["#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup"]
+            # else:
+            #     fed_data = dict()
+            fed_data = dict()
+            for key in self._fdata:
+                if "ManagerAccount" in key:
+                    data = self._fdata[key]
+                if "HpeiLOFederationGroup" in key:
+                    fed_data = self._fdata[key]
             user_counter = 0
             fed_counter = 0
             if options.all:
@@ -761,14 +767,37 @@ class ServerCloneCommand:
 
         self._fdata = self.file_handler(self.clone_file, operation="r+", options=options)
         self.loadhelper(options)
-        self.load_idleconnectiontime(options)
-        data = self._fdata["#ManagerAccount.v1_3_0.ManagerAccount"]
-        if "#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup" in self._fdata:
-            fed_data = self._fdata["#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup"]
+        if self.rdmc.app.getiloversion() < 7:
+            self.load_idleconnectiontime(options)
+        # data = self._fdata["#ManagerAccount.v1_3_0.ManagerAccount"]
+        # if "#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup" in self._fdata:
+        #     fed_data = self._fdata["#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup"]
+        #     for fedkey in fed_data.items():
+        #         self.load_federation(
+        #             fedkey[1],
+        #             "#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup",
+        #             "/redfish/v1/Managers/1/FederationGroups",
+        #             options,
+        #         )
+        # else:
+        #     self.rdmc.ui.printer("No federation accounts to load\n")
+        #     pass
+        fed_data = dict()
+        federation_key = None
+        data = dict()
+        manager_key = None
+        for key in self._fdata:
+            if "ManagerAccount" in key:
+                data = self._fdata[key]
+                manager_key = key
+            if "HpeiLOFederationGroup" in key:
+                fed_data = self._fdata[key]
+                federation_key = key
+        if fed_data:
             for fedkey in fed_data.items():
                 self.load_federation(
                     fedkey[1],
-                    "#HpeiLOFederationGroup.v2_0_0.HpeiLOFederationGroup",
+                    federation_key,
                     "/redfish/v1/Managers/1/FederationGroups",
                     options,
                 )
@@ -776,9 +805,7 @@ class ServerCloneCommand:
             self.rdmc.ui.printer("No federation accounts to load\n")
             pass
         for useracct in data.items():
-            self.load_accounts(
-                useracct[1], "#ManagerAccount.v1_3_0.ManagerAccount", "/redfish/v1/AccountService/Accounts", options
-            )
+            self.load_accounts(useracct[1], manager_key, "/redfish/v1/AccountService/Accounts", options)
 
         self.loadpatch(options)
         self.getsystemstatus(options)
@@ -1465,10 +1492,16 @@ class ServerCloneCommand:
             else:
                 data = json.load(file_handle)
             # data = json.load(file_handle, encoding='cp1252')
-            idle_con = data["#Manager.v1_5_1.Manager"]["/redfish/v1/Managers/1/"]["Oem"]["Hpe"][
-                "IdleConnectionTimeoutMinutes"
-            ]
-            serialclispeed = data["#Manager.v1_5_1.Manager"]["/redfish/v1/Managers/1/"]["Oem"]["Hpe"]["SerialCLISpeed"]
+            # idle_con = data["#Manager.v1_5_1.Manager"]["/redfish/v1/Managers/1/"]["Oem"]["Hpe"][
+            #     "IdleConnectionTimeoutMinutes"
+            # ]
+            # serialclispeed = data["#Manager.v1_5_1.Manager"]["/redfish/v1/Managers/1/"]["Oem"]["Hpe"]["SerialCLISpeed"]
+            idle_con = None
+            serialclispeed = None
+            for key in data:
+                if "Manager.v" in key:
+                    idle_con = data[key]["/redfish/v1/Managers/1/"]["Oem"]["Hpe"]["IdleConnectionTimeoutMinutes"]
+                    serialclispeed = data[key]["/redfish/v1/Managers/1/"]["Oem"]["Hpe"]["SerialCLISpeed"]
             idle_val.append(idle_con)
             cli_val.append(serialclispeed)
         for _t in self._fdata:
@@ -2192,8 +2225,12 @@ class ServerCloneCommand:
         try:
             curr_sys_info = self.rdmc.app.create_save_header()["Comments"]
             curr_ilorev = format(float(self.curr_ilorev[0] + "." + self.curr_ilorev[1:]), ".2f")
-            _, file_iloversion, file_ilorev = sys_info["iLOVersion"].split(" ")
-            file_ilorev = file_ilorev.split("v")[-1]
+            if self.rdmc.app.getiloversion() >= 7:
+                file_ilorev, file_iloversion ,_ ,_ = sys_info["iLOVersion"].split(" ")
+                file_iloversion = self.curr_iloversion
+            else:
+                _, file_iloversion, file_ilorev = sys_info["iLOVersion"].split(" ")
+                file_ilorev = file_ilorev.split("v")[-1]
             self.rdmc.ui.printer("This system has iLO Version %s. \n" % curr_sys_info["iLOVersion"])
             self.rdmc.ui.printer("This system has BIOS Version %s.\n" % curr_sys_info["BIOSFamily"])
             if curr_sys_info["BIOSFamily"] == sys_info["BIOSFamily"]:

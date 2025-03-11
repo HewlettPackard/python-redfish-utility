@@ -19,6 +19,8 @@
 from collections import OrderedDict
 
 import six
+import logging
+import re
 
 import redfish.ris
 from redfish.ris.utils import iterateandclear
@@ -43,6 +45,8 @@ try:
     from rdmc_helper import HARDCODEDLIST
 except:
     from ilorest.rdmc_helper import HARDCODEDLIST
+
+LOGGER = logging.getLogger(__name__)
 
 
 class GetCommand:
@@ -176,11 +180,14 @@ class GetCommand:
         try:
             if "securityservice" in self.rdmc.app.selector.lower():
                 url = "/redfish/v1/Managers/1/SecurityService/"
+                LOGGER.info("Fetching SecurityService data from: %s", url)
                 contents = self.rdmc.app.get_handler(url, service=True, silent=True).dict
                 security_contents = []
                 if not args and not options.json:
+                    LOGGER.debug("Printing human-readable security service data.")
                     UI().print_out_human_readable(contents)
                 elif options and options.json and contents:
+                    LOGGER.debug("Printing JSON security service data.")
                     UI().print_out_json(contents)
                 else:
                     attr = args[0]
@@ -189,7 +196,9 @@ class GetCommand:
                 if security_contents:
                     UI().print_out_human_readable(security_contents)
             else:
+                LOGGER.debug("Handling general selector case.")
                 if "selector" in options:
+                    LOGGER.info("Fetching properties with selector: %s", options.selector)
                     contents = self.rdmc.app.getprops(
                         props=args,
                         remread=readonly,
@@ -198,16 +207,19 @@ class GetCommand:
                         insts=instances,
                     )
                 else:
+                    LOGGER.info("Fetching properties without selector.")
                     contents = self.rdmc.app.getprops(
                         props=args, remread=readonly, nocontent=nocontent, insts=instances
                     )
             uselist = False if readonly else uselist
         except redfish.ris.rmc_helper.EmptyRaiseForEAFP:
+            LOGGER.error("EmptyRaiseForEAFP exception encountered, retrying getprops without remread.")
             contents = self.rdmc.app.getprops(props=args, nocontent=nocontent)
         for ind, content in enumerate(contents):
             if "bios." in self.rdmc.app.selector.lower() and "Attributes" in list(content.keys()):
                 content.update(content["Attributes"])
                 del content["Attributes"]
+                LOGGER.debug("Flattened BIOS attributes in response.")
             contents[ind] = OrderedDict(sorted(list(content.items()), key=lambda x: x[0]))
         if len(args) > 0 and "Members" in args[0]:
             uselist = False
@@ -215,13 +227,16 @@ class GetCommand:
             for item in contents:
                 self.removereserved(item)
         if results:
+            LOGGER.info("Returning retrieved contents.")
             return contents
 
         contents = contents[0] if len(contents) == 1 else contents
 
         if options and options.json and contents:
+            LOGGER.debug("Printing output in JSON format.")
             UI().print_out_json(contents)
         elif contents:
+            LOGGER.debug("Printing output in human-readable format.")
             UI().print_out_human_readable(contents)
         else:
             try:
@@ -231,11 +246,29 @@ class GetCommand:
                 strtoprint = ", ".join(str(val) for val in nocontent)
                 if not strtoprint and arg:
                     strtoprint = arg
+                    LOGGER.error("No contents found for entry: %s", strtoprint)
                     raise NoContentsFoundForOperationError("No get contents found for entry: %s" % strtoprint)
                 else:
+                    LOGGER.error("No contents found for selected type.")
                     raise NoContentsFoundForOperationError("No get contents found for " "selected type.")
         if options.logout:
+            LOGGER.info("Logging out.")
             self.auxcommands["logout"].run("")
+
+    def find_key_recursive(self, data, target_key):
+        """Recursively searches for a key in a nested dictionary (case-insensitive) and returns its value(s)."""
+        target_key_lower = target_key.lower()  # Convert target_key to lowercase for case-insensitive matching
+
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if key.lower() == target_key_lower:  # Convert dictionary key to lowercase before comparison
+                    yield value  # Use yield to return multiple matches
+                elif isinstance(value, (dict, list)):
+                    yield from self.find_key_recursive(value, target_key)
+
+        elif isinstance(data, list):
+            for item in data:
+                yield from self.find_key_recursive(item, target_key)
 
     def removereserved(self, entry):
         """function to remove reserved properties

@@ -19,7 +19,11 @@
 
 import json
 import re
+import sys
 from collections import OrderedDict
+from urllib.parse import urljoin
+
+import requests
 
 try:
     from rdmc_helper import (
@@ -82,11 +86,13 @@ class RawPatchCommand:
 
         headers = {}
         results = []
-
-        if hasattr(options, "sessionid") and options.sessionid:
-            _ = self.sessionvalidation(options)
+        if getattr(options, "no_auth"):
+            pass
         else:
-            self.patchvalidation(options)
+            if hasattr(options, "sessionid") and options.sessionid:
+                _ = self.sessionvalidation(options)
+            else:
+                self.patchvalidation(options)
 
         contentsholder = None
         try:
@@ -109,6 +115,21 @@ class RawPatchCommand:
                     headers[header[0]] = header[1]
                 except:
                     raise InvalidCommandLineError("Invalid format for --headers option.")
+        if getattr(options, "no_auth"):
+            if options.url:
+                url = "https://" + options.url.rstrip("/")
+            else:
+                url = "https://16.1.15.1"
+            path = urljoin(url, contentsholder["path"].lstrip("/"))
+            body = contentsholder["body"]
+            try:
+                response = requests.patch(path, json=body, verify=False)
+                if response.status_code == 200:
+                    sys.stdout.write(response.content.decode("utf-8") + "\n")
+                return ReturnCodes.SUCCESS
+            except Exception as e:
+                sys.stdout.write("Error: Failed to complete operation.\n")
+                return ReturnCodes.INVALID_COMMAND_LINE_ERROR
 
         if "path" in contentsholder and "body" in contentsholder:
             results.append(
@@ -119,10 +140,11 @@ class RawPatchCommand:
                     silent=options.silent,
                     optionalpassword=options.biospassword,
                     service=options.service,
+                    noauth=options.no_auth,
                 )
             )
 
-        elif all([re.match("^/(S+/?)+$", key) for key in contentsholder]):
+        elif all([re.match(r"^/(\S+/?)+$", key) for key in contentsholder]):
             for path, body in contentsholder.items():
                 results.append(
                     self.rdmc.app.patch_handler(
@@ -132,6 +154,7 @@ class RawPatchCommand:
                         silent=options.silent,
                         optionalpassword=options.biospassword,
                         service=options.service,
+                        noauth=options.no_auth,
                     )
                 )
         else:
@@ -228,6 +251,13 @@ class RawPatchCommand:
         customparser.add_argument(
             "--service",
             dest="service",
+            action="store_true",
+            help="""Use this flag to enable service mode and increase the function speed""",
+            default=False,
+        )
+        customparser.add_argument(
+            "--no_auth",
+            dest="no_auth",
             action="store_true",
             help="""Use this flag to enable service mode and increase the function speed""",
             default=False,

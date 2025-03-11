@@ -22,6 +22,8 @@ import sys
 
 import redfish.ris
 
+from redfish.rest.connections import SecurityStateError
+
 try:
     from rdmc_helper import (
         InvalidCommandLineError,
@@ -88,8 +90,25 @@ class SetCommand:
             raise InvalidCommandLineError("The 'set' command is not useful in " "non-interactive and non-cache modes.")
 
         self.setvalidation(options)
-        _ = args[0].find("HighSecurity")
-
+        ilover = self.rdmc.app.getiloversion()
+        if ilover >= 7.000 and ("HighSecurity" in args[0] or "Production" in args[0]):
+            self.rdmc.ui.error(
+                "HighSecurity and Production modes are not supported on iLO 7 , Please use SecureStandard instead \n"
+            )
+            raise SecurityStateError(
+                "HighSecurity and Production modes are not supported on iLO 7 , Please use SecureStandard instead"
+            )
+        else:
+            if "SecureStandard" in args[0] and ilover < 7.000:
+                self.rdmc.ui.error(
+                    "SecureStandard mode is not supported on iLO 6 and below , Please use HighSecurity instead \n"
+                )
+                raise SecurityStateError(
+                    "SecureStandard mode is not supported on iLO 6 and below , Please use HighSecurity instead \n"
+                )
+            _ = args[0].find("HighSecurity")
+        if ilover >= 7.000:
+            _ = args[0].find("SecureStandard")
         fsel = None
         fval = None
         if args:
@@ -225,6 +244,9 @@ class SetCommand:
         :param skipprint: boolean to determine output
         :type skipprint: boolean.
         """
+        import platform
+        import tempfile
+
         try:
             (options, args) = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
@@ -284,7 +306,23 @@ class SetCommand:
                         val = int(val)
                 patch_data = dict()
                 payload = {newargs[-1]: val} if newargs else {sel: val}
-                if newargs:
+                if "drive" in self.rdmc.app.selector.lower():
+                    tempdir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
+                    temp_file = os.path.join(tempdir, "temp_patch.json")
+                    out_file = open(temp_file, "w")
+                    if getattr(options, "filter", None):
+                        filt_arr = options.filter.split("=")
+                        patchpath = filt_arr[-1]
+                    else:
+                        sys.stdout.write("Please provide the actual drive to modify using filter option\n")
+                        return
+                    patch_payload = {patchpath: payload}
+                    json.dump(patch_payload, out_file, indent=6)
+                    out_file.close()
+                    sys.stdout.write("payload %s \n" % patch_payload)
+                    self.auxcommands["rawpatch"].run(temp_file + " --service")
+                    os.remove(temp_file)
+                elif newargs:
                     for key in newargs[:-1][::-1]:
                         if key == "PowerControl":
                             payload = {key: [payload]}
@@ -296,9 +334,6 @@ class SetCommand:
                                 "managernetworkprotocol." in self.rdmc.app.selector
                                 or "thermal." in self.rdmc.app.selector
                             ):
-                                import platform
-                                import tempfile
-
                                 tempdir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
                                 temp_file = os.path.join(tempdir, "temp_patch.json")
                                 out_file = open(temp_file, "w")
@@ -343,11 +378,14 @@ class SetCommand:
             or ("Oem/Hpe/ThermalConfiguration" in line[0])
             or ("Oem/Hpe/FanPercentMinimum" in line[0])
             or ("PowerControl" in line[0])
-            or ("drive" in self.rdmc.app.selector.lower())
+            or (self.rdmc.app.selector is not None and "drive" in self.rdmc.app.selector.lower())
         ):
             self.patchfunction(line)
         else:
-            self.setfunction(line, skipprint=skipprint)
+            try:
+                self.setfunction(line, skipprint=skipprint)
+            except SecurityStateError:
+                return ReturnCodes.V1_SECURITY_STATE_ERROR
         # Return code
         return ReturnCodes.SUCCESS
 

@@ -15,7 +15,7 @@
 # ##
 
 # -*- coding: utf-8 -*-
-""" Update Task Queue Command for rdmc """
+"""Update Task Queue Command for rdmc"""
 
 from argparse import RawDescriptionHelpFormatter
 from random import randint

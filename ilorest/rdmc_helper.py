@@ -26,7 +26,6 @@ import logging
 import os
 import sys
 import time
-from collections import OrderedDict
 from ctypes import byref, c_char_p, create_string_buffer
 
 import pyaes
@@ -87,7 +86,7 @@ LERR.setLevel(logging.ERROR)
 LOGGER.addHandler(LERR)
 LOUT.setFormatter(LFMT)
 # default stdout level setting
-LOUT.setLevel(logging.WARN)
+LOUT.setLevel(logging.ERROR)
 LOUT.addFilter(InfoFilter())
 # add logger handle
 LOGGER.addHandler(LOUT)
@@ -190,6 +189,7 @@ class ReturnCodes(object):
     PATH_UNAVAILABLE_ERROR = 83
     ILO_RIS_CORRUPTION_ERROR = 84
     RESOURCE_NOT_READY_ERROR = 85
+    INVALID_SMART_ARRAY_PAYLOAD = 86
 
     # ****** RIS ERRORS ******
     RIS_RIS_BIOS_UNREGISTERED_ERROR = 100
@@ -202,7 +202,6 @@ class ReturnCodes(object):
     DEVICE_DISCOVERY_IN_PROGRESS = 105
     INSTALLSET_ERROR = 106
     INVALID_TARGET_ERROR = 107
-    UPLOAD_POWEROFF_ERROR = 108
 
     # **** ComputeOpsManagement Errors****
     CLOUD_CONNECT_TIMEOUT = 111
@@ -221,6 +220,18 @@ class ReturnCodes(object):
 
     # ****** GENERAL ERRORS ******
     GENERAL_ERROR = 255
+
+    # ****** VNIC ERRORS ******
+    GENERAL_ACCOUNT_GENERATE_SAVE_ERROR = 141
+    VNIC_DOES_NOT_EXIST_ERROR = 142
+    ACCOUNT_DOES_NOT_EXIST_ERROR = 143
+    ACCOUNT_REMOVE_ERROR = 144
+    ACCOUNT_EXISTS_CHECK_ERROR = 145
+    VNIC_LOGIN_ERROR = 146
+    ACCOUNT_SAVE_ERROR_TPM = 147
+    ACCOUNT_SAVE_ERROR_ILO = 148
+    GEN_BEFORE_LOGIN_ERROR = 149
+    APPID_LIST_ERROR = 150
 
 
 class RdmcError(Exception):
@@ -371,6 +382,12 @@ class InvalidPasswordLengthError(RdmcError):
     pass
 
 
+class InvalidSmartArrayConfigurationError(RdmcError):
+    """Raised when no changes were found or made on the commit function"""
+
+    pass
+
+
 class NoDifferencesFoundError(RdmcError):
     """Raised when no differences are found in the current configuration"""
 
@@ -484,10 +501,6 @@ class UploadError(RdmcError):
 
     pass
 
-class UploadPowerOffError(RdmcError):
-    """Raised when the server power is On while uploading B- component"""
-
-    pass
 
 class TimeOutError(RdmcError):
     """Raised when the update service times out"""
@@ -537,12 +550,6 @@ class DeviceDiscoveryInProgress(RdmcError):
     pass
 
 
-class InvalidSmartArrayConfigurationError(RdmcError):
-    """Raised for an invalid configuration of a smart array controller and/or disk configuration"""
-
-    pass
-
-
 class FallbackChifUse(RdmcError):
     """Fallback Chif Use"""
 
@@ -551,6 +558,66 @@ class FallbackChifUse(RdmcError):
 
 class InstallsetError(RdmcError):
     """Error while deleting Recovery installset"""
+
+    pass
+
+
+class GenerateAndSaveAccountError(RdmcError):
+    """Raised when errors occurred while generating and saving app account"""
+
+    pass
+
+
+class NoAppAccountError(RdmcError):
+    """Raised when the app account to be deleted does not exist."""
+
+    pass
+
+
+class RemoveAccountError(RdmcError):
+    """Raised when errors occurred while removing app account"""
+
+    pass
+
+
+class AppAccountExistsError(RdmcError):
+    """Raised when errors occurred while removing app account"""
+
+    pass
+
+
+class VnicLoginError(RdmcError):
+    """Raised when error occurs while VNIC login"""
+
+    pass
+
+
+class VnicExistsError(RdmcError):
+    """Raised when VNIC is not enabled"""
+
+    pass
+
+
+class SavinginTPMError(RdmcError):
+    """Raised when error occurs while saving app account in TPM"""
+
+    pass
+
+
+class SavinginiLOError(RdmcError):
+    """Raised when error occurs while saving app account in iLO"""
+
+    pass
+
+
+class GenBeforeLoginError(RdmcError):
+    """Raised when error occurs while getting iLO Gen before login"""
+
+    pass
+
+
+class AppIdListError(RdmcError):
+    """Raised when error occurs while retrieving list of apptokens and appaccounts"""
 
     pass
 
@@ -652,14 +719,16 @@ class UI(object):
         :param timeout: timeout given for failed login attempt
         :type timeout: int.
         """
-        self.printer("Validating...", excp=True)
+        self.printer("Authenticating to iLO", excp=True)
 
-        for _ in range(0, (int(str(timeout)) + 10)):
-            time.sleep(1)
+        timeout = 0
+        for _ in range(0, (int(str(timeout)) + 3)):
+            time.sleep(2)
             self.printer(".", excp=True)
 
         self.printer(
-            "\nError: Could not authenticate. Invalid " "credentials, or bad username/password.\n",
+            "\nInvalid credentials. Unable to authenticate to iLO. \n"
+            "Please ensure to specify correct username and password.\n",
             excp=True,
         )
 

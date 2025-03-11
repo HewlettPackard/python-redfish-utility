@@ -21,20 +21,20 @@ This is the main module for Redfish Utility which handles all of the CLI and UI 
 
 # ---------Imports---------
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 
 import collections
 import copy
-import ctypes
 import errno
 import glob
-import importlib
 import logging
 import os
 import shlex
 import sys
 import traceback
-from argparse import RawTextHelpFormatter
+import warnings
+import importlib
+import ctypes
+from argparse import ArgumentParser, RawTextHelpFormatter
 from builtins import open, str, super
 
 import six
@@ -47,8 +47,7 @@ from six.moves import input
 import redfish.hpilo
 import redfish.rest.v1
 import redfish.ris
-from argparse import ArgumentParser
-import warnings
+
 
 try:
     import cliutils
@@ -67,7 +66,6 @@ except ModuleNotFoundError:
 
 try:
     from rdmc_helper import (
-        LERR,
         LOGGER,
         LOUT,
         UI,
@@ -116,11 +114,21 @@ try:
         UnableToDecodeError,
         UnabletoFindDriveError,
         UploadError,
-        UploadPowerOffError,
         UsernamePasswordRequiredError,
         iLORisCorruptionError,
         ResourceNotReadyError,
         InstallsetError,
+        InvalidSmartArrayConfigurationError,
+        VnicExistsError,
+        GenerateAndSaveAccountError,
+        NoAppAccountError,
+        RemoveAccountError,
+        AppAccountExistsError,
+        VnicLoginError,
+        SavinginTPMError,
+        SavinginiLOError,
+        GenBeforeLoginError,
+        AppIdListError,
     )
 except ModuleNotFoundError:
     from ilorest.rdmc_helper import (
@@ -132,7 +140,6 @@ except ModuleNotFoundError:
         InvalidCommandLineErrorOPTS,
         UI,
         LOGGER,
-        LERR,
         LOUT,
         InvalidFileFormattingError,
         NoChangesFoundOrMadeError,
@@ -177,6 +184,17 @@ except ModuleNotFoundError:
         AlreadyCloudConnectedError,
         ResourceNotReadyError,
         InstallsetError,
+        InvalidSmartArrayConfigurationError,
+        VnicExistsError,
+        GenerateAndSaveAccountError,
+        NoAppAccountError,
+        RemoveAccountError,
+        AppAccountExistsError,
+        VnicLoginError,
+        SavinginTPMError,
+        SavinginiLOError,
+        GenBeforeLoginError,
+        AppIdListError,
     )
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -346,33 +364,75 @@ class RdmcCommand(RdmcCommandBase):
         except Exception as excp:
             raise RdmcError("Unable to load command {}: {}".format(cmd.ident["name"], excp))
 
-    def _run_command(self, opts, args, help_disp):
-        """Calls the commands run function
+    def mask_passwords(self, args):
+        """Replaces password values in a command argument list with '****'."""
+        masked_args = []
+        sensitive_keywords = {"--password", "--pass", "-p"}
 
-        :param opts: command options
-        :type opts: options.
-        :param args: list of the entered arguments
-        :type args: list.
+        for i, arg in enumerate(args):
+            # Mask if it's a known password flag or follows a flag
+            if arg in sensitive_keywords:
+                masked_args.append(arg)  # Keep flag
+                masked_args.append("****")  # Mask value
+            elif any(arg.startswith(key + "=") for key in sensitive_keywords):
+                # Handle inline passwords like --password=mypassword
+                masked_args.append(re.sub(r"=(.*)", "=****", arg))
+            elif i > 0 and args[i - 1] in sensitive_keywords:
+                # If previous argument was a password flag, mask this value
+                masked_args.append("****")
+            else:
+                masked_args.append(arg)
+
+        return masked_args
+
+    def _run_command(self, opts, args, help_disp):
+        """Calls the command's run function.
+
+        :param opts: Command options.
+        :type opts: argparse.Namespace
+        :param args: List of entered arguments.
+        :type args: list
+        :param help_disp: Help display flag.
+        :type help_disp: bool
+        :returns: Command execution result.
         """
+
+        if not args:
+            LOGGER.error("No command provided. Exiting execution.")
+            raise ValueError("No command provided.")
+
+        masked_args = self.mask_passwords(args)
+
+        LOGGER.info(f"Executing command: {args[0]} with arguments: {masked_args}")
+
         cmd = self.search_commands(args[0])
+        if cmd is None:
+            LOGGER.error(f"Command '{args[0]}' not found.")
+            raise ValueError(f"Command '{args[0]}' not found.")
 
         self.load_command(cmd)
+        LOGGER.debug(f"Command '{args[0]}' loaded successfully.")
 
+        # Enable debug logging if needed
         if opts.debug:
             LOGGER.setLevel(logging.DEBUG)
-        if not opts.nostdoutlog:
-            LOUT.setLevel(logging.DEBUG)
+            if not opts.nostdoutlog:
+                LOUT.setLevel(logging.DEBUG)
+            LOGGER.debug("Debug mode enabled.")
 
-        for a in args:
-            if a == "-j" or a == "--json":
-                opts.nologo = True
-                break
+        # Handle JSON output flag
+        if any(a in ("-j", "--json") for a in args):
+            opts.nologo = True
+            LOGGER.debug("JSON output mode enabled.")
+
+        # Show version information if needed
         if not opts.nologo and not self.interactive:
+            LOGGER.info("Displaying version information.")
             CLI.version(self._progname, versioning.__version__, versioning.__extracontent__)
-        if len(args) > 1:
-            return cmd.run(args[1:], help_disp)
 
-        return cmd.run([], help_disp=help_disp)
+        # Execute the command with remaining arguments
+        LOGGER.info(f"Running command: {args[0]} with arguments: {masked_args if len(args) > 1 else 'None'}")
+        return cmd.run(args[1:], help_disp=help_disp) if len(args) > 1 else cmd.run([], help_disp=help_disp)
 
     def run(self, line, help_disp=False):
         """Main rdmc command worker function
@@ -488,12 +548,12 @@ class RdmcCommand(RdmcCommandBase):
                 else:
                     raise
 
-        if self.opts.logdir and self.opts.debug:
+        if self.opts.logdir:
             logdir = self.opts.logdir
         else:
             logdir = self.config.logdir
 
-        if logdir and self.opts.debug:
+        if logdir:
             try:
                 os.makedirs(logdir)
             except OSError as ex:
@@ -502,17 +562,30 @@ class RdmcCommand(RdmcCommandBase):
                 else:
                     raise
         self.log_dir = logdir
-        if self.opts.debug:
-            logfile = os.path.join(logdir, versioning.__shortname__ + ".log")
-
-            # Create a file logger since we got a logdir
+        logfile = os.path.join(logdir, versioning.__shortname__ + ".log")
+        # Create a file logger since we got a logdir
+        try:
             lfile = logging.FileHandler(filename=logfile)
-            formatter = logging.Formatter("%(asctime)s %(levelname)s\t: %(message)s")
+        except (OSError, PermissionError, IOError) as e:
+            fallback_dir = os.getenv("APPDATA") or os.path.join(os.path.expanduser("~"), ".local", "share")
+            os.makedirs(fallback_dir, exist_ok=True)
+            logfile = os.path.join(fallback_dir, versioning.__shortname__ + ".log")
+            lfile = logging.FileHandler(filename=logfile)
+            print(f"INFO: iLORest Log file is : {logfile}\n")
 
-            lfile.setFormatter(formatter)
-            lfile.setLevel(logging.DEBUG)
-            LOGGER.addHandler(lfile)
-            self.app.LOGGER = LOGGER
+        formatter = logging.Formatter("%(asctime)s %(levelname)s\t: %(message)s")
+        lfile.setFormatter(formatter)
+        lfile.setLevel(logging.INFO)
+        LOGGER.addHandler(lfile)
+        LOGGER.setLevel(logging.INFO)
+        self.app.LOGGER = LOGGER
+
+        if getattr(self.opts, "debug", False):
+            if lfile:
+                lfile.setLevel(logging.DEBUG)
+            LOGGER.setLevel(logging.DEBUG)
+            if not getattr(self.opts, "nostdoutlog", False):
+                LOUT.setLevel(logging.DEBUG)
 
         if ("login" in line or any(x.startswith("--url") for x in line) or not line) and not (
             any(x.startswith(("-h", "--h")) for x in nargv) or "help" in line
@@ -549,32 +622,35 @@ class RdmcCommand(RdmcCommandBase):
                 self.app.logout()
 
     def cmdloop(self, opts):
-        """Interactive mode worker function
+        """Interactive mode worker function.
 
-        :param opts: command options
-        :type opts: options.
+        :param opts: Command options.
+        :type opts: argparse.Namespace
         """
+        LOGGER.info("Starting interactive mode.")
         self.interactive = True
 
         if not opts.nologo:
             sys.stdout.write(FIPSSTR)
             CLI.version(self._progname, versioning.__version__, versioning.__extracontent__)
+            LOGGER.info("Displayed version information.")
 
         if not self.app.typepath.adminpriv:
             self.ui.user_not_admin()
+            LOGGER.warning("User does not have admin privileges.")
 
         if opts.debug:
             LOGGER.setLevel(logging.DEBUG)
-            LERR.setLevel(logging.DEBUG)
+            if not opts.nostdoutlog:
+                LOUT.setLevel(logging.DEBUG)
+            LOGGER.debug("Debug mode enabled.")
 
+        LOGGER.info("Loading available commands.")
         for command, values in self.commands_dict.items():
             self.commlist.append(values.ident["name"])
 
         for item in self.commlist:
-            if item == "help":
-                self.candidates[item] = self.commlist
-            else:
-                self.candidates[item] = []
+            self.candidates[item] = self.commlist if item == "help" else []
 
         self._redobj = TabAndHistoryCompletionClass(dict(self.candidates))
 
@@ -589,12 +665,13 @@ class RdmcCommand(RdmcCommandBase):
                 complete_while_typing=True,
             )
             session.output.disable_bracketed_paste()
+            LOGGER.info("Tab completion enabled.")
         except Exception as e:
-            print(e)
-            LOGGER.info("Console error: Tab complete is unavailable.")
+            LOGGER.exception("Console error: Tab complete is unavailable.")
             session = None
+
         if self.opts.notab:
-            LOGGER.info("No Tab Support: Tab complete is disabled.")
+            LOGGER.info("Tab completion is disabled as per user settings.")
             session = None
 
         while True:
@@ -608,33 +685,46 @@ class RdmcCommand(RdmcCommandBase):
                 else:
                     line = input(prompt_string)
 
+                LOGGER.debug(f"User input: {line}")
+
             except (EOFError, KeyboardInterrupt):
+                LOGGER.info("User exited interactive mode.")
                 line = "quit\n"
 
-            if not len(line):
+            if not line.strip():
                 continue
             elif line.endswith(os.linesep):
-                line.rstrip(os.linesep)
+                line = line.rstrip(os.linesep)
 
             shlex.escape = ""
             nargv = shlex.shlex(line, posix=True)
             nargv.escape = ""
             nargv.whitespace_split = True
             nargv = list(nargv)
+
+            LOGGER.debug(f"Parsed command arguments: {nargv}")
+
             try:
                 if not (
                     any(x.startswith("-h") for x in nargv) or any(x.startswith("--h") for x in nargv) or "help" in line
                 ):
                     if "login " in line or line == "login" or any(x.startswith("--url") for x in nargv):
                         self.app.logout()
+                        LOGGER.info("User triggered logout.")
+
                 self.retcode = self._run_command(opts, nargv, help_disp=False)
+                LOGGER.info(f"Command executed with return code: {self.retcode}")
+
                 self.check_for_tab_lists(nargv)
+
             except Exception as excp:
+                LOGGER.exception("Exception occurred while executing command.")
                 self.handle_exceptions(excp)
 
             if self.opts.verbose:
-                sys.stdout.write("iLOrest return code: %s\n" % self.retcode)
+                sys.stdout.write(f"iLOrest return code: {self.retcode}\n")
 
+        LOGGER.info("Exiting interactive mode.")
         return self.retcode
 
     def handle_exceptions(self, excp):
@@ -795,6 +885,11 @@ class RdmcCommand(RdmcCommandBase):
         except DeviceDiscoveryInProgress as excp:
             self.retcode = ReturnCodes.DEVICE_DISCOVERY_IN_PROGRESS
             self.ui.error(excp)
+        except InvalidSmartArrayConfigurationError as excp:
+            self.retcode = ReturnCodes.INVALID_SMART_ARRAY_PAYLOAD
+        except GenBeforeLoginError as excp:
+            self.retcode = ReturnCodes.GEN_BEFORE_LOGIN_ERROR
+            self.ui.error(excp)
         # ****** CLI ERRORS ******
         except (CommandNotEnabledError, cliutils.CommandNotFoundException) as excp:
             self.retcode = ReturnCodes.UI_CLI_COMMAND_NOT_FOUND_EXCEPTION
@@ -899,8 +994,9 @@ class RdmcCommand(RdmcCommandBase):
             self.ui.error(excp)
         except redfish.hpilo.risblobstore2.ChifDllMissingError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_CHIF_DLL_MISSING_ERROR
-            self.ui.printer("iLOrest Chif library not found, please check that the chif "
-                            "ilorest_chif.dll/.so is present.\n")
+            self.ui.printer(
+                "iLOrest Chif library not found, please check that the chif " "ilorest_chif.dll/.so is present.\n"
+            )
         except redfish.hpilo.risblobstore2.UnexpectedResponseError as excp:
             self.retcode = ReturnCodes.REST_ILOREST_UNEXPECTED_RESPONSE_ERROR
             self.ui.printer("Unexpected data received from iLO.\n")
@@ -973,6 +1069,34 @@ class RdmcCommand(RdmcCommandBase):
             self.ui.printer(
                 "Error accessing the file path. Verify the file path is correct and " "you have proper permissions.\n"
             )
+        # ****** VNIC ERRORS ****** #
+        except VnicExistsError as excp:
+            self.retcode = ReturnCodes.VNIC_DOES_NOT_EXIST_ERROR
+            self.ui.error(excp)
+        except GenerateAndSaveAccountError as excp:
+            self.retcode = ReturnCodes.GENERAL_ACCOUNT_GENERATE_SAVE_ERROR
+            self.ui.error(excp)
+        except NoAppAccountError as excp:
+            self.retcode = ReturnCodes.ACCOUNT_DOES_NOT_EXIST_ERROR
+            self.ui.error(excp)
+        except RemoveAccountError as excp:
+            self.retcode = ReturnCodes.ACCOUNT_REMOVE_ERROR
+            self.ui.error(excp)
+        except AppAccountExistsError as excp:
+            self.retcode = ReturnCodes.ACCOUNT_EXISTS_CHECK_ERROR
+            self.ui.error(excp)
+        except VnicLoginError as excp:
+            self.retcode = ReturnCodes.VNIC_LOGIN_ERROR
+            self.ui.error(excp)
+        except SavinginTPMError as excp:
+            self.retcode = ReturnCodes.ACCOUNT_SAVE_ERROR_TPM
+            self.ui.error(excp)
+        except SavinginiLOError as excp:
+            self.retcode = ReturnCodes.ACCOUNT_SAVE_ERROR_ILO
+            self.ui.error(excp)
+        except AppIdListError as excp:
+            self.retcode = ReturnCodes.APPID_LIST_ERROR
+            self.ui.error(excp)
         # ****** GENERAL ERRORS ******
         except SystemExit:
             self.retcode = ReturnCodes.GENERAL_ERROR
@@ -1094,21 +1218,21 @@ class RdmcCommand(RdmcCommandBase):
 
     def rdmc_parse_arglist(self, cmdinstance, line=None, default=False):
         """
-        parses line into arguments taking special consideration
-        of quote characters
-        :param cmdinstance: command instance to be referenced
+        Parses command-line arguments with special consideration for quoting and optional arguments.
+
+        :param cmdinstance: Command instance to be referenced.
         :type cmdinstance: class object
-        :param line: string of arguments passed in
-        :type line: str.
+        :param line: String of arguments passed in.
+        :type line: str or list
         :param default: Flag to determine if the parsed command requires the default workaround for
                         argparse in Python 2. Argparse incorrectly assumes a sub-command is always
                         required, so we have to include a default sub-command for no arguments.
         :type default: bool
-        :returns: args list
+        :returns: Parsed argument list
         """
 
         def checkargs(argopts):
-            """Check for optional args"""
+            """Check for invalid optional args."""
             (_, args) = argopts
             for arg in args:
                 if arg.startswith("-") or arg.startswith("--"):
@@ -1120,51 +1244,36 @@ class RdmcCommand(RdmcCommandBase):
                         raise InvalidCommandLineErrorOPTS("")
             return argopts
 
+        # Ensure `None` does not cause errors
         if line is None:
-            return checkargs(cmdinstance.parser.parse_known_args(line))
+            return checkargs(cmdinstance.parser.parse_known_args([]))
 
-        arglist = []
+        # Parse argument list correctly
         if isinstance(line, six.string_types):
             arglist = shlex.split(line, posix=False)
-
-            for ind, val in enumerate(arglist):
-                arglist[ind] = val.strip("\"'")
+            arglist = [val.strip("\"'") for val in arglist]  # Strip surrounding quotes
         elif isinstance(line, list):
             arglist = line
+        else:
+            raise ValueError("Invalid type for 'line'. Expected str or list.")
 
+        # Handle Windows-specific globbing
         exarglist = []
         if os.name == "nt":
-            # need to glob for windows
             for arg in arglist:
                 try:
-                    gob = glob.glob(arg)
-
-                    if gob and len(gob) > 0:
-                        exarglist.extend(gob)
-                    else:
-                        exarglist.append(arg)
-                except:
-                    if not arg:
-                        continue
-                    else:
+                    matches = glob.glob(arg)
+                    exarglist.extend(matches if matches else [arg])
+                except Exception as e:
+                    if arg:
                         exarglist.append(arg)
         else:
-            for arg in arglist:
-                if arg:
-                    exarglist.append(arg)
-        # insert the 'default' positional argument when the first argument is an optional
-        # chicken and egg problem. Would be nice to figure out if a help option has been
-        # referenced; however, I may not be able to parse the exarglist (line in array form)
-        # in the event it is empty (appears there is no way to test parse and subsequently catch
-        # the error for flow control)
+            exarglist = [arg for arg in arglist if arg]
 
-        found_help = False
-        for _opt in exarglist:
-            if _opt in ["-h", "--h", "-help", "--help"]:
-                found_help = True
-                break
-        if not found_help and default:
+        # Insert 'default' if needed
+        if default and not any(_opt in ["-h", "--h", "-help", "--help"] for _opt in exarglist):
             exarglist.insert(0, "default")
+
         return checkargs(cmdinstance.parser.parse_known_args(exarglist))
 
 
