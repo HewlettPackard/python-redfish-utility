@@ -77,8 +77,6 @@ class CommandBase(object):
             self.parser = argparser
 
         self.parser.usage = usage
-        # TODO: See if we can remove this or stop it from opening a subprocess all the time
-        # self._cli = cliutils.CLI()
 
     def run(self, line, help_disp=False):
         """Called to actually perform the work.

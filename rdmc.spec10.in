@@ -5,7 +5,7 @@
 # norootforbuild
 
 Name:           ilorest
-License:        Copyright 2016-2022 Hewlett Packard Enterprise Development LP
+License:        Copyright 2016-2024 Hewlett Packard Enterprise Development LP
 Group:          System/Configuration/Packaging
 AutoReqProv:    on
 Version:        %VERSION%
@@ -24,6 +24,8 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Command line interface for managing HPE ProLiant Servers
 
 %global debug_package %{nil}
+##%global __requires_exclude_from ^%{_libdir}/ilorest/libcrypt.so.1$
+##%global __provides_exclude_from ^%{_libdir}/ilorest/libcrypt.so.1$
 
 Authors:
 --------
@@ -36,34 +38,270 @@ Authors:
 mv rdmc-pyinstaller-lin.spc rdmc-pyinstaller-lin.spec
 /usr/local/python3.10/bin/pyinstaller rdmc-pyinstaller-lin.spec
 cp dist/ilorest ilorest
+# Discover and resolve the real path of libcrypt.so.1
+#LIBCRYPT_SYMLINK=$(ldconfig -p | awk '/libcrypt\.so\.1/{print $NF; exit}')
+#if [ -z "$LIBCRYPT_SYMLINK" ]; then
+#    echo "Error: libcrypt.so.1 not found on build system." >&2
+#    exit 1
+#fi
+#LIBCRYPT_REAL=$(realpath "/lib64/libcrypt.so.1")
+#cp $LIBCRYPT_REAL libcrypt.so.1
+#echo "Resolved libcrypt.so.1 to $LIBCRYPT_REAL"
 
 %install
+# Install the main executable
 install -D -m 0755 dist/ilorest $RPM_BUILD_ROOT%{_sbindir}/ilorest
 
+# Install configuration files
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/ilorest
 install -D -m 0644 rdmc-linux.conf $RPM_BUILD_ROOT%{_sysconfdir}/ilorest/redfish.conf
 
+rm -rf %{_bindir}/genapptoken
+rm -rf %{_bindir}/delapptoken
+rm -rf %{_bindir}/detectonly
+
+# Build and install helper binaries
+gcc -o genapptoken genapptoken.c -ldl
+gcc -o delapptoken delapptoken.c -ldl
+gcc -o detectonly detectonly.c -ldl
+
+install -D -m 0755 ./genapptoken $RPM_BUILD_ROOT%{_bindir}/genapptoken
+install -D -m 0755 ./delapptoken $RPM_BUILD_ROOT%{_bindir}/delapptoken
+install -D -m 0755 ./detectonly $RPM_BUILD_ROOT%{_bindir}/detectonly
+
+# Install shared libraries
 mkdir -p $RPM_BUILD_ROOT%{_libdir}/
-install -D -m 0666 ./externals/*.so $RPM_BUILD_ROOT%{_libdir}/
+install -D -m 0644 ./externals/*.so $RPM_BUILD_ROOT%{_libdir}/
+
+# Packaged but not installed libcrypt
+mkdir -p $RPM_BUILD_ROOT%{_libdir}/.nostrip/ilorest
+cp libcrypt.so.1 $RPM_BUILD_ROOT%{_libdir}/.nostrip/ilorest/
 
 %post
-#rm -f %{_sbindir}/ilorest
+sync
 
-%postun
-#rm -f %{_sbindir}/ilorest
+LOGFILE="/var/log/ilorest_rpm_script.log"
+
+# RHEL 10: Create symlink libcrypt.so.1 -> libcrypt.so.2
+if [ -f /etc/redhat-release ] && grep -q "Red Hat Enterprise Linux release 10" /etc/redhat-release; then
+    LIBCRYPT2_PATH=$(find /lib64 /usr/lib64 -name libcrypt.so.2 2>/dev/null | head -n 1)
+    if [ -n "$LIBCRYPT2_PATH" ]; then
+        LIB_DIR=$(dirname "$LIBCRYPT2_PATH")
+        if [ ! -e "$LIB_DIR/libcrypt.so.1" ]; then
+            ln -s libcrypt.so.2 "$LIB_DIR/libcrypt.so.1"
+            logger -t RPM_SCRIPT "Created symlink: $LIB_DIR/libcrypt.so.1 -> libcrypt.so.2"
+            echo "Created symlink: $LIB_DIR/libcrypt.so.1 -> libcrypt.so.2" >> "$LOGFILE"
+        fi
+    fi
+fi
+
+# Function to ask for confirmation
+ask_confirmation() {
+    local prompt="Proceed with application account creation? (yes/no): "
+    local attempts=0
+    local max_attempts=3  # Limit the number of attempts
+
+    echo -e "\nUnable to find an application account. For communication using virtual NIC,"
+    echo "an application account in iLO is required. Creation of the account requires"
+    echo "iLO credentials with 'Administer User Accounts' privilege."
+    echo -e "\nNote: The application account will be automatically removed during uninstallation."
+    echo -e "\nFor more information, refer to the documentation.\n"
+
+    while (( attempts < max_attempts )); do
+        read -p "$prompt" CONFIRMATION < /dev/tty
+        CONFIRMATION=$(echo "$CONFIRMATION" | tr '[:upper:]' '[:lower:]')  # Normalize input
+        echo "DEBUG: CONFIRMATION='$CONFIRMATION'" >> "$LOGFILE"
+
+        case "$CONFIRMATION" in
+            yes|y)
+                echo "Proceeding with application account creation..." >> "$LOGFILE"
+
+                read -p "Enter iLO username: " USERNAME < /dev/tty
+                if [ -z "$USERNAME" ]; then
+                    echo "Username not provided. Skipping application account creation." | tee -a "$LOGFILE"
+                    return 1
+                fi
+
+                read -s -p "Enter iLO password (input will be hidden): " PASSWORD < /dev/tty
+                echo
+                if [ -z "$PASSWORD" ]; then
+                    echo "Password not provided. Skipping application account creation." | tee -a "$LOGFILE"
+                    return 1
+                fi
+
+                export USERNAME PASSWORD
+                echo "Creating application account for username: $USERNAME" >> "$LOGFILE"
+                return 0
+                ;;
+            no|n)
+                echo "Installing application without creating an application account." >> "$LOGFILE"
+                echo -e "\nThe application account can be created later using:"
+                echo "'ilorest appaccount create -u <ilo_username> -p <ilo_password>'"
+                echo -e "\nIf an application account is not created, iLO credentials must be provided during ilorest login."
+                return 1
+                ;;
+            *)
+                echo "Invalid input. Please answer 'yes' or 'no'." | tee -a "$LOGFILE"
+                ((attempts++))
+                ;;
+        esac
+    done
+
+    echo -e "Maximum attempts reached. Skipping application account creation.\n" | tee -a "$LOGFILE"
+    return 1
+}
+
+main() {
+    if [ -n "$PS1" ] || [ -t 1 ]; then
+        echo "Detecting system..." >> "$LOGFILE"
+        logger -t RPM_SCRIPT "Detecting system..."
+        %{_bindir}/detectonly
+        ret_val=$?
+
+        if [ $ret_val -eq 0 ]; then
+            ret_val_confirm=0
+            echo "Detecting iLO version succeeded." >> "$LOGFILE"
+            if [[ -z "${ILO_USERNAME+x}" || -z "${ILO_PASSWORD+x}" || -z "$ILO_USERNAME" || -z "$ILO_PASSWORD" ]]; then
+                echo "Environment variable ILO_USERNAME or ILO_PASSWORD is unset or empty." >> "$LOGFILE"
+                logger -t RPM_SCRIPT "Environment variable ILO_USERNAME  or ILO_PASSWORD is unset."
+                if [ "$QUIET_MODE" = "no" ]; then
+                    ask_confirmation
+                    ret_val_confirm=$?
+                else
+                    ret_val_confirm=2
+                    echo "Silent installtion of RPM. No application account created." >> "$LOGFILE"
+                fi
+            else
+                ret_val_confirm=0
+                echo "Environment variable ILO_USERNAME and ILO_PASSWORD are set and non-empty." | tee -a "$LOGFILE"
+                logger -t RPM_SCRIPT "Environment variable ILO_USERNAME is set and non-empty."
+                {
+                    echo
+                    echo "Unable to find an application account. For communication using virtual NIC, an application account in iLO is required."
+                    echo
+                    echo "Using iLO credentials found in environment variables to create an application account."
+                    echo
+                    echo "Note: The application account will be automatically removed during uninstallation."
+                    echo
+                    echo "For more information application account, please refer to the documentation."
+                    echo
+                } | tee -a "$LOGFILE"
+                USERNAME="$ILO_USERNAME"
+                PASSWORD="$ILO_PASSWORD"
+            fi
+
+            if [ $ret_val_confirm -eq 0 ]; then
+                echo "Creating application account for username: $USERNAME" >> "$LOGFILE"
+                %{_bindir}/genapptoken "$USERNAME" "$PASSWORD"
+                ret_val_create=$?
+
+                if [ $ret_val_create -eq 0 ]; then
+                    echo "Successfully installed and created application account." >> "$LOGFILE"
+                    logger -t RPM_SCRIPT "Successfully created application account"
+                else
+                    echo
+                    echo "Failed to create the application account. The application will still work but requires iLO credentials."
+                    echo "To create application account after installation, use the command: 'ilorest appaccount create -u <username> -p <password>'"
+                    echo
+                    logger -t RPM_SCRIPT "Application account creation failed, fallback to iLO credentials"
+                fi
+            fi
+        else
+            echo "Detecting iLO version failed." >> "$LOGFILE"
+            logger -t RPM_SCRIPT "Detecting iLO version failed"
+        fi
+    fi
+}
+
+# Detect --quiet mode
+QUIET_MODE=$(ps -o args= $PPID | grep -q -- "--quiet" && echo "yes" || echo "no")
+UPGRADE_MODE=$(ps -o args= $PPID | grep -q -- "-U" && echo "yes" || echo "no")
+
+if [ "$UPGRADE_MODE" = "yes" ] && [ "$QUIET_MODE" = "yes" ]; then
+    echo "Detected upgrade (-U) with --quiet mode." >> "$LOGFILE"
+    logger -t RPM_SCRIPT "Upgrade (-U) with --quiet mode detected"
+elif [ "$UPGRADE_MODE" = "yes" ]; then
+    echo "Detected upgrade (-U) without --quiet mode." >> "$LOGFILE"
+    logger -t RPM_SCRIPT "Upgrade (-U) without --quiet mode detected"
+elif [ "$QUIET_MODE" = "yes" ]; then
+    echo "RPM was called with --quiet mode." >> "$LOGFILE"
+    logger -t RPM_SCRIPT "RPM called with --quiet mode"
+    main
+else
+    echo "Regular installation/removal without --quiet mode." >> "$LOGFILE"
+    logger -t RPM_SCRIPT "Regular install/removal"
+    main
+fi
+
+
+%preun
+# Remove application token during uninstallation
+LOGFILE="/var/log/ilorest_rpm_script.log"
+
+%{_bindir}/detectonly
+ret_val=$?
+if [ $ret_val -eq 0 ]; then
+    if [ "$1" -gt 1 ] || rpm -q mypackage > /dev/null 2>&1; then
+        echo "Detected upgrade (-U) without --quiet mode." >> "$LOGFILE"
+        echo "Application uninstalled successfully."
+    else
+        echo "Removing application account and uninstalling the application..."
+        %{_bindir}/delapptoken
+        ret_val_delete=$?
+        if [ $ret_val_delete -eq 0 ]; then
+            echo "Successfully deleted application account" >> "$LOGFILE"
+            logger -t RPM_SCRIPT "Successfully deleted application account"
+            echo "Application account deleted successfully."
+            echo "Application uninstalled successfully."
+        elif [ $ret_val_delete -eq 2 ]; then
+            echo "Application account does not exist" >> "$LOGFILE"
+            logger -t RPM_SCRIPT "Application account does not exist"
+            echo "Application account does not exist."
+            echo "Application uninstalled successfully."
+        else
+            echo "Failed to delete application account" >> "$LOGFILE"
+            logger -t RPM_SCRIPT "Failed to delete application account"
+            echo "Removing application account and uninstalling the application.."
+            echo "Failed to remove application account."
+            echo "Application uninstalled successfully."
+        fi
+    fi
+else
+    echo "Application uninstalled successfully."
+fi
+
+# RHEL 10 compatibility: Remove symlink for libcrypt.so.1 if it exists
+if [ -f /etc/redhat-release ] && grep -q "Red Hat Enterprise Linux release 10" /etc/redhat-release; then
+    LIBCRYPT2_PATH=$(find /lib64 /usr/lib64 -name libcrypt.so.2 2>/dev/null | head -n 1)
+    if [ -n "$LIBCRYPT2_PATH" ]; then
+        LIB_DIR=$(dirname "$LIBCRYPT2_PATH")
+        if [ -L "$LIB_DIR/libcrypt.so.1" ]; then
+            rm -f "$LIB_DIR/libcrypt.so.1"
+            echo "Removed symlink: $LIB_DIR/libcrypt.so.1" >> "$LOGFILE"
+            logger -t RPM_SCRIPT "Removed symlink: $LIB_DIR/libcrypt.so.1"
+        fi
+    fi
+fi
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
-%defattr(-, root, root)
-%{_sbindir}/%{name}
-%attr(644, root, root) %{_libdir}/ilorest_chif.so
-%config %{_sysconfdir}/%{name}/*
-%dir %{_sysconfdir}/%{name}
-%defattr(444, root, root)
+%defattr(-,root,root)
+%{_sbindir}/ilorest
+%{_bindir}/genapptoken
+%{_bindir}/delapptoken
+%{_bindir}/detectonly
+%attr(755, root, root) %{_libdir}/ilorest_chif.so
+%config(noreplace) %{_sysconfdir}/ilorest/*
+%dir %{_sysconfdir}/ilorest
+
+# Include in RPM payload, but don’t install (packaged from .nostrip)
+%dir %{_libdir}/.nostrip
+%{_libdir}/.nostrip/ilorest/libcrypt.so.1
 
 %changelog
+* Fri Dec 12 2024 rajeevalochana.kallur@hpe.com
 * Fri Mar 26 2021 rajeevalochana.kallur@hpe.com
 - Modified
 * Thu Jan 19 2017 prithvi.subrahmanya.v@hpe.com

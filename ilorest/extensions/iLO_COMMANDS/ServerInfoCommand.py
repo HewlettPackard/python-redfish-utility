@@ -93,12 +93,12 @@ class ServerInfoCommand:
                 info["proxy"] = info["proxy"]["Oem"]["Hpe"]["WebProxyConfiguration"]
 
         if options.json:
-            if options.processors and options.json and self.rdmc.app.typepath.defs.isgen9:
-                pass
-            elif options.memory and self.rdmc.app.typepath.defs.isgen9:
-                pass
-            else:
-                self.build_json_out(info, options.showabsent)
+            # if options.processors and options.json and self.rdmc.app.typepath.defs.isgen9:
+            #     pass
+            # elif options.memory and self.rdmc.app.typepath.defs.isgen9:
+            #     pass
+            # else:
+            self.build_json_out(info, options.showabsent)
         else:
             self.prettyprintinfo(info, options.showabsent)
 
@@ -252,7 +252,7 @@ class ServerInfoCommand:
                             data = self.rdmc.app.get_handler(dd, service=True, silent=True).dict
                             output += "Processor %s:\n" % data["Id"]
                             output += "\tModel: %s\n" % data["Model"]
-                            output += "\tStep: %s\n" % data["ProcessorId"]["Step"]
+                            output += "\tStep: %s\n" % data.get("ProcessorId", {}).get("Step", "NA")
                             output += "\tSocket: %s\n" % data["Socket"]
                             output += "\tMax Speed: %s MHz\n" % data["MaxSpeedMHz"]
                             try:
@@ -286,7 +286,7 @@ class ServerInfoCommand:
                             tmp[process] = dict()
                             tmp[process]["Processor"] = data["Id"]
                             tmp[process]["Model"] = data["Model"]
-                            tmp[process]["Step"] = data["ProcessorId"]["Step"]
+                            tmp[process]["Step"] = data.get("ProcessorId", {}).get("Step", "NA")
                             tmp[process]["Socket"] = data["Socket"]
                             tmp[process]["Max Speed"] = data["MaxSpeedMHz"]
                             try:
@@ -471,7 +471,7 @@ class ServerInfoCommand:
             if data is not None:
                 if isinstance(data, dict) or isinstance(data, list):
                     for sw in data:
-                        software_info.update({sw["Name"]: sw["Version"]})
+                        software_info.update({sw["Name"]: sw.get("Version", "NA")})
                 else:
                     # if not options.json:
                     software_info = "No information available for the server\n"
@@ -539,6 +539,7 @@ class ServerInfoCommand:
                         fan_name = "%s" % fan["Name"]
                     else:
                         fan_name = "%s" % fan["FanName"]
+                    fan_output = {}
                     fan_output.update({"Location": fan["Oem"][self.rdmc.app.typepath.defs.oemhp]["Location"]})
                     if "Reading" in fan:
                         fan_output.update({"Reading": "%s%%" % fan["Reading"]})
@@ -599,7 +600,7 @@ class ServerInfoCommand:
                     for processor in data:
                         process = "Processor %s" % processor["Id"]
                         processor_date = {"Model": processor["Model"]}
-                        processor_date.update({"Step": processor["ProcessorId"]["Step"]})
+                        processor_date.update({"Step": processor.get("ProcessorId", {}).get("Step", "NA")})
                         processor_date.update({"Socket": processor["Socket"]})
                         processor_date.update({"Max Speed": "%s MHz" % processor["MaxSpeedMHz"]})
                         try:
@@ -633,7 +634,7 @@ class ServerInfoCommand:
                     # for processor in data:
                     process = "Processor %s" % data["Id"]
                     processor_date = {"Model": data["Model"]}
-                    processor_date.update({"Step": data["ProcessorId"]["Step"]})
+                    processor_date.update({"Step": data.get("ProcessorId", {}).get("Step", "NA")})
                     processor_date.update({"Socket": data["Socket"]})
                     processor_date.update({"Max Speed": "%s MHz" % data["MaxSpeedMHz"]})
                     try:
@@ -745,7 +746,7 @@ class ServerInfoCommand:
             if data is not None:
                 if isinstance(data, dict) or isinstance(data, list):
                     for sw in data:
-                        output += "%s : %s\n" % (sw["Name"], sw["Version"])
+                        output += "%s : %s\n" % (sw["Name"], sw.get("Version", "NA"))
                 else:
                     output = "No information available for the server\n"
             self.rdmc.ui.printer(output, verbose_override=True)
@@ -810,7 +811,7 @@ class ServerInfoCommand:
                     data = data.dict
                     output += "Processor %s:\n" % data["Id"]
                     output += "\tModel: %s\n" % data["Model"]
-                    output += "\tStep: %s\n" % data["ProcessorId"]["Step"]
+                    output += "\tStep: %s\n" % data.get("ProcessorId", {}).get("Step", "NA")
                     output += "\tSocket: %s\n" % data["Socket"]
                     output += "\tMax Speed: %s MHz\n" % data["MaxSpeedMHz"]
                     try:

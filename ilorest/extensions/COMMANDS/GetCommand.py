@@ -15,12 +15,11 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Get Command for RDMC """
+"""Get Command for RDMC"""
 from collections import OrderedDict
 
 import six
 import logging
-import re
 
 import redfish.ris
 from redfish.ris.utils import iterateandclear
@@ -43,7 +42,7 @@ except ImportError:
     )
 try:
     from rdmc_helper import HARDCODEDLIST
-except:
+except ImportError:
     from ilorest.rdmc_helper import HARDCODEDLIST
 
 LOGGER = logging.getLogger(__name__)
@@ -64,7 +63,7 @@ class GetCommand:
             "get Temperatures/ReadingCelsius Fans/Name --selector=Thermal."
             "\n\n\tTo change output style format provide"
             " the json flag\n\texample: get --json",
-            "summary": "Displays the current value(s) of a" " property(ies) within a selected type.",
+            "summary": "Displays the current value(s) of a " "property(ies) within a selected type.",
             "aliases": [],
             "auxcommands": ["LogoutCommand"],
         }
@@ -108,7 +107,7 @@ class GetCommand:
                 (sel, val) = options.filter.split("=")
                 filtr = (sel.strip(), val.strip())
 
-            except:
+            except (InvalidCommandLineError, SystemExit):
                 raise InvalidCommandLineError("Invalid filter" " parameter format [filter_attribute]=[filter_value]")
 
         self.getworkerfunction(
@@ -195,6 +194,21 @@ class GetCommand:
                     security_contents.append({attr: contents_lower[attr.lower()]})
                 if security_contents:
                     UI().print_out_human_readable(security_contents)
+            elif (
+                "componentintegrity" in self.rdmc.app.selector.lower()
+                or "networkadapter" in self.rdmc.app.selector.lower()
+                # or "bios." in self.rdmc.app.selector.lower()
+            ):
+                url = ""
+                if "componentintegrity" in self.rdmc.app.selector.lower():
+                    url = "/redfish/v1/ComponentIntegrity/?$expand=."
+                elif "networkadapter" in self.rdmc.app.selector.lower():
+                    url = "/redfish/v1/Chassis/1/NetworkAdapters/?$expand=."
+                # elif "bios." in self.rdmc.app.selector.lower():
+                #     url = "/redfish/v1/systems/1/bios/?$expand=."
+
+                LOGGER.info(f"Fetching {self.rdmc.app.selector} data from: {url}")
+                contents = self.get_content(url, args, uselist, options)
             else:
                 LOGGER.debug("Handling general selector case.")
                 if "selector" in options:
@@ -255,6 +269,45 @@ class GetCommand:
             LOGGER.info("Logging out.")
             self.auxcommands["logout"].run("")
 
+    def get_content(self, url, args, uselist, options):
+        """Get data from url"""
+        contents = self.rdmc.app.get_handler(url, service=True, silent=True).dict
+        if uselist:
+            # for get command removing @odata.* properties
+            args = [arg.lower() for arg in args if "@odata." not in arg.lower()]
+        else:
+            args = [arg.lower() for arg in args]
+
+        if contents and not args:
+            contents = [contents]
+        elif contents and args:
+            collect_data = []
+            for key, value in contents.items():
+                # Collect top-level keys based on args
+                if any(key.lower() == arg for arg in args):
+                    collect_data.append({key: value})
+
+                if "attributes" == key.lower() and isinstance(value, dict) and "attributes" not in args:
+                    attr_vals = {k.lower(): v for k, v in value.items()}
+                    val_dict = {arg: attr_vals[arg.lower()] for arg in args if arg.lower() in attr_vals}
+                    if val_dict:
+                        collect_data.append(val_dict)
+
+                if key == "Members" and isinstance(value, list):
+                    for member in value:
+                        # Loop through each dict of Members
+                        m_dict = {k.lower(): v for k, v in member.items()}
+                        val_dict = {arg: m_dict[arg.lower()] for arg in args if arg.lower() in m_dict}
+                        if val_dict:
+                            collect_data.append(val_dict)
+
+            # collect_data = [dict(t) for t in {tuple(d.items()) for d in collect_data}]
+            contents = collect_data
+        else:
+            contents = []
+
+        return contents
+
     def find_key_recursive(self, data, target_key):
         """Recursively searches for a key in a nested dictionary (case-insensitive) and returns its value(s)."""
         target_key_lower = target_key.lower()  # Convert target_key to lowercase for case-insensitive matching
@@ -309,7 +362,7 @@ class GetCommand:
             try:
                 if nocontent or not any(next(iter(contents))):
                     raise Exception()
-            except:
+            except Exception:
                 strtoprint = ", ".join(str(val) for val in nocontent)
                 if not strtoprint and arg:
                     strtoprint = arg

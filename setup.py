@@ -6,7 +6,7 @@ site_packages = site.getsitepackages()
 extras = {}
 
 setup(name='ilorest',
-      version='6.0.0.0',
+      version='6.1.0.0',
       description='HPE iLORest Tool',
       author='Hewlett Packard Enterprise',
       author_email='rajeevalochana.kallur@hpe.com',

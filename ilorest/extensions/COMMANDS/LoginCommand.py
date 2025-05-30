@@ -24,6 +24,8 @@ import redfish.ris
 from redfish.hpilo.vnichpilo import AppAccount
 from redfish.rest.connections import ChifDriverMissingOrNotFound, VnicNotEnabledError
 import requests
+from requests.exceptions import SSLError, RequestException
+import platform
 
 try:
     from rdmc_helper import (
@@ -120,7 +122,16 @@ class LoginCommand:
         return ReturnCodes.SUCCESS
 
     def perform_login(self, options, skipbuild, user_ca_cert_data, args, app_obj):
-        ilo_ver = self.get_ilover_beforelogin(args, app_obj, options)
+
+        if platform.system() == "Darwin":
+            # MAC OS remote mode
+            ilo_ver = 6
+        else:
+            ilo_ver = self.get_ilover_beforelogin(args, app_obj, options)
+
+        caching = True
+        if self.rdmc.opts.nocache:
+            caching = False
 
         if ilo_ver < 7 or (ilo_ver >= 7 and (options.usechif or options.noapptoken or args)):
             self.rdmc.app.login(
@@ -138,6 +149,7 @@ class LoginCommand:
                 json_out=self.rdmc.json,
                 login_otp=self.login_otp,
                 log_dir=self.rdmc.log_dir,
+                cache=caching,
             )
         else:
             if options.hostappname or options.hostappid or options.salt:
@@ -212,15 +224,18 @@ class LoginCommand:
             else:
                 raise InvalidCommandLineError("Invalid command line arguments")
 
-        app_obj = AppAccount(
-            appname=options.hostappname,
-            appid=options.hostappid,
-            salt=options.salt,
-            username=options.user,
-            password=options.password,
-            log_dir=self.rdmc.log_dir if self.rdmc.opts.debug else None,
-        )
-
+        if platform.system() == "Darwin":
+            # Mac OS
+            app_obj = None
+        else:
+            app_obj = AppAccount(
+                appname=options.hostappname,
+                appid=options.hostappid,
+                salt=options.salt,
+                username=options.user,
+                password=options.password,
+                log_dir=self.rdmc.log_dir if self.rdmc.opts.debug else None,
+            )
         self.loginvalidation(options, args, app_obj)
 
         # if proxy server provided in command line as --useproxy, it will be used,
@@ -268,7 +283,7 @@ class LoginCommand:
             self.sessionid = options.sessionid
             self.login_otp = options.login_otp
 
-            if "blobstore" in self.url and (options.waitforOTP or options.login_otp):
+            if self.url and "blobstore" in self.url and (options.waitforOTP or options.login_otp):
                 options.waitforOTP = None
                 options.login_otp = None
                 self.rdmc.ui.printer(
@@ -357,7 +372,11 @@ class LoginCommand:
         if options.biospassword:
             self.biospassword = options.biospassword
 
-        ilo_ver = self.get_ilover_beforelogin(args, app_obj, options)
+        if app_obj:
+            ilo_ver = self.get_ilover_beforelogin(args, app_obj, options)
+        else:
+            # Mac OS
+            ilo_ver = 6
 
         if ilo_ver >= 7:
             if not args:
@@ -407,42 +426,84 @@ class LoginCommand:
                 self.url = self.rdmc.config.url
 
     def get_ilover_beforelogin(self, args, app_obj, options):
+        """
+        Attempts to retrieve the iLO version before login.
+
+        :param args: List of command-line arguments; expects iLO IP/hostname at index 0.
+        :param app_obj: App object for fallback retrieval if args is empty.
+        :param options: Options object, may include flags like 'force_vnic' or 'usechif'.
+        :return: iLO version as an integer.
+        :raises: GenBeforeLoginError, VnicExistsError, ChifDriverMissingOrNotFound, VnicNotEnabledError
+        """
+        ip = path = None  # Initialize to avoid UnboundLocalError
         try:
             if args:
-                path = "https://" + args[0] + "/redfish/v1"
-                data = requests.get(path, verify=False)
-                json_data = data.json()
+                ip = args[0]
+                path = f"https://{ip}/redfish/v1"
+
+                response = requests.get(path, verify=False, timeout=10)
+                response.raise_for_status()
+
                 try:
-                    Oem_Hpe = json_data["Oem"]["Hpe"]
-                except KeyError:
-                    Oem_Hpe = json_data["Oem"]["Hp"]
-                if "ManagerType" in Oem_Hpe["Manager"][0]:
-                    ilo_ver = int(Oem_Hpe["Manager"][0]["ManagerType"].split(" ")[1])
-                else:
-                    manager_data = Oem_Hpe["Moniker"]
-                    ilo_ver = int(manager_data["PRODGEN"].split(" ")[1])
+                    json_data = response.json()
+                    oem_data = json_data.get("Oem", {}).get("Hpe") or json_data.get("Oem", {}).get("Hp")
+                    if not oem_data:
+                        raise KeyError("Oem->Hpe or Oem->Hp block missing in response.")
+
+                    manager = oem_data.get("Manager", [{}])[0]
+                    manager_type = manager.get("ManagerType")
+
+                    if manager_type:
+                        ilo_ver = int(manager_type.split(" ")[1])
+                    else:
+                        moniker = oem_data.get("Moniker", {})
+                        prodgen = moniker.get("PRODGEN")
+                        if not prodgen:
+                            raise KeyError("PRODGEN key not found in Moniker.")
+                        ilo_ver = int(prodgen.split(" ")[1])
+                except (KeyError, ValueError, IndexError) as e:
+                    raise GenBeforeLoginError(
+                        f"Failed to parse iLO version from response. Error: {e}\n"
+                        "Ensure the iLO firmware is Redfish-compliant and responds correctly.\n"
+                    )
             else:
-                ilo_ver, sec_state = self.rdmc.app.getilover_beforelogin(app_obj)
+                ilo_ver, _ = self.rdmc.app.getilover_beforelogin(app_obj)
+
             return ilo_ver
+
         except ChifDriverMissingOrNotFound:
             if getattr(options, "force_vnic", False):
                 return 5
             raise
+
         except VnicNotEnabledError:
-            if options.usechif:
+            if getattr(options, "usechif", False):
                 return 7
             raise VnicExistsError(
-                "Unable to access iLO using virtual NIC. "
-                "Please ensure virtual NIC is enabled in iLO. "
-                "Ensure that virtual NIC in the host OS is "
-                "configured properly. Refer to documentation for more information.\n"
+                "Unable to access iLO using virtual NIC.\n"
+                "Please ensure that virtual NIC is enabled in iLO and "
+                "properly configured in the host OS.\n"
+                "Refer to the documentation for setup instructions.\n"
             )
+
+        except SSLError:
+            raise GenBeforeLoginError(
+                f"SSL Error: Unable to connect to the server at {ip or '[unknown IP]'}.\n"
+                "Please verify the iLO IP and try accessing the GUI.\n"
+            )
+
+        except RequestException as e:
+            raise GenBeforeLoginError(
+                f"Connection Error: Could not retrieve data from {path or '[unknown path]'}.\n"
+                f"Details: {e}\n"
+            )
+
         except Exception as e:
             raise GenBeforeLoginError(
-                "An error occurred while retrieving the iLO generation. "
-                "Please ensure that the virtual NIC is enabled for iLO7 based "
-                "servers, or that the CHIF driver is installed for iLO5 and iLO6 "
-                "based servers.\n"
+                f"An unexpected error occurred while retrieving the iLO version.\n"
+                f"Details: {e}\n"
+                "Verify if virtual NIC is enabled for iLO7 or that the CHIF driver "
+                "is installed for iLO5 and iLO6 based servers.\n"
             )
 
     def definearguments(self, customparser):

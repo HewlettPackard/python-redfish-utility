@@ -34,6 +34,7 @@ import traceback
 import warnings
 import importlib
 import ctypes
+import re
 from argparse import ArgumentParser, RawTextHelpFormatter
 from builtins import open, str, super
 
@@ -735,11 +736,10 @@ class RdmcCommand(RdmcCommandBase):
         """
         # pylint: disable=redefined-argument-from-local
         try:
-            if excp:
-                errorstr = "Exception: {0}".format(excp.__class__.__name__)
-                if excp.args:
-                    errorstr = errorstr + "({0})".format(excp.args[0]) if hasattr(excp, "args") else errorstr
-                LOGGER.info(errorstr)
+            if not getattr(excp, '_already_logged', False):
+                if self.opts.verbose:
+                    LOGGER.error(f"{type(excp).__name__}: {excp}")
+                    setattr(excp, '_already_logged', True)
             raise
         # ****** RDMC ERRORS ******
         except ConfigurationFileError as excp:
@@ -889,7 +889,8 @@ class RdmcCommand(RdmcCommandBase):
             self.retcode = ReturnCodes.INVALID_SMART_ARRAY_PAYLOAD
         except GenBeforeLoginError as excp:
             self.retcode = ReturnCodes.GEN_BEFORE_LOGIN_ERROR
-            self.ui.error(excp)
+            if not getattr(excp, '_already_logged', False):
+                self.ui.error(str(excp))
         # ****** CLI ERRORS ******
         except (CommandNotEnabledError, cliutils.CommandNotFoundException) as excp:
             self.retcode = ReturnCodes.UI_CLI_COMMAND_NOT_FOUND_EXCEPTION

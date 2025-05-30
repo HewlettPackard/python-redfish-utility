@@ -118,7 +118,14 @@ class FwpkgCommand:
         updateservice_url = "/redfish/v1/UpdateService/"
         # Get handler to check Accept3rdPartyFirmware enabled or disabled
         get_content = self.rdmc.app.get_handler(updateservice_url, silent=True, service=True).dict
-        accept3rdpartyfw = get_content["Oem"]["Hpe"]["Accept3rdPartyFirmware"]
+
+        accept3rdpartyfw = ""
+        if (get_content and "Oem" in get_content
+            and "Hpe" in get_content["Oem"]
+            and "Accept3rdPartyFirmware" in get_content["Oem"]["Hpe"]
+        ):
+            accept3rdpartyfw = get_content["Oem"]["Hpe"]["Accept3rdPartyFirmware"]
+
         line_l = line[0].lower()
         if (
             line
@@ -127,7 +134,8 @@ class FwpkgCommand:
         ):
             if not accept3rdpartyfw and not options.enable_thirdparty_fw:
                 raise InvalidCommandLineErrorOPTS(
-                    "Please use the option --enable_thirdparty_fw to flash Third Party Firmware Update Packages\n"
+                    "Please use the option --enable_thirdparty_fw to flash Third "
+                    "Party Firmware Packages.\nBy default only .fwpkg files are allowed.\n"
                 )
 
         if options.enable_thirdparty_fw:
@@ -324,8 +332,11 @@ class FwpkgCommand:
                 type_set = None
                 for fw in data:
                     for device in payload["Devices"]["Device"]:
-                        if fw["Oem"]["Hpe"].get("Targets") is not None:
-                            if device["Target"] in fw["Oem"]["Hpe"]["Targets"]:
+                        if (
+                                fw["Oem"]["Hpe"].get("Targets") is not None
+                                and device["Target"] in fw["Oem"]["Hpe"]["Targets"]
+                        ):
+                            if fw["Oem"]["Hpe"].get("DeviceContext") is not None:
                                 # print devicecontext in debugger
                                 LOGGER.info("DeviceContext", fw["Oem"]["Hpe"]["DeviceContext"])
                                 if (
@@ -335,6 +346,9 @@ class FwpkgCommand:
                                     cc_flag = True
                                 else:
                                     da_flag = True
+                            else:
+                                LOGGER.error("DeviceContext is not found, please wait for a while & try again.")
+                                raise UploadError("DeviceContext is not found, please wait for a while & try again.")
                 if cc_flag and da_flag:
                     ctype = "BC"
                     type_set = True

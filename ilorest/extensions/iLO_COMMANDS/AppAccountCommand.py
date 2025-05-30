@@ -75,7 +75,8 @@ class AppAccountCommand:
             "Retrieves details of all application accounts using appaccount details.\n"
             "Supported only on VNIC-enabled iLO7 servers.\n"
             "For help on specific subcommands, run: appaccount <sub-command> -h.\n\n",
-            "summary": "Creates/Deletes application account, Checks the existence of an application account, Provides details on all app accounts present in the server.",
+            "summary": "Creates/Deletes application account, Checks the existence of an"
+                       " application account, Provides details on all app accounts present in the server.",
             "aliases": [],
             "auxcommands": [],
         }
@@ -180,7 +181,8 @@ class AppAccountCommand:
                     log_dir=self.rdmc.log_dir,
                 )
         except Exception as excp:
-            raise NoAppAccountError("Error occured while locating application account. Please recheck the entered inputs.\n")
+            raise NoAppAccountError("Error occured while locating application"
+                                    " account. Please recheck the entered inputs.\n")
 
 
         # Function to find out the iLO Generation

@@ -44,6 +44,72 @@ except ImportError:
 
 from redfish.ris.ris import SessionExpired
 
+ErrorMapping = {
+    "ProxySettingsInvalid_RDA": "Could not connect to HPE using the provided web proxy. "
+                                "Ensure that the proxy details are correct. Additionally,"
+                                " you can set proxy using the --proxy parameter in the computeopsmanagement command.\n",
+    "ProxyOrFirewallError_RDA": "The proxy or firewall in not configured properly."
+                                " Please check the respective values. Additionally, "
+                                "you can set proxy using the --proxy parameter in the computeopsmanagement command.\n",
+    "iLOTimeError_RDA": "Could not obtain an identity for this server "
+                        "to connect to Compute Ops Management due to a "
+                        "incorrect iLO system time. Please update time on RBSU.\n",
+    "iLOTimeError_COM": "Could not verify the identity of Compute Ops Management. "
+                        "This could be due to an incorrect iLO system time. "
+                        "Contact HPE support if the problem persists.\n",
+    "ProxyOrFirewallError_COM": "Could not connect to Compute Ops Management due to proxy issue.\n",
+    "ProxySettingsInvalid_COM": "Could not connect to HPE using the "
+                                "provided web proxy. Ensure that the proxy details are correct.\n",
+    "ActivationKeyRequired": "An activation key is required in order "
+                             "to connect to HPE Compute Ops Management. Please enter an activation key.\n",
+    "InvalidActivationKey": "The activation key entered is invalid. "
+                            "Please check the value entered. If the problem persists, contact HPE Support.\n",
+    "ExpiredActivationKey": "The activation key entered is expired. "
+                            "Please enter a valid activation key. "
+                            "If the problem persists, contact HPE Support.\n ",
+    "WrongiLOVersion": "Unsupported iLO version. Upgrade to the latest iLO version to use HPE Compute Ops Management.\n",
+    "DeviceAssignFailed": "Device assignment has failed. Visit HPE GreenLake, select Device tab and ensure"
+                          " this device is not already added to another Compute Ops Management instance.\n",
+    "DeviceClaimUnauthorized": "Device claim is unauthorized. Contact your HPE GreenLake administrator to "
+                               "verify that you have the right permissions to add "
+                               "a device to HPE GreenLake device inventory.\n",
+    "DeviceNotFound": "Device not found. Contact HPE Support to resolve this issue.\n",
+    "InternalError_RDA": "Unknown error. Reset iLO and re-try connecting."
+                         " Contact HPE support if the problem persists.\n",
+    "InternalError_COM": "Unknown error. Reset iLO and re-try connecting. "
+                         "Contact HPE support if the problem persists.\n",
+    "ExternalError_RDA": "External error. Retry after some time. Contact HPE support if the problem persists.\n",
+    "ExternalError_COM": "External error. Retry after some time. Contact HPE support if the problem persists.\n",
+    "DisabledByCOM": "Disabled by Compute Ops Management.\n"
+}
+
+Cloudconnectstatus = {
+    # Network Status Config
+    "Initializing": "Cloud connection setup is in progress. Please wait a moment.",
+    "IPAddressNotConfigured": "iLO doesn't have an IP address configured. Please check network settings.",
+    "DNSResolutionError": "Unable to resolve DNS. Please verify your DNS configuration.",
+    "Configured": "Configured.",
+    "NotTested": "Not tested yet.",
+    "InternalError": "iLO ran into an internal issue while trying "
+                     "to connect to the cloud. Please try again or contact support.",
+
+    # Web Connectivity
+    "iLOTimeError": "The iLO time settings are incorrect. Please synchronize time to proceed.",
+    "ProxyOrFirewallError": "iLO couldn't reach the endpoint. Check your proxy or firewall settings.",
+    "Connected": "Connected.",
+    "ProxySettingsInvalid": "Proxy settings appear to be invalid. Please review and update them.",
+    "ExternalError": "There was an issue with the external cloud service. Please try again later.",
+
+    # iLO Configuration for Cloud Connect
+    "ActivationKeyRequired": "An activation key is needed to enable cloud connectivity. Please provide a valid key.",
+    "WrongiLOVersion": "This iLO version doesn't support the requested operation. Please update iLO firmware.",
+    "InvalidActivationKey": "The activation key provided is invalid. Please check and enter a valid one.",
+    "DeviceAssignFailed": "iLO was unable to register the device with the cloud. Please try again later.",
+    "DeviceClaimUnauthorized": "Device claim failed due to insufficient authorization. Please check credentials.",
+    "DeviceNotFound": "The device couldn't be found in the cloud service. Ensure the activation key is correct.",
+    "DisabledByCOM": "Cloud connectivity has been disabled by COM settings."
+}
+
 
 class ComputeOpsManagementCommand:
     """Main new command template class"""
@@ -143,12 +209,15 @@ class ComputeOpsManagementCommand:
             except:
                 raise ProxyConfigFailedError("Clearing Proxy Server Configuration Failed.\n")
 
-    def get_cloud_status(self):
+    def get_cloud_status(self, need_reason=None):
         path = self.rdmc.app.typepath.defs.managerpath
         resp = self.rdmc.app.get_handler(path, service=False, silent=True)
         if resp.status != 200:
             raise SessionExpired("Invalid session. Please logout and log back in or include credentials.")
         status = resp.dict["Oem"]["Hpe"]["CloudConnect"]["CloudConnectStatus"]
+        if need_reason:
+            reason = resp.dict["Oem"]["Hpe"]["CloudConnect"]["FailReason"]
+            return status, reason
         return status
 
     def connect_cloud(self, activationkey=None):
@@ -187,24 +256,29 @@ class ComputeOpsManagementCommand:
             elapsed_time = current_time - start_time
             if elapsed_time > allowed_seconds:
                 self.rdmc.ui.printer("\n")
+                status, reason = self.get_cloud_status(need_reason=True)
+                if status == "NotEnabled":
+                    raise CloudConnectFailedError(ErrorMapping[reason])
                 raise CloudConnectTimeoutError(
                     "ComputeOpsManagement connection timed out, Please check the "
                     "activation key and network or proxy settings and try again.\n"
                 )
             else:
-                status = self.get_cloud_status()
+                status, reason = self.get_cloud_status(need_reason=True)
                 # self.rdmc.ui.printer("ComputeOpsManagement connection status is %s.\n" % status)
                 if status == "Connected":
                     # Check again after 10 seconds before breaking the loop
                     time.sleep(10)
-                    status = self.get_cloud_status()
+                    status, reason = self.get_cloud_status(need_reason=True)
                     if status == "Connected":
                         self.rdmc.ui.printer("\n")
                         self.rdmc.ui.printer("ComputeOpsManagement connection is successful.\n")
                         break
                 # If connection has failed while checking waiting for success message
-                if status == "ConnectionFailed":
+                if status == "ConnectionFailed" or status == "NotConnected":
                     self.rdmc.ui.printer("\n")
+                    if reason:
+                        raise CloudConnectFailedError(ErrorMapping[reason])
                     raise CloudConnectFailedError(
                         "ComputeOpsManagement connection Failed. Please check the "
                         "activation key and network or proxy settings and try again.\n"
@@ -256,6 +330,13 @@ class ComputeOpsManagementCommand:
                 output += "CloudActivateURL : %s\n" % (cloud_info["CloudActivateURL"])
             if "ActivationKey" in cloud_info:
                 output += "ActivationKey : %s\n" % (cloud_info["ActivationKey"])
+            if "ExtendedStatusInfo" in cloud_info:
+                output += "\n"
+                output += "Extended Cloud connect status is as follows:\n\n"
+                output += "Network Configuration : %s\n" % (Cloudconnectstatus[cloud_info["ExtendedStatusInfo"]["NetworkConfig"]])
+                output += "Web Connectivity : %s\n" % (Cloudconnectstatus[cloud_info["ExtendedStatusInfo"]["WebConnectivity"]])
+                output += "iLO Configuration for Cloud Connect : %s\n" % \
+                          (Cloudconnectstatus[cloud_info["ExtendedStatusInfo"]["iLOConfigForCloudConnect"]])
         if not json:
             self.rdmc.ui.printer(output, verbose_override=True)
         else:

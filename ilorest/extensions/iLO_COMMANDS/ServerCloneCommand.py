@@ -1495,7 +1495,8 @@ class ServerCloneCommand:
             # idle_con = data["#Manager.v1_5_1.Manager"]["/redfish/v1/Managers/1/"]["Oem"]["Hpe"][
             #     "IdleConnectionTimeoutMinutes"
             # ]
-            # serialclispeed = data["#Manager.v1_5_1.Manager"]["/redfish/v1/Managers/1/"]["Oem"]["Hpe"]["SerialCLISpeed"]
+            # serialclispeed = data["#Manager.v1_5_1.Manager"]
+            # ["/redfish/v1/Managers/1/"]["Oem"]["Hpe"]["SerialCLISpeed"]
             idle_con = None
             serialclispeed = None
             for key in data:
@@ -2226,7 +2227,7 @@ class ServerCloneCommand:
             curr_sys_info = self.rdmc.app.create_save_header()["Comments"]
             curr_ilorev = format(float(self.curr_ilorev[0] + "." + self.curr_ilorev[1:]), ".2f")
             if self.rdmc.app.getiloversion() >= 7:
-                file_ilorev, file_iloversion ,_ ,_ = sys_info["iLOVersion"].split(" ")
+                file_ilorev, file_iloversion, _, _ = sys_info["iLOVersion"].split(" ")
                 file_iloversion = self.curr_iloversion
             else:
                 _, file_iloversion, file_ilorev = sys_info["iLOVersion"].split(" ")

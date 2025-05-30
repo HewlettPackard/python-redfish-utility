@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Firmware Update Command for rdmc """
+"""Firmware Update Command for rdmc"""
 
 import time
 
@@ -76,15 +76,16 @@ class FirmwareUpdateCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
         # Third Party FW
-        args[0] = args[0].lower()
-        if args and (".pup" in args[0] or ".fup" in args[0] or ".hpb" in args[0] or ".HPb" in args[0]):
+
+        file_name = args[0].lower()
+        if args and (".pup" in file_name or ".fup" in file_name or ".hpb" in file_name or ".HPb" in file_name):
             raise InvalidCommandLineErrorOPTS("For flashing 3rd party firmwares, please use flashfwpkg command")
 
         # Supports only .bin/fwpkg/full/vme Firmware files.
         if (
             args
-            and (".bin" in args[0] or ".fwpkg" in args[0] or ".full" in args[0] or ".vme" in args[0])
-            or ".lpk" in args[0]
+            and (".bin" in file_name or ".fwpkg" in file_name or ".full" in file_name or ".vme" in file_name)
+            or ".lpk" in file_name
         ):
             if args[0].startswith('"') and args[0].endswith('"'):
                 args[0] = args[0][1:-1]

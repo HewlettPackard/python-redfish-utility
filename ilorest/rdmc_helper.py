@@ -65,31 +65,28 @@ HARDCODEDLIST = [
 
 
 class InfoFilter(logging.Filter):
-    def filter(self, rec):
-        return rec.levelno in (logging.DEBUG, logging.INFO, logging.WARN)
+    def filter(self, record):
+        return record.levelno < logging.ERROR
 
 
 LOGGER = logging.getLogger()
-# default logging level setting
-LOGGER.setLevel(logging.ERROR)
-# loggin format
+LOGGER.setLevel(logging.INFO)
+
 LFMT = logging.Formatter("%(levelname)s\t: %(message)s")
-# when success, all logs should be in stdout. When error, it should goto stderr
-# Initialize StreamHandler for Stdout and Stderr logs
+
 LOUT = logging.StreamHandler(sys.stdout)
-LERR = logging.StreamHandler(sys.stderr)
-# set formatter
-LERR.setFormatter(LFMT)
-# default stderr level setting
-LERR.setLevel(logging.ERROR)
-# add logger handle
-LOGGER.addHandler(LERR)
-LOUT.setFormatter(LFMT)
-# default stdout level setting
 LOUT.setLevel(logging.ERROR)
 LOUT.addFilter(InfoFilter())
-# add logger handle
-LOGGER.addHandler(LOUT)
+LOUT.setFormatter(LFMT)
+
+LERR = logging.StreamHandler(sys.stderr)
+LERR.setLevel(logging.ERROR)
+LERR.setFormatter(LFMT)
+
+# Add only if no handlers exist
+if not LOGGER.hasHandlers():
+    LOGGER.addHandler(LOUT)
+    LOGGER.addHandler(LERR)
 
 
 # ---------End of debug logger---------
@@ -674,9 +671,9 @@ class UI(object):
         """Called when file formatting in unrecognizable"""
         self.printer(
             (
-                "\nBoth remote and local mode is accessible when %s "
-                "is run as administrator. Only remote mode is available for non-"
-                "admin user groups.\n" % versioning.__longname__
+                    "\nBoth remote and local mode is accessible when %s "
+                    "is run as administrator. Only remote mode is available for non-"
+                    "admin user groups.\n" % versioning.__longname__
             ),
             excp=True,
         )
@@ -1046,9 +1043,9 @@ class TabAndHistoryCompletionClass(Completer):
                             if tokens[0] == "get" and isinstance(nested_data, dict):
                                 for k in list(nested_data.keys()):
                                     if (
-                                        k.lower() in HARDCODEDLIST
-                                        or "@odata" in k.lower()
-                                        or "@redfish.allowablevalues" in k.lower()
+                                            k.lower() in HARDCODEDLIST
+                                            or "@odata" in k.lower()
+                                            or "@redfish.allowablevalues" in k.lower()
                                     ):
                                         del nested_data[k]
                             if nested_info:

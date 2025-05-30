@@ -574,19 +574,21 @@ class HpGooeyCommand:
             "hpm": "No HPM Birth Certificate found.",
             "birthcert": "No Birth Certificate found.",
             "smartstart": "No SMARTSTART data found.",
+            "ciclicense": "No ciclicense data found.",
         }
 
         msg = {
             "hpm": "Successfully read HPM Birth Certificate.",
             "birthcert": "Successfully read Birth Certificate.",
             "smartstart": "Successfully read SMARTSTART data.",
+            "ciclicense": "Successfully read ciclicense data.",
         }
 
         # Find matching key based on `path`
         key = next((k for k in msg if k in path.lower()), None)
 
         if key is None:
-            LOGGER.error("Invalid path. No matching key found.")
+            LOGGER.debug("Invalid path. No matching key found.")
             raise risblobstore2.BlobNotFoundError("Blob could not be found.")
 
         if resp.status == 200:
@@ -595,11 +597,11 @@ class HpGooeyCommand:
                 self.rdmc.ui.printer(msg[key] + "\n")
                 LOGGER.info(msg[key])
             else:
-                LOGGER.error(error_msg[key])  # Use error logging before raising an exception
+                LOGGER.debug(error_msg[key])  # Use error logging before raising an exception
                 raise risblobstore2.BlobNotFoundError(error_msg[key])
 
         elif resp.status == 404:
-            LOGGER.error(error_msg[key])
+            LOGGER.debug(error_msg[key])
             raise risblobstore2.BlobNotFoundError(error_msg[key])
 
         return data
@@ -619,6 +621,7 @@ class HpGooeyCommand:
             "hpm": "Successfully written HPM Birth Certificate.",
             "birthcert": "Successfully written Birth Certificate.",
             "smartstart": "Successfully written SMARTSTART data.",
+            "ciclicense": "Successfully written ciclicense.",
         }
 
         key = next((k for k in messages if k in path.lower()), None)
@@ -643,12 +646,14 @@ class HpGooeyCommand:
             "hpm": "Successfully deleted HPM Birth Certificate.",
             "smartstart": "Successfully deleted SMARTSTART data.",
             "birthcert": "Successfully deleted Birth Certificate.",
+            "ciclicense": "Successfully deleted ciclicense.",
         }
 
         error_messages = {
             "hpm": "HPM Birth Certificate could not be found or deleted.",
             "smartstart": "SMARTSTART data could not be found or deleted.",
             "birthcert": "Birth Certificate could not be found or deleted.",
+            "ciclicense": "ciclicense could not be found or deleted.",
         }
 
         key = next((k for k in messages if k in path.lower()), None)
