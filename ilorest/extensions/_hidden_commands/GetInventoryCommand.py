@@ -16,7 +16,7 @@
 # ##
 
 # -*- coding: utf-8 -*-
-""" Get Inventory Command for rdmc """
+"""Get Inventory Command for rdmc"""
 
 
 try:
@@ -135,6 +135,8 @@ class GetInventoryCommand:
 
                     if result2.status == 200:
                         alldata["SUT"] = result2.dict
+                    elif result2.status == 204:
+                        pass
                     else:
                         return self.printlastfailedresult(result2)
                     break
@@ -190,6 +192,8 @@ class GetInventoryCommand:
 
                         if result2.status == 200:
                             alldata["SUT"] = result2.dict
+                        elif result2.status == 204:
+                            pass
                         else:
                             return self.printlastfailedresult(result2)
                         break

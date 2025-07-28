@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Save Command for RDMC """
+"""Save Command for RDMC"""
 
 import json
 from collections import OrderedDict
@@ -87,6 +87,7 @@ class SaveCommand:
             options.selector = ""
         if (
             hasattr(options, "selector")
+            and options.selector is not None
             and "hpbaseconfigs" not in options.selector.lower()
             and "hpebaseconfigs" not in options.selector.lower()
             and "bios" not in options.selector.lower()
@@ -171,9 +172,12 @@ class SaveCommand:
         """
         try:
             if (
-                "bios" in options.selector.lower()
-                or "hpbaseconfigs" in options.selector.lower()
-                or "hpebaseconfigs" in options.selector.lower()
+                options.selector is not None
+                and (
+                    "bios" in options.selector.lower()
+                    or "hpbaseconfigs" in options.selector.lower()
+                    or "hpebaseconfigs" in options.selector.lower()
+                )
             ) and (options.multisave is None or options.multisave == ""):
                 raise KeyError
             content = self.rdmc.app.getprops(insts=instances)
@@ -189,33 +193,37 @@ class SaveCommand:
         except Exception:
             config_path = None
             contents = list()
-            if options.selector.lower() == "bios." or "bios.v" in options.selector.lower():
-                config_path = ["/redfish/v1/systems/1/bios/settings/"]
-            elif options.selector.lower() == "bios":
-                config_path = [
-                    "/redfish/v1/systems/1/bios/settings/",
-                    "/redfish/v1/systems/1/bios/mappings/",
-                    "/redfish/v1/systems/1/bios/oem/hpe/mappings/",
-                ]
-            elif "hpbaseconfigs" in options.selector.lower() or "hpebaseconfigs" in options.selector.lower():
-                config_path = [
-                    "/redfish/v1/systems/1/bios/oem/hpe/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/oem/hpe/nvmeof/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/oem/hpe/iscsi/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/oem/hpe/tlsconfig/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/oem/hpe/serverconfiglock/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/oem/hpe/kmsconfig/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/oem/hpe/boot/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/nvmeof/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/iscsi/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/tlsconfig/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/serverconfiglock/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/kmsconfig/baseconfigs/",
-                    "/redfish/v1/systems/1/bios/boot/baseconfigs/",
-                ]
-            elif "hpebiosmapping" in options.selector.lower():
-                config_path = ["/redfish/v1/systems/1/bios/mappings", "/redfish/v1/systems/1/bios/oem/hpe/mappings/"]
+            if options.selector is not None:
+                if options.selector.lower() == "bios." or "bios.v" in options.selector.lower():
+                    config_path = ["/redfish/v1/systems/1/bios/settings/"]
+                elif options.selector.lower() == "bios":
+                    config_path = [
+                        "/redfish/v1/systems/1/bios/settings/",
+                        "/redfish/v1/systems/1/bios/mappings/",
+                        "/redfish/v1/systems/1/bios/oem/hpe/mappings/",
+                    ]
+                elif "hpbaseconfigs" in options.selector.lower() or "hpebaseconfigs" in options.selector.lower():
+                    config_path = [
+                        "/redfish/v1/systems/1/bios/oem/hpe/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/oem/hpe/nvmeof/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/oem/hpe/iscsi/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/oem/hpe/tlsconfig/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/oem/hpe/serverconfiglock/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/oem/hpe/kmsconfig/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/oem/hpe/boot/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/nvmeof/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/iscsi/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/tlsconfig/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/serverconfiglock/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/kmsconfig/baseconfigs/",
+                        "/redfish/v1/systems/1/bios/boot/baseconfigs/",
+                    ]
+                elif "hpebiosmapping" in options.selector.lower():
+                    config_path = [
+                        "/redfish/v1/systems/1/bios/mappings",
+                        "/redfish/v1/systems/1/bios/oem/hpe/mappings/",
+                    ]
             result = None
             for b in config_path:
                 try:

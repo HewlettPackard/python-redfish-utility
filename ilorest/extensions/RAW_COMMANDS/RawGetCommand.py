@@ -70,7 +70,7 @@ class RawGetCommand:
             self.parser.print_help()
             return ReturnCodes.SUCCESS
         try:
-            self.rdmc.opts.nocache = True
+            self.rdmc.opts.nocache = False
             (options, _) = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):

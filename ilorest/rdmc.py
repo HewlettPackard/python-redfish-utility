@@ -130,6 +130,7 @@ try:
         SavinginiLOError,
         GenBeforeLoginError,
         AppIdListError,
+        FlashUnsupportedByIloError,
     )
 except ModuleNotFoundError:
     from ilorest.rdmc_helper import (
@@ -196,6 +197,7 @@ except ModuleNotFoundError:
         SavinginiLOError,
         GenBeforeLoginError,
         AppIdListError,
+        FlashUnsupportedByIloError,
     )
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -856,6 +858,9 @@ class RdmcCommand(RdmcCommandBase):
             self.ui.error(excp)
         except UploadError as excp:
             self.retcode = ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
+            self.ui.error(excp)
+        except FlashUnsupportedByIloError as excp:
+            self.retcode = ReturnCodes.ILO_UNSUPPORTED_FLASH
             self.ui.error(excp)
         except BirthcertParseError as excp:
             self.retcode = ReturnCodes.BIRTHCERT_PARSE_ERROR

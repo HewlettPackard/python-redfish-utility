@@ -199,6 +199,7 @@ class ReturnCodes(object):
     DEVICE_DISCOVERY_IN_PROGRESS = 105
     INSTALLSET_ERROR = 106
     INVALID_TARGET_ERROR = 107
+    ILO_UNSUPPORTED_FLASH = 108
 
     # **** ComputeOpsManagement Errors****
     CLOUD_CONNECT_TIMEOUT = 111
@@ -495,6 +496,12 @@ class DownloadError(RdmcError):
 
 class UploadError(RdmcError):
     """Raised when the component fails to download"""
+
+    pass
+
+
+class FlashUnsupportedByIloError(RdmcError):
+    """Raised when the flashing of the component is not supported by iLO"""
 
     pass
 

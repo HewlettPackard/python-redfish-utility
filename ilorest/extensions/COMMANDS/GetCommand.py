@@ -165,7 +165,7 @@ class GetCommand:
                     "Attributes/" + arg
                     if self.rdmc.app.selector
                     and self.rdmc.app.selector.lower().startswith("bios.")
-                    and "attributes" not in arg.lower()
+                    and not (arg.lower() in ["id", "name"] or "@odata" in arg.lower())
                     else arg
                 )
                 for arg in args
@@ -196,14 +196,11 @@ class GetCommand:
                     UI().print_out_human_readable(security_contents)
             elif (
                 "componentintegrity" in self.rdmc.app.selector.lower()
-                or "networkadapter" in self.rdmc.app.selector.lower()
                 # or "bios." in self.rdmc.app.selector.lower()
             ):
                 url = ""
                 if "componentintegrity" in self.rdmc.app.selector.lower():
                     url = "/redfish/v1/ComponentIntegrity/?$expand=."
-                elif "networkadapter" in self.rdmc.app.selector.lower():
-                    url = "/redfish/v1/Chassis/1/NetworkAdapters/?$expand=."
                 # elif "bios." in self.rdmc.app.selector.lower():
                 #     url = "/redfish/v1/systems/1/bios/?$expand=."
 
@@ -211,6 +208,10 @@ class GetCommand:
                 contents = self.get_content(url, args, uselist, options)
             else:
                 LOGGER.debug("Handling general selector case.")
+                skipnonsettingflag = True
+                if "networkadapter" in self.rdmc.app.selector.lower():
+                    skipnonsettingflag = False
+
                 if "selector" in options:
                     LOGGER.info("Fetching properties with selector: %s", options.selector)
                     contents = self.rdmc.app.getprops(
@@ -219,7 +220,23 @@ class GetCommand:
                         selector=options.selector,
                         nocontent=nocontent,
                         insts=instances,
+                        skipnonsetting=skipnonsettingflag,
                     )
+
+                    if "networkadapter" in self.rdmc.app.selector.lower():
+                        unique_adapters = {}
+                        for entry in contents:
+                            # Remove keys @odata.id & Id if it contains "settings"
+                            adapter_id = entry.get("Id", "")
+                            odata_id = entry.get("@odata.id", "")
+                            if "settings" in odata_id.lower() or "settings" in adapter_id.lower():
+                                continue
+                            # Preventing deduplicates by Id
+                            if adapter_id:
+                                unique_adapters[adapter_id] = entry
+
+                        if unique_adapters:
+                            contents = list(unique_adapters.values())
                 else:
                     LOGGER.info("Fetching properties without selector.")
                     contents = self.rdmc.app.getprops(

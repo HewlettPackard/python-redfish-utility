@@ -40,6 +40,7 @@ try:
         UploadError,
         TaskQueueError,
         FirmwareUpdateError,
+        FlashUnsupportedByIloError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -51,6 +52,7 @@ except ImportError:
         UploadError,
         TaskQueueError,
         FirmwareUpdateError,
+        FlashUnsupportedByIloError,
     )
 
 
@@ -120,7 +122,9 @@ class FwpkgCommand:
         get_content = self.rdmc.app.get_handler(updateservice_url, silent=True, service=True).dict
 
         accept3rdpartyfw = ""
-        if (get_content and "Oem" in get_content
+        if (
+            get_content
+            and "Oem" in get_content
             and "Hpe" in get_content["Oem"]
             and "Accept3rdPartyFirmware" in get_content["Oem"]["Hpe"]
         ):
@@ -174,7 +178,7 @@ class FwpkgCommand:
             )
 
         try:
-            components, tempdir, comptype, _ = self.preparefwpkg(self, options.fwpkg)
+            components, tempdir, comptype, _ = self.preparefwpkg(self, options.fwpkg, command_name="flashfwpkg")
             if comptype == "D":
                 LOGGER.error("Component Type D, Unable to flash this fwpkg file.")
                 raise InvalidFileInputError("Unable to flash this fwpkg file.")
@@ -312,14 +316,15 @@ class FwpkgCommand:
                 "are finished processing. Use the taskqueue command to monitor updates.\n"
             )
 
-    def get_comp_type(self, payload):
-        """Get's the component type and returns it
+    def get_comp_type(self, payload, command_name="flashfwpkg"):
+        """Gets the component type and returns it
 
         :param payload: json payload of .fwpkg file
         :type payload: dict.
         :returns: returns the type of component. Either A,B,C, or D.
         :rtype: string
         """
+        ilo_ver_int = self.rdmc.app.getiloversion()
         ctype = ""
         if "Uefi" in payload["UpdatableBy"] and "RuntimeAgent" in payload["UpdatableBy"]:
             ctype = "D"
@@ -333,22 +338,38 @@ class FwpkgCommand:
                 for fw in data:
                     for device in payload["Devices"]["Device"]:
                         if (
-                                fw["Oem"]["Hpe"].get("Targets") is not None
-                                and device["Target"] in fw["Oem"]["Hpe"]["Targets"]
+                            fw["Oem"]["Hpe"].get("Targets") is not None
+                            and device["Target"] in fw["Oem"]["Hpe"]["Targets"]
                         ):
-                            if fw["Oem"]["Hpe"].get("DeviceContext") is not None:
-                                # print devicecontext in debugger
-                                LOGGER.info("DeviceContext", fw["Oem"]["Hpe"]["DeviceContext"])
+                            if fw["Oem"]["Hpe"].get("DeviceContext") is None:
+                                LOGGER.error("DeviceContext is not found, please wait for a while & try again.")
+                                raise UploadError("DeviceContext is not found, please wait for a while & try again.")
+                            else:
+                                # print device context in debugger
+                                LOGGER.info("DeviceContext {}".format(fw["Oem"]["Hpe"]["DeviceContext"]))
                                 if (
                                     "Slot=" in fw["Oem"]["Hpe"]["DeviceContext"]
                                     and ":" in fw["Oem"]["Hpe"]["DeviceContext"]
                                 ):
-                                    cc_flag = True
+                                    if (
+                                        (ilo_ver_int >= 6.169 and ilo_ver_int < 7.000)
+                                        or ilo_ver_int >= 7.113
+                                        or (ilo_ver_int >= 5.230 and ilo_ver_int < 6.000)
+                                        and command_name != "uploadcomp"
+                                    ):
+                                        if fw["Updateable"]:
+                                            cc_flag = True
+                                        else:
+                                            raise FlashUnsupportedByIloError(
+                                                "The flashing of this component " "is not supported by iLO.\n"
+                                            )
+                                    else:
+                                        cc_flag = True
                                 else:
-                                    da_flag = True
-                            else:
-                                LOGGER.error("DeviceContext is not found, please wait for a while & try again.")
-                                raise UploadError("DeviceContext is not found, please wait for a while & try again.")
+                                    if fw["Updateable"]:
+                                        cc_flag = True
+                                    else:
+                                        da_flag = True
                 if cc_flag and da_flag:
                     ctype = "BC"
                     type_set = True
@@ -360,7 +381,7 @@ class FwpkgCommand:
                     type_set = True
                 if type_set is None:
                     LOGGER.error("Component type is not identified, Please check if the particular H/W is present")
-                    ilo_ver_int = self.rdmc.app.getiloversion()
+                    # ilo_ver_int = self.rdmc.app.getiloversion()
                     ilo_ver = str(ilo_ver_int)
                     error_msg = (
                         "Cannot flash the component on this server, check whether the component is fwpkg-v2 "
@@ -438,7 +459,7 @@ class FwpkgCommand:
         return decoupled_flag, payload_file
 
     @staticmethod
-    def preparefwpkg(self, pkgfile):
+    def preparefwpkg(self, pkgfile, command_name="flashfwpkg"):
         """Prepare fwpkg file for flashing
 
         :param pkgfile: Location of the .fwpkg file
@@ -487,7 +508,7 @@ class FwpkgCommand:
             and not pkgfile_l.endswith(".bin")
             and not pkgfile_l.endswith(".pup")
         ):
-            comptype = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata)
+            comptype = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata, command_name)
         else:
             comptype = "A"
 

@@ -136,7 +136,10 @@ class UploadComponentCommand:
             or options.component.endswith(".pup")
         ):
             fwpkg = True
-            comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(self, options.component)
+            command_name = self.cmdbase.name
+            comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(
+                self, options.component, command_name
+            )
             # if pldm firmware
             if pldmfw:
                 path = self.rdmc.app.typepath.defs.systempath

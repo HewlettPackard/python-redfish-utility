@@ -38,7 +38,7 @@ ilorestIdentification = {
    "binary compat"      : "yes",
    "summary"            : "ilorest tool",
    "description"        : "Restful Interface Tool",
-   "version"            : "800.6.1.0.0",
+   "version"            : "800.6.2.0.0",
    "license"            : "ThirdParty:Other",
    "vendor"             : "HPE",
    "vendor_code"        : "HPE",
@@ -46,8 +46,8 @@ ilorestIdentification = {
    "vendor_email"       : "nobody@example.com",
    "componentName"      : "ilorest-component",
    "componentUIName"    : "Restful Interface Tool",
-   "componentVersion"   : "800.6.1.0.88-1OEM.802.0.0.22380479",
-   "componentUIVersion" : "800.6.1.0.88-1OEM.802.0.0.22380479"
+   "componentVersion"   : "800.6.2.0.88-1OEM.802.0.0.22380479",
+   "componentUIVersion" : "800.6.2.0.88-1OEM.802.0.0.22380479"
 }
 
 #
