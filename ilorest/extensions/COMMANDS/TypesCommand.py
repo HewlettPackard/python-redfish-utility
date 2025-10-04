@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Types Command for RDMC """
+"""Types Command for RDMC"""
 
 try:
     from rdmc_helper import (

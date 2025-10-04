@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Hp Gooey Command for rdmc """
+"""Hp Gooey Command for rdmc"""
 
 import ctypes
 import gzip

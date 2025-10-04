@@ -16,7 +16,7 @@
 
 
 # -*- coding: utf-8 -*-
-""" New Command for RDMC """
+"""New Command for RDMC"""
 
 import json
 import struct

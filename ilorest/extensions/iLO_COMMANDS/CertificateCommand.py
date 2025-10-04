@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Certificates Command for rdmc """
+"""Certificates Command for rdmc"""
 
 import time
 from argparse import RawDescriptionHelpFormatter

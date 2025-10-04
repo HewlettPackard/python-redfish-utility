@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" RawDelete Command for rdmc """
+"""RawDelete Command for rdmc"""
 
 import sys
 

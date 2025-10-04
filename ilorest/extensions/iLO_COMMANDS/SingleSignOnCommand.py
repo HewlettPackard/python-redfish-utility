@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Single Sign On Command for rdmc """
+"""Single Sign On Command for rdmc"""
 from argparse import RawDescriptionHelpFormatter
 
 try:

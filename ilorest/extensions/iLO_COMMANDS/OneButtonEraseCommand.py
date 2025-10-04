@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Factory Defaults Command for rdmc """
+"""Factory Defaults Command for rdmc"""
 import time
 from collections import OrderedDict
 

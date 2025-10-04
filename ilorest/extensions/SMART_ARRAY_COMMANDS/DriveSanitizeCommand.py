@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Drive Erase/ Sanitize Command for rdmc """
+"""Drive Erase/ Sanitize Command for rdmc"""
 
 try:
     from rdmc_helper import (

@@ -14,4 +14,4 @@ for f in $FILES; do
 done
 
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-python3 $SCRIPT_PATH/rdmc.py $@
+python3 $SCRIPT_PATH/rdmc.py --noinfolog $@

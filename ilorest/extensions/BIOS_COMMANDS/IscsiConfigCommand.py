@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" IscsiConfig Command for rdmc """
+"""IscsiConfig Command for rdmc"""
 
 import json
 import re
@@ -170,10 +170,7 @@ class IscsiConfigCommand:
 
     def get_enabled_only(self):
         enable_disable = dict()
-        enable_nic_only = list()
-        enable_nic = dict()
         final_enabled_list = list()
-        import re
 
         bios = "/redfish/v1/systems/1/bios/"
         bios_dict = self.rdmc.app.get_handler(bios, silent=True, service=True).dict
@@ -186,10 +183,7 @@ class IscsiConfigCommand:
                 enable_disable[attr] = val
         # Enabled NIC only listing
         for k, v in enable_disable.items():
-            enable_nic_only.append(k)
-            nics = re.findall("\\d+", k)
-            enable_nic[k] = nics
-            final_enabled_list.append(nics)
+            final_enabled_list.append(k)
 
         return final_enabled_list
 
@@ -213,7 +207,11 @@ class IscsiConfigCommand:
 
         for item in pcisettingsmap[0]["BiosPciSettingsMappings"]:
             if "Associations" in item:
-                if "EmbNicEnable" in item["Associations"] or "EmbNicConfig" in item["Associations"]:
+                if (
+                    "EmbNicEnable" in item["Associations"]
+                    or "EmbNicConfig" in item["Associations"]
+                    or "OcpAEnable" in item["Associations"]
+                ):
                     _ = [devicealloc.append(x) for x in item["Subinstances"]]
 
                 if (
@@ -273,8 +271,7 @@ class IscsiConfigCommand:
                 nic = d["Associations"][0]
             if "Storage" in nic:
                 continue
-            nics = re.findall("\\d+", nic)
-            if nics in enabled_only_bootsource:
+            if nic in enabled_only_bootsource:
                 refined_devicealloc.append(d)
 
         for item in iscsibootsources[self.rdmc.app.typepath.defs.iscsisource]:
@@ -428,7 +425,11 @@ class IscsiConfigCommand:
         devicealloc = list()
         for item in pcisettingsmap[0]["BiosPciSettingsMappings"]:
             if "Associations" in item:
-                if "EmbNicEnable" in item["Associations"] or "EmbNicConfig" in item["Associations"]:
+                if (
+                    "EmbNicEnable" in item["Associations"]
+                    or "EmbNicConfig" in item["Associations"]
+                    or "OcpAEnable" in item["Associations"]
+                ):
                     _ = [devicealloc.append(x) for x in item["Subinstances"]]
 
                 if (
@@ -479,46 +480,41 @@ class IscsiConfigCommand:
 
         self.pcidevicehelper(devicealloc, iscsipath, bootpath, pcideviceslist)
         if not ("error" in iscsibootsources):
+            total_attempts = []
             for item in iscsibootsources[self.rdmc.app.typepath.defs.iscsisource]:
                 if item["iSCSINicSource"]:
+                    iscsi_attempt = item[self.rdmc.app.typepath.defs.iscsiattemptinstance]
                     for device in devicealloc:
-                        it = device["CorrelatableID"]
-                        it = it.split(",")
+                        it = device["CorrelatableID"].split(",")
                         del it[-1]
                         it = ",".join(it)
+                        listval = 0
                         if not isinstance(device["Associations"][0], list):
                             listval = 1 if isinstance(device["Associations"][0], dict) else 0
-                        else:
-                            listval = 0
+
                         if item["iSCSINicSource"] == device["Associations"][listval]:
                             for pcidevice in pcideviceslist:
-                                pcid = pcidevice["UEFIDevicePath"]
-                                pcid = pcid.split(",")
+                                if "Storage" in pcidevice["DeviceType"]:
+                                    continue
+                                pcid = pcidevice["UEFIDevicePath"].split(",")
                                 del pcid[-1]
                                 pcid = ",".join(pcid)
-                                if (device["CorrelatableID"] == pcidevice["UEFIDevicePath"]) or (
-                                    "Embedded" not in pcidevice["DeviceType"] and (pcid == it)
-                                ):
-                                    if "Storage" not in pcidevice["DeviceType"]:
-                                        inputstring = (
-                                            pcidevice["DeviceType"]
-                                            + " "
-                                            + str(pcidevice["DeviceInstance"])
-                                            + " Port "
-                                            + str(device["Subinstance"])
-                                            + " : "
-                                            + pcidevice.get("Name", "")
-                                        )
-                                        structeredlist.append(
-                                            {
-                                                inputstring: {
-                                                    str(
-                                                        "Attempt "
-                                                        + str(item[self.rdmc.app.typepath.defs.iscsiattemptinstance])
-                                                    ): item
-                                                }
-                                            }
-                                        )
+                                # using total_attempts to avoid duplicate entries
+                                if (
+                                    device["CorrelatableID"] == pcidevice["UEFIDevicePath"]
+                                    or ("Embedded" not in pcidevice["DeviceType"] and (pcid == it))
+                                ) and iscsi_attempt not in total_attempts:
+                                    total_attempts.append(iscsi_attempt)
+                                    inputstring = (
+                                        pcidevice["DeviceType"]
+                                        + " "
+                                        + str(pcidevice["DeviceInstance"])
+                                        + " Port "
+                                        + str(device["Subinstance"])
+                                        + " : "
+                                        + pcidevice.get("Name", "").strip()
+                                    )
+                                    structeredlist.append({inputstring: {str("Attempt " + str(iscsi_attempt)): item}})
 
                 else:
                     structeredlist.append({"Not Added": {}})
@@ -567,12 +563,14 @@ class IscsiConfigCommand:
             if "Associations" in item:
                 # self.rdmc.ui.printer("Assoc 1 : %s\n" % (item["Associations"]))
                 # self.rdmc.ui.printer("Sub 1 : %s\n" % (item["Subinstances"]))
-                if "EmbNicEnable" in item["Associations"] or "EmbNicConfig" in item["Associations"]:
+                if (
+                    "EmbNicEnable" in item["Associations"]
+                    or "EmbNicConfig" in item["Associations"]
+                    or "OcpAEnable" in item["Associations"]
+                ):
                     _ = [devicealloc.append(x) for x in item["Subinstances"]]
 
                 try:
-                    item["Associations"][0]
-                    # self.rdmc.ui.printer("Assoc 2 : %s\n" % (item["Associations"][0]))
                     if (
                         re.match("FlexLom[0-9]+Enable", item["Associations"][0])
                         or re.match("PciSlot[0-9]+Enable", item["Associations"][0])
@@ -767,11 +765,8 @@ class IscsiConfigCommand:
             raise excp
 
         try:
-            tot_instance = []
             final_device_list = list()
-            enable_disable = dict()
             enable_val = list()
-            import re
 
             bios = "/redfish/v1/systems/1/bios/"
             bios_dict = self.rdmc.app.get_handler(bios, silent=True, service=True).dict
@@ -781,64 +776,68 @@ class IscsiConfigCommand:
                 bios_dict_items = bios_dict.items()
             for attr, val in bios_dict_items:
                 if "NetworkBoot" in str(val):
-                    nics = re.findall("\\d+", attr)
-                    enable_disable[attr] = nics
-                    enable_val.append(nics)
+                    enable_val.append(attr.lower().strip())
+
+            # before comparing with pcideviceslist filtering enabled nics only
+            devicealloc = [
+                val
+                for val in devicealloc
+                if (len(val["Associations"]) == 2 and val["Associations"][1].lower() in enable_val)
+            ]
+
             if devicealloc and pcideviceslist:
-                if disabled:
-                    self.rdmc.ui.printer("\nDisabled iSCSI Boot Network Interfaces: \n")
-                    count = "Disabled"
-                else:
-                    self.rdmc.ui.printer("Available iSCSI Boot Network Interfaces: \n")
-                    count = 1
+                count = 0
+                output_data = []
                 for pcidevice in pcideviceslist:
-                    pcid = pcidevice["UEFIDevicePath"]
-                    pcid = pcid.split(",")
+                    if "storage" in pcidevice["DeviceType"].lower():
+                        continue
+
+                    pcid = pcidevice["UEFIDevicePath"].split(",")
                     del pcid[-1]
                     pcid = ",".join(pcid)
+
                     for item in devicealloc:
-                        it = item["CorrelatableID"]
-                        it = it.split(",")
+                        it = item["CorrelatableID"].split(",")
                         del it[-1]
                         it = ",".join(it)
+
+                        # Match the correlatable ID from the
+                        # PCI device & allocated device
                         if pcid == it:
-                            if "Storage" not in pcidevice["DeviceType"]:
-                                device = (
-                                    pcidevice["DeviceType"]
-                                    + " "
-                                    + str(pcidevice["DeviceInstance"])
-                                    + " Port "
-                                    + str(item["Subinstance"])
-                                )
-                                if device not in final_device_list:
-                                    final_device_list.append(device)
-                                    temp = dict()
-                                    temp["Device"] = device
-                                    if "Name" not in pcidevice:
-                                        temp["Name"] = pcidevice["StructuredName"]
-                                    else:
-                                        temp["Name"] = pcidevice["Name"]
-                                    tot_instance.append(temp)
-                count = 0
-                enable_nic = dict()
-                # enb_val = list()
-                for t in tot_instance:
-                    nic = t["Device"]
-                    nics = re.findall("\\d+", nic)
-                    enable_nic[nic] = nics
-                    if "Embedded LOM" in t["Device"]:
-                        nics.remove("1")
-                    for i in enable_val:
-                        if i == nics:
-                            count = count + 1
-                            self.rdmc.ui.printer(
-                                "[%s] %s : %s\n"
-                                % (
-                                    count,
-                                    t["Device"],
-                                    t["Name"],
-                                )
+                            # Format the device information
+                            device = (
+                                pcidevice["DeviceType"]
+                                + " "
+                                + str(pcidevice["DeviceInstance"])
+                                + " Port "
+                                + str(item["Subinstance"])
                             )
+                            # final_device_list using to
+                            # avoid the duplicate entries
+                            if device not in final_device_list:
+                                final_device_list.append(device)
+                                # Add the device name or
+                                # structured name to the dictionary
+                                if "Name" not in pcidevice:
+                                    name = pcidevice.get(
+                                        "StructuredName",
+                                        "",
+                                    ).strip()
+                                else:
+                                    name = pcidevice.get("Name", "").strip()
+
+                                count = count + 1
+                                output_data.append(f"{[count]} {device} : {name}\n")
+
+                if output_data:
+                    # display output data
+                    status = "Disabled" if disabled else "Available"
+                    self.rdmc.ui.printer(f"\n{status} iSCSI Boot Network Interfaces: \n")
+                    [self.rdmc.ui.printer(i) for i in output_data]
+                    print()  # For a blank line, after the output
+                else:
+                    self.rdmc.ui.printer("No iSCSI Boot Network Interfaces Available.\n\n")
+
             else:
                 raise BootOrderMissingEntriesError("No entries found for" " iscsi configurations devices.\n")
         except Exception as excp:

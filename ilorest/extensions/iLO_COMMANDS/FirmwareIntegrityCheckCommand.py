@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Firmware Update Command for rdmc """
+"""Firmware Update Command for rdmc"""
 
 import time
 
@@ -101,8 +101,10 @@ class FirmwareIntegrityCheckCommand:
             pass
 
         bodydict = results.resp.dict
-
-        path = bodydict["Oem"]["Hpe"]["Actions"]["#HpeiLOUpdateServiceExt.StartFirmwareIntegrityCheck"]["target"]
+        if "#HpeiLOUpdateServiceExt.StartFirmwareIntegrityCheck" in bodydict["Oem"]["Hpe"]["Actions"]:
+            path = bodydict["Oem"]["Hpe"]["Actions"]["#HpeiLOUpdateServiceExt.StartFirmwareIntegrityCheck"]["target"]
+        else:
+            raise InvalidCommandLineError("Firmware integrity check action not found.")
 
         self.rdmc.app.post_handler(path, {})
 

@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" BootOrder Command for rdmc """
+"""BootOrder Command for rdmc"""
 
 import ast
 import copy

@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" iLO Functionality Command for rdmc """
+"""iLO Functionality Command for rdmc"""
 
 import json
 

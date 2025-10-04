@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" RawPatch Command for rdmc """
+"""RawPatch Command for rdmc"""
 
 import json
 import re

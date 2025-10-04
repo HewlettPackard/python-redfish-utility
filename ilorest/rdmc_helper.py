@@ -1,5 +1,5 @@
 ###
-# Copyright 2017 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2017-2025 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,12 +66,15 @@ HARDCODEDLIST = [
 
 class InfoFilter(logging.Filter):
     def filter(self, record):
+        # Allow only records below ERROR (i.e., INFO and WARNING)
         return record.levelno < logging.ERROR
 
 
+# Initialize root logger
 LOGGER = logging.getLogger()
-LOGGER.setLevel(logging.INFO)
+LOGGER.setLevel(logging.ERROR)
 
+# Formatter
 LFMT = logging.Formatter("%(levelname)s\t: %(message)s")
 
 LOUT = logging.StreamHandler(sys.stdout)
@@ -79,11 +82,12 @@ LOUT.setLevel(logging.ERROR)
 LOUT.addFilter(InfoFilter())
 LOUT.setFormatter(LFMT)
 
+# Stderr handler: ERROR and above
 LERR = logging.StreamHandler(sys.stderr)
 LERR.setLevel(logging.ERROR)
 LERR.setFormatter(LFMT)
 
-# Add only if no handlers exist
+# Attach handlers if none exist
 if not LOGGER.hasHandlers():
     LOGGER.addHandler(LOUT)
     LOGGER.addHandler(LERR)
@@ -678,9 +682,9 @@ class UI(object):
         """Called when file formatting in unrecognizable"""
         self.printer(
             (
-                    "\nBoth remote and local mode is accessible when %s "
-                    "is run as administrator. Only remote mode is available for non-"
-                    "admin user groups.\n" % versioning.__longname__
+                "\nBoth remote and local mode is accessible when %s "
+                "is run as administrator. Only remote mode is available for non-"
+                "admin user groups.\n" % versioning.__longname__
             ),
             excp=True,
         )
@@ -1050,9 +1054,9 @@ class TabAndHistoryCompletionClass(Completer):
                             if tokens[0] == "get" and isinstance(nested_data, dict):
                                 for k in list(nested_data.keys()):
                                     if (
-                                            k.lower() in HARDCODEDLIST
-                                            or "@odata" in k.lower()
-                                            or "@redfish.allowablevalues" in k.lower()
+                                        k.lower() in HARDCODEDLIST
+                                        or "@odata" in k.lower()
+                                        or "@redfish.allowablevalues" in k.lower()
                                     ):
                                         del nested_data[k]
                             if nested_info:

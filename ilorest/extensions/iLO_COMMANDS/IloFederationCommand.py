@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Add Federation Command for rdmc """
+"""Add Federation Command for rdmc"""
 
 
 from argparse import Action, RawDescriptionHelpFormatter
@@ -151,7 +151,10 @@ class IloFederationCommand:
         results = self.rdmc.app.get_handler(path, service=True, silent=True).dict
 
         if redfish:
-            results = results["Members"]
+            if "Members" in results:
+                results = results["Members"]
+            else:
+                results = list()
         else:
             if "Member" in results["links"]:
                 results = results["links"]["Member"]

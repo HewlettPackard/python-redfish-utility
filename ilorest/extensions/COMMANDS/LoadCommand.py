@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Load Command for RDMC """
+"""Load Command for RDMC"""
 
 import json
 import os

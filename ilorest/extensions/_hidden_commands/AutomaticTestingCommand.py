@@ -16,7 +16,7 @@
 
 
 # -*- coding: utf-8 -*-
-""" Automatic Testing for rdmc """
+"""Automatic Testing for rdmc"""
 
 import datetime
 import json

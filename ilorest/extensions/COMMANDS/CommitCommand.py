@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Commit Command for RDMC """
+"""Commit Command for RDMC"""
 
 from redfish.ris.rmc_helper import NothingSelectedError
 

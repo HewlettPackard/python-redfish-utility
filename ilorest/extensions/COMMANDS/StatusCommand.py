@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Status Command for RDMC """
+"""Status Command for RDMC"""
 
 from functools import reduce
 

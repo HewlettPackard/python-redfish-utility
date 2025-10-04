@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" RawHead Command for rdmc """
+"""RawHead Command for rdmc"""
 
 import json
 

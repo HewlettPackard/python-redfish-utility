@@ -14,7 +14,7 @@
 # limitations under the License.
 ###
 # -*- coding: utf-8 -*-
-""" Server Info Command for rdmc """
+"""Server Info Command for rdmc"""
 import re
 import sys
 from collections import OrderedDict

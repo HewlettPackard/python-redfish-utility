@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Clear Rest API State Command for rdmc """
+"""Clear Rest API State Command for rdmc"""
 
 
 try:

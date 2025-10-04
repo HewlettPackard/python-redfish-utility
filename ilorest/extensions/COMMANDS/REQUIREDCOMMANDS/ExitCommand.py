@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Exit Command for rdmc """
+"""Exit Command for rdmc"""
 
 import sys
 

@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" SigRecompute Command for rdmc """
+"""SigRecompute Command for rdmc"""
 
 try:
     from rdmc_helper import (

@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Smart Nic Command for rdmc """
+"""Smart Nic Command for rdmc"""
 import os
 import time
 

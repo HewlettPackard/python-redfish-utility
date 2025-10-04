@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Directory Command for rdmc """
+"""Directory Command for rdmc"""
 
 import re
 import sys

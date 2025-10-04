@@ -15,9 +15,9 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Version strings for the utility """
+"""Version strings for the utility"""
 
-__version__ = "6.2.0.0"
+__version__ = "6.3.0.0"
 __shortname__ = "iLORest"
 __longname__ = "RESTful Interface Tool"
 __extracontent__ = "Copyright (c) 2014-2025 Hewlett Packard Enterprise Development LP\n"

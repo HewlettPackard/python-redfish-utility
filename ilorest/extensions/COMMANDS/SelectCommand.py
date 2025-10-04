@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Select Command for RDMC """
+"""Select Command for RDMC"""
 
 from redfish.ris import NothingSelectedError
 

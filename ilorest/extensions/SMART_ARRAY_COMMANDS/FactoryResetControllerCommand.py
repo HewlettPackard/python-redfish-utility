@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Factory Reset Controller Command for rdmc """
+"""Factory Reset Controller Command for rdmc"""
 
 
 try:

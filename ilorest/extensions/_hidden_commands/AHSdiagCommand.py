@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" AHS diag Command for rdmc """
+"""AHS diag Command for rdmc"""
 
 import os
 from ctypes import POINTER, c_char_p, c_int, c_ubyte, create_string_buffer

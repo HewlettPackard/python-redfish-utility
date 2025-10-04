@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" ISTool Command for rmdc """
+"""ISTool Command for rmdc"""
 
 try:
     from rdmc_helper import (

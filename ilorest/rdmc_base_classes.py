@@ -1,5 +1,5 @@
 ###
-# Copyright 2017 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2017-2025 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -457,6 +457,15 @@ class RdmcOptionParser(ArgumentParser):
             dest="nostdoutlog",
             action="store_true",
             help="""Disable debug logs to stdout.""",
+            default=False,
+        )
+        self.add_argument(
+            "--noinfolog",
+            "--nodefaultlog",
+            "--no_default_log",
+            dest="noinfolog",
+            action="store_true",
+            help="""Disable default INFO logs.""",
             default=False,
         )
         self.add_argument(

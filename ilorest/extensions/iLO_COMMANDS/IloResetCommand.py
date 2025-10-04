@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" iLO Reset Command for rdmc """
+"""iLO Reset Command for rdmc"""
 
 from redfish.ris.rmc_helper import IloResponseError
 

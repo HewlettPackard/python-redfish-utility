@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Server State Command for rdmc """
+"""Server State Command for rdmc"""
 
 try:
     from rdmc_helper import (

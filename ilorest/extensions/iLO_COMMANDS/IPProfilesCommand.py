@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" RawGet Command for rdmc """
+"""RawGet Command for rdmc"""
 
 import base64
 import gzip

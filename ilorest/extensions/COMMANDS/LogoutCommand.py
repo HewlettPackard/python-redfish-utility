@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Logout Command for RDMC """
+"""Logout Command for RDMC"""
 
 try:
     from rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes

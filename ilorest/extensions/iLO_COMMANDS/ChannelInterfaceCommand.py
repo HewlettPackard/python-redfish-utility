@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" iLO CHIF Reset Command for rdmc """
+"""iLO CHIF Reset Command for rdmc"""
 import sys
 from argparse import RawDescriptionHelpFormatter
 

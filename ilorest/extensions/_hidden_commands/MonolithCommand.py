@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Monolith Command for rdmc """
+"""Monolith Command for rdmc"""
 
 import json
 

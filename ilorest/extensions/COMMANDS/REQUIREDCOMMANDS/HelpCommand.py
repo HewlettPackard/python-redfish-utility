@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Help Command for RDMC """
+"""Help Command for RDMC"""
 
 try:
     from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser

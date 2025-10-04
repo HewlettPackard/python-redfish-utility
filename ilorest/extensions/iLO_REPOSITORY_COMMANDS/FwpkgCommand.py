@@ -355,8 +355,7 @@ class FwpkgCommand:
                                         (ilo_ver_int >= 6.169 and ilo_ver_int < 7.000)
                                         or ilo_ver_int >= 7.113
                                         or (ilo_ver_int >= 5.230 and ilo_ver_int < 6.000)
-                                        and command_name != "uploadcomp"
-                                    ):
+                                    ) and command_name != "uploadcomp":
                                         if fw["Updateable"]:
                                             cc_flag = True
                                         else:

@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" SetPassword Command for rdmc """
+"""SetPassword Command for rdmc"""
 
 try:
     from rdmc_helper import (

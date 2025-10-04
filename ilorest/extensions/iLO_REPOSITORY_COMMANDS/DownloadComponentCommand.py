@@ -15,7 +15,7 @@
 # ##
 
 # -*- coding: utf-8 -*-
-""" Download Component Command for rdmc """
+"""Download Component Command for rdmc"""
 
 import ctypes
 import os

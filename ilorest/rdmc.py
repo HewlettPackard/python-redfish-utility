@@ -1,5 +1,5 @@
 ###
-# Copyright 2016-2021 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2016-2025 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,13 +28,13 @@ import errno
 import glob
 import logging
 import os
+import re
 import shlex
 import sys
 import traceback
 import warnings
 import importlib
 import ctypes
-import re
 from argparse import ArgumentParser, RawTextHelpFormatter
 from builtins import open, str, super
 
@@ -399,7 +399,8 @@ class RdmcCommand(RdmcCommandBase):
         :type help_disp: bool
         :returns: Command execution result.
         """
-
+        if opts.noinfolog and opts.debug:
+            opts.noinfolog = False
         if not args:
             LOGGER.error("No command provided. Exiting execution.")
             raise ValueError("No command provided.")
@@ -415,6 +416,11 @@ class RdmcCommand(RdmcCommandBase):
 
         self.load_command(cmd)
         LOGGER.debug(f"Command '{args[0]}' loaded successfully.")
+
+        if opts.noinfolog:
+            LOGGER.setLevel(logging.ERROR)
+        else:
+            LOGGER.setLevel(logging.INFO)
 
         # Enable debug logging if needed
         if opts.debug:
@@ -550,8 +556,9 @@ class RdmcCommand(RdmcCommandBase):
                     pass
                 else:
                     raise
-
-        if self.opts.logdir:
+        if self.opts.noinfolog and self.opts.debug:
+            self.opts.noinfolog = False
+        if self.opts.logdir and (self.opts.debug or not self.opts.noinfolog):
             logdir = self.opts.logdir
         else:
             logdir = self.config.logdir
@@ -568,27 +575,37 @@ class RdmcCommand(RdmcCommandBase):
         logfile = os.path.join(logdir, versioning.__shortname__ + ".log")
         # Create a file logger since we got a logdir
         try:
-            lfile = logging.FileHandler(filename=logfile)
+            if self.opts.debug or not self.opts.noinfolog:
+                lfile = logging.FileHandler(filename=logfile)
         except (OSError, PermissionError, IOError) as e:
             fallback_dir = os.getenv("APPDATA") or os.path.join(os.path.expanduser("~"), ".local", "share")
             os.makedirs(fallback_dir, exist_ok=True)
             logfile = os.path.join(fallback_dir, versioning.__shortname__ + ".log")
             lfile = logging.FileHandler(filename=logfile)
-            print(f"INFO: iLORest Log file is : {logfile}\n")
 
         formatter = logging.Formatter("%(asctime)s %(levelname)s\t: %(message)s")
-        lfile.setFormatter(formatter)
-        lfile.setLevel(logging.INFO)
-        LOGGER.addHandler(lfile)
-        LOGGER.setLevel(logging.INFO)
-        self.app.LOGGER = LOGGER
+        if self.opts.debug or not self.opts.noinfolog:
+            lfile.setFormatter(formatter)
 
+        if getattr(self.opts, "noinfolog", False):
+            default_level = logging.ERROR
+        else:
+            default_level = logging.INFO
+
+        # Apply the base log level
+        if self.opts.debug or not self.opts.noinfolog:
+            lfile.setLevel(default_level)
+        LOGGER.setLevel(default_level)
+
+        # Override logging level for debug
         if getattr(self.opts, "debug", False):
-            if lfile:
-                lfile.setLevel(logging.DEBUG)
+            lfile.setLevel(logging.DEBUG)
             LOGGER.setLevel(logging.DEBUG)
             if not getattr(self.opts, "nostdoutlog", False):
                 LOUT.setLevel(logging.DEBUG)
+        if self.opts.debug or not self.opts.noinfolog:
+            LOGGER.addHandler(lfile)
+        self.app.LOGGER = LOGGER
 
         if ("login" in line or any(x.startswith("--url") for x in line) or not line) and not (
             any(x.startswith(("-h", "--h")) for x in nargv) or "help" in line
@@ -630,6 +647,12 @@ class RdmcCommand(RdmcCommandBase):
         :param opts: Command options.
         :type opts: argparse.Namespace
         """
+        if opts.noinfolog and opts.debug:
+            opts.noinfolog = False
+        if opts.noinfolog:
+            LOGGER.setLevel(logging.ERROR)
+        else:
+            LOGGER.setLevel(logging.INFO)
         LOGGER.info("Starting interactive mode.")
         self.interactive = True
 
@@ -738,10 +761,9 @@ class RdmcCommand(RdmcCommandBase):
         """
         # pylint: disable=redefined-argument-from-local
         try:
-            if not getattr(excp, '_already_logged', False):
-                if self.opts.verbose:
-                    LOGGER.error(f"{type(excp).__name__}: {excp}")
-                    setattr(excp, '_already_logged', True)
+            if not getattr(excp, "_already_logged", False):
+                LOGGER.info(f"Exception: {type(excp).__name__}: {excp}")
+                setattr(excp, "_already_logged", True)
             raise
         # ****** RDMC ERRORS ******
         except ConfigurationFileError as excp:
@@ -894,8 +916,9 @@ class RdmcCommand(RdmcCommandBase):
             self.retcode = ReturnCodes.INVALID_SMART_ARRAY_PAYLOAD
         except GenBeforeLoginError as excp:
             self.retcode = ReturnCodes.GEN_BEFORE_LOGIN_ERROR
-            if not getattr(excp, '_already_logged', False):
-                self.ui.error(str(excp))
+            if not getattr(excp, "_already_logged", False):
+                self.ui.error(f"{type(excp).__name__}: {excp}")
+                setattr(excp, "_already_logged", True)
         # ****** CLI ERRORS ******
         except (CommandNotEnabledError, cliutils.CommandNotFoundException) as excp:
             self.retcode = ReturnCodes.UI_CLI_COMMAND_NOT_FOUND_EXCEPTION

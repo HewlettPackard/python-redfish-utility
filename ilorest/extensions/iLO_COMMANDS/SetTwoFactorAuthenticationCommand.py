@@ -14,7 +14,7 @@
 # limitations under the License.
 ###
 # -*- coding: utf-8 -*-
-""" TwoFactorAuthentication Command for rdmc """
+"""TwoFactorAuthentication Command for rdmc"""
 
 from argparse import RawDescriptionHelpFormatter
 

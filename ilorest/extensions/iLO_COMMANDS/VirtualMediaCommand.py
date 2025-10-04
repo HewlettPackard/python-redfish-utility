@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Virtual Media Command for rdmc """
+"""Virtual Media Command for rdmc"""
 
 try:
     from rdmc_helper import (

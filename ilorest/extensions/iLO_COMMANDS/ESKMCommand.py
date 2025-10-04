@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" ESKM Command for rdmc """
+"""ESKM Command for rdmc"""
 
 try:
     from rdmc_helper import (

@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" BiosDefaultsCommand for rdmc """
+"""BiosDefaultsCommand for rdmc"""
 
 try:
     from rdmc_helper import Encryption, InvalidCommandLineErrorOPTS, ReturnCodes

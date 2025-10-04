@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Log Operations Command for rdmc """
+"""Log Operations Command for rdmc"""
 
 import ctypes
 import datetime
@@ -103,13 +103,16 @@ class ServerlogsCommand:
             " logs from the logged in server.\n\texample: serverlogs "
             "--selectlog=SL -f SLlog.txt\n\n\tClear the iLO Security logs "
             "from the logged in server.\n\texample: serverlogs "
-            "--selectlog=SL --clearlog\n\n\tDownload logs from multiple servers"
-            "\n\texample: serverlogs --mpfile mpfilename.txt -o output"
-            "directorypath --mplog=IEL,IML\n\n\tNote: multiple server file "
-            "format (1 server per new line)\n\t--url <iLO url/hostname> "
-            "-u admin -p password\n\t--url <iLO url/hostname> -u admin -"
-            "p password\n\t--url <iLO url/hostname> -u admin -p password"
-            "\n\n\tInsert customised string "
+            "--selectlog=SL --clearlog\n\n\t"
+            "Download logs from multiple servers\n\t"
+            "example: serverlogs --mpfile mpfilename.txt -o output"
+            "directorypath --mplog=IEL,IML\n\t"
+            "Note: multiple server file(mpfilename.txt) "
+            "format (1 server per new line)\n\t"
+            "--url <iLO url/hostname> -u admin -p password\n\t"
+            "--url <iLO url/hostname> -u admin -p password\n\t"
+            "--url <iLO url/hostname> -u admin -p password\n\n\t"
+            "Insert customised string "
             "if required for AHS\n\texample: serverlogs --selectlog="
             'AHS --customiseAHS "from=2014-03-01&&to=2014'
             '-03-30"\n\n\t(AHS LOGS ONLY FEATURE)\n\tInsert the location/'
@@ -243,7 +246,7 @@ class ServerlogsCommand:
         :param outputdir: custom output directory
         :type outputdir: string.
         """
-        self.logoutobj.run("")
+        # self.logoutobj.run("")
         LOGGER.info("Validating input server collection file.")
         data = self.validatempfile(mpfile=mpfile, options=options)
 
@@ -265,7 +268,10 @@ class ServerlogsCommand:
         else:
             dirpath = os.getcwd()
 
-        dirname = "%s_%s" % (datetime.datetime.now().strftime(outputform), "MSClogs")
+        dirname = "%s_%s" % (
+            datetime.datetime.now().strftime(outputform),
+            "MSClogs",
+        )
         createdir = os.path.join(dirpath, dirname)
         os.mkdir(createdir)
 
@@ -284,7 +290,8 @@ class ServerlogsCommand:
             line[line.index("-f") + 1] = str(line[line.index("-f") + 1]) + urlfilename
 
             if "python" in os.path.basename(sys.executable.lower()):
-                # If we are running from source we have to add the python file to the command
+                # If we are running from source
+                # we have to add the python file to the command
                 listargforsubprocess = [sys.executable, sys.argv[0]] + line
             else:
                 listargforsubprocess = [sys.executable] + line
@@ -293,7 +300,12 @@ class ServerlogsCommand:
                 listargforsubprocess = " ".join(listargforsubprocess)
 
             logfile = open(os.path.join(createdir, urlfilename + ".txt"), "w+")
-            pinput = subprocess.Popen(listargforsubprocess, shell=True, stdout=logfile, stderr=logfile)
+            pinput = subprocess.Popen(
+                listargforsubprocess,
+                shell=True,
+                stdout=logfile,
+                stderr=logfile,
+            )
 
             processes.append((pinput, finput, urlvar, logfile))
 
@@ -313,7 +325,8 @@ class ServerlogsCommand:
             else:
                 self.rdmc.ui.error("Loading Configuration for {} : FAILED\n".format(urlvar))
                 self.rdmc.ui.error(
-                    "ILOREST return code : {}.\nFor more details please check {}"
+                    "ILOREST return code : {}.\n"
+                    "For more details please check {}"
                     ".txt under {} directory.\n".format(returncode, urlvar, createdir)
                 )
 
@@ -358,14 +371,24 @@ class ServerlogsCommand:
                         break
 
                     for logval in logs:
-                        cmdargs = ["--selectlog=" + str(logval), "-f", str(logval)]
+                        cmdargs = [
+                            "--selectlog=" + str(logval),
+                            "-f",
+                            str(logval),
+                        ]
                         if line.endswith(os.linesep):
                             line.rstrip(os.linesep)
 
                         args = shlex.split(line, posix=False)
 
-                        if len(args) < 5:
-                            self.rdmc.ui.error("Incomplete data in input file: {}\n".format(line))
+                        if len(args) < 6:
+                            self.rdmc.ui.printer(
+                                "\nInput file format should be "
+                                "1 server per new line \n"
+                                "For Example: "
+                                "--url <iLO IP> -u <username> -p <password>\n\n"
+                            )
+                            self.rdmc.ui.error("Incomplete data in input file: {}".format(line))
                             raise InvalidMSCfileInputError("Please verify the " "contents of the %s file" % mpfile)
                         else:
                             linelist = globalargs + cmdtorun + args + cmdargs
@@ -515,7 +538,7 @@ class ServerlogsCommand:
 
             try:
                 completedatadictlist = datadict["Items"] if "Items" in datadict else datadict["Members"]
-            except:
+            except Exception:
                 self.rdmc.ui.error("No data available within log.\n")
                 raise NoContentsFoundForOperationError("Unable to retrieve logs.")
 
@@ -532,7 +555,7 @@ class ServerlogsCommand:
 
                         try:
                             completedatadictlist = completedatadictlist + datadict["Items"]
-                        except:
+                        except Exception:
                             self.rdmc.ui.error("No data available within log.\n")
                             raise NoContentsFoundForOperationError("Unable to retrieve logs.")
                     else:
@@ -830,7 +853,7 @@ class ServerlogsCommand:
         """
         try:
             self.downloadahslocalworker(options)
-        except:
+        except Exception:
             self.unmountbb()
             raise
         return
@@ -854,7 +877,7 @@ class ServerlogsCommand:
 
         if options.filename:
             raise InvalidCommandLineError(
-                "AHS logs must be downloaded with default name! Re-run command without filename!"
+                "AHS logs must be downloaded with default name! " "Re-run command without filename!"
             )
 
         secstate = risblobstore2.BlobStore2().get_security_state()
@@ -868,7 +891,7 @@ class ServerlogsCommand:
             secstate = 0
         self.rdmc.ui.printer("Security State is {}...\n".format(secstate))
         if int(secstate) > 3:
-            raise SecurityStateError("AHS logs cannot be downloaded locally in high security state.\n")
+            raise SecurityStateError("AHS logs cannot be downloaded locally " "in high security state.\n")
 
         self.lib = risblobstore2.BlobStore2.gethprestchifhandle()
 
@@ -895,7 +918,7 @@ class ServerlogsCommand:
             self.createahsfile(ahsfile=self.getahsfilename(options))
         except Exception as excp:
             raise PartitionMoutingError(
-                "An exception occurred obtaining Blackbox data files. The directory may be empty: %s.\n" % excp
+                "An exception occurred obtaining Blackbox data files. " "The directory may be empty: %s.\n" % excp
             )
 
         if not manual_ovr:
@@ -933,7 +956,7 @@ class ServerlogsCommand:
         LOGGER.info("Clear redundant AHS file in current folder.")
         try:
             os.remove(ahsfile)
-        except:
+        except Exception:
             pass
 
     def getdatfilelisting(self, cfilelist=None, allfile=None):
@@ -1018,7 +1041,7 @@ class ServerlogsCommand:
                 if (strdate <= newdate) and (newdate <= enddate) and not options.downloadallahs:
                     allfiles.append(files)
                     atleastonefile = True
-            except:
+            except Exception:
                 pass
 
         _ = [cfilelist.remove(fil) for fil in list(cfilelist) if fil not in filenames]
@@ -1031,7 +1054,7 @@ class ServerlogsCommand:
                     newdate = datetime.date(int(filesplit[1]), int(filesplit[2]), int(filesplit[3]))
                     if not ((strdate <= newdate) and (newdate <= enddate)):
                         cfilelist.remove(files)
-                except:
+                except Exception:
                     pass
 
         if options.downloadallahs:
@@ -1041,7 +1064,11 @@ class ServerlogsCommand:
             strdate = max(min(datelist), strdate) if datelist else strdate
             enddate = min(max(datelist), enddate) if datelist else enddate
 
-        LOGGER.info("All filenames: %s; Download files: %s", str(filenames), str(allfiles))
+        LOGGER.info(
+            "All filenames: %s; Download files: %s",
+            str(filenames),
+            str(allfiles),
+        )
 
         if atleastonefile:
             self.updateminmaxdate(strdate=strdate, enddate=enddate)
@@ -1058,9 +1085,17 @@ class ServerlogsCommand:
         :type enddate: datetime obj
         """
         LOGGER.info("Updating min and max dates for download.")
-        self.lib.updateMinDate.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        self.lib.updateMinDate.argtypes = [
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+        ]
         self.lib.updateMinDate(strdate.year, strdate.month, strdate.day)
-        self.lib.updateMaxDate.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        self.lib.updateMaxDate.argtypes = [
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+        ]
         self.lib.updateMaxDate(enddate.year, enddate.month, enddate.day)
 
     def getclistfilelisting(self):
@@ -1121,7 +1156,7 @@ class ServerlogsCommand:
                                 self.manualmountbb()
                             else:
                                 return False, abspathbb
-                    except:
+                    except Exception:
                         pass
             else:
                 with open("/proc/mounts", "r") as fmount:
@@ -1240,7 +1275,7 @@ class ServerlogsCommand:
 
                 if val.lower() == "true" or val.lower() == "false":
                     val = val.lower() in ("yes", "true", "t", "1")
-            except:
+            except Exception:
                 raise InvalidCommandLineError("Invalid filter" " parameter format [filter_attribute]=[filter_value]")
 
             # Severity inside Oem/Hpe should be filtered
@@ -1286,7 +1321,7 @@ class ServerlogsCommand:
                     raise InvalidKeyError(
                         "Unable to find key SerialNumber, please check path %s" % self.rdmc.app.typepath.defs.systempath
                     )
-                except:
+                except Exception:
                     raise NoContentsFoundForOperationError("Unable to retrieve log instance.")
 
             snum = filtereddictslists[0]["SerialNumber"] if not snum else snum
@@ -1415,14 +1450,15 @@ class ServerlogsCommand:
         customparser.add_argument(
             "--outputdirectory",
             dest="outdirectory",
-            help="""use the provided directory to output data for multiple server downloads.""",
+            help="""use the provided directory to """ """output data for multiple server downloads.""",
             default=None,
         )
         customparser.add_argument(
             "--mplog",
             dest="mplog",
-            help="""used to indicate the logs to be downloaded on multiple servers. """
-            """Allowable values: IEL, IML, AHS, all or combination of any two.""",
+            help="""used to indicate the logs to be downloaded """
+            """on multiple servers. Allowable values: IEL, IML,"""
+            """ AHS, all or combination of any two.""",
             default=None,
         )
         customparser.add_argument(

@@ -165,7 +165,9 @@ class GetCommand:
                     "Attributes/" + arg
                     if self.rdmc.app.selector
                     and self.rdmc.app.selector.lower().startswith("bios.")
-                    and not (arg.lower() in ["id", "name"] or "@odata" in arg.lower())
+                    and not (
+                        arg.lower() in ["id", "name", "attributeregistry", "attributes"] or "@odata" in arg.lower()
+                    )
                     else arg
                 )
                 for arg in args
@@ -195,7 +197,8 @@ class GetCommand:
                 if security_contents:
                     UI().print_out_human_readable(security_contents)
             elif (
-                "componentintegrity" in self.rdmc.app.selector.lower()
+                "componentintegrity"
+                in self.rdmc.app.selector.lower()
                 # or "bios." in self.rdmc.app.selector.lower()
             ):
                 url = ""
@@ -204,7 +207,7 @@ class GetCommand:
                 # elif "bios." in self.rdmc.app.selector.lower():
                 #     url = "/redfish/v1/systems/1/bios/?$expand=."
 
-                LOGGER.info(f"Fetching {self.rdmc.app.selector} data from: {url}")
+                LOGGER.info("Fetching %s data from: %s", self.rdmc.app.selector, url)
                 contents = self.get_content(url, args, uselist, options)
             else:
                 LOGGER.debug("Handling general selector case.")
@@ -237,6 +240,35 @@ class GetCommand:
 
                         if unique_adapters:
                             contents = list(unique_adapters.values())
+
+                    if (
+                        contents
+                        and "logentrycollection" in self.rdmc.app.selector.lower()
+                        and "@odata.id" in args
+                        and not uselist
+                    ):
+                        # as per documentation
+                        # collection of LogEntry resource instances
+                        log_contents = self.rdmc.app.getprops(
+                            props=["entries/@odata.id"],
+                            remread=readonly,
+                            selector="logservice",
+                            nocontent=nocontent,
+                            insts=instances,
+                            skipnonsetting=skipnonsettingflag,
+                        )
+                        if log_contents:
+                            log_contents = [
+                                val["Entries"]
+                                for val in log_contents
+                                if "Entries" in val and "@odata.id" in val["Entries"]
+                            ]
+
+                            if log_contents:
+                                contents.extend(log_contents)
+                            # Removing duplicates
+                            contents = list({val["@odata.id"]: val for val in contents}.values())
+
                 else:
                     LOGGER.info("Fetching properties without selector.")
                     contents = self.rdmc.app.getprops(

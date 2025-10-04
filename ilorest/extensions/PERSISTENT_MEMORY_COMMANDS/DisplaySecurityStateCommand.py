@@ -16,7 +16,7 @@
 
 # -*- coding: utf-8 -*-
 
-"""  Command to Display Security State of Dimms """
+"""Command to Display Security State of Dimms"""
 
 # ---------Imports---------
 from __future__ import absolute_import

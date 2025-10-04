@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Results Command for rdmc """
+"""Results Command for rdmc"""
 
 import copy
 import json

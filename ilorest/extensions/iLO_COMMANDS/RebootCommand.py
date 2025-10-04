@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Reboot Command for rdmc """
+"""Reboot Command for rdmc"""
 
 import time
 

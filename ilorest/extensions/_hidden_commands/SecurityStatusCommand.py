@@ -14,7 +14,7 @@
 # limitations under the License.
 ###
 # -*- coding: utf-8 -*-
-""" Security Status Command for rdmc """
+"""Security Status Command for rdmc"""
 
 import struct
 from argparse import SUPPRESS

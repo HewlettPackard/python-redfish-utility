@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Add License Command for rdmc """
+"""Add License Command for rdmc"""
 
 try:
     from rdmc_helper import (

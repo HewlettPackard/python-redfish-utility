@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Delete Volume Command for rdmc """
+"""Delete Volume Command for rdmc"""
 
 from six.moves import input
 

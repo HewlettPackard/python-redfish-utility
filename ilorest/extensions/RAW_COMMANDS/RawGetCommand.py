@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" RawGet Command for rdmc """
+"""RawGet Command for rdmc"""
 
 import json
 
@@ -70,7 +70,6 @@ class RawGetCommand:
             self.parser.print_help()
             return ReturnCodes.SUCCESS
         try:
-            self.rdmc.opts.nocache = False
             (options, _) = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
@@ -147,6 +146,7 @@ class RawGetCommand:
             password=options.password,
             base_url=options.url,
             noauth=options.no_auth,
+            stderr_flag=options.stderr_flag,
         )
         result = None
         if results.dict:
@@ -308,6 +308,14 @@ class RawGetCommand:
         customparser.add_argument(
             "--no_auth",
             dest="no_auth",
+            action="store_true",
+            help="""Use this flag to enable service mode and increase the function speed""",
+            default=False,
+        )
+        customparser.add_argument(
+            "--stderr_out",
+            "--stderr_flag",
+            dest="stderr_flag",
             action="store_true",
             help="""Use this flag to enable service mode and increase the function speed""",
             default=False,

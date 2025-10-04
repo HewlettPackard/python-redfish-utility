@@ -16,11 +16,14 @@
 
 # -*- coding: utf-8 -*-
 """ AppAccount command for rdmc """
-
+import ctypes
+import os
 from argparse import RawDescriptionHelpFormatter
 from redfish.hpilo.vnichpilo import AppAccount
 from redfish.rest.connections import ChifDriverMissingOrNotFound, VnicNotEnabledError
 import redfish
+
+from redfish.ris.rmc_helper import UserNotAdminError
 
 try:
     from rdmc_helper import (
@@ -76,7 +79,7 @@ class AppAccountCommand:
             "Supported only on VNIC-enabled iLO7 servers.\n"
             "For help on specific subcommands, run: appaccount <sub-command> -h.\n\n",
             "summary": "Creates/Deletes application account, Checks the existence of an"
-                       " application account, Provides details on all app accounts present in the server.",
+            " application account, Provides details on all app accounts present in the server.",
             "aliases": [],
             "auxcommands": [],
         }
@@ -99,6 +102,16 @@ class AppAccountCommand:
                 return ReturnCodes.SUCCESS
             else:
                 raise InvalidCommandLineErrorOPTS("")
+        # Check for admin privileges
+        if "blobstore" in self.rdmc.app.current_client.base_url or "16.1.15." in self.rdmc.app.current_client.base_url :
+            if os.name == "nt":
+                if not ctypes.windll.shell32.IsUserAnAdmin() != 0:
+                    self.rdmc.app.typepath.adminpriv = False
+            elif not os.getuid() == 0:
+                self.rdmc.app.typepath.adminpriv = False
+
+            if self.rdmc.app.typepath.adminpriv is False :
+                raise UserNotAdminError("")
 
         client = self.appaccountvalidation(options)
         if client:
@@ -181,9 +194,9 @@ class AppAccountCommand:
                     log_dir=self.rdmc.log_dir,
                 )
         except Exception as excp:
-            raise NoAppAccountError("Error occured while locating application"
-                                    " account. Please recheck the entered inputs.\n")
-
+            raise NoAppAccountError(
+                "Error occured while locating application" " account. Please recheck the entered inputs.\n"
+            )
 
         # Function to find out the iLO Generation
         self.get_ilover_beforelogin(app_obj)
@@ -296,7 +309,7 @@ class AppAccountCommand:
                                 raise NoAppAccountError(
                                     "There is no application account exists for the given hostappid."
                                     " Please recheck the entered inputs.\n"
-                                    )
+                                )
                         for i in range(len(list_of_appids)):
                             if list_of_appids[i]["ApplicationID"] == options.hostappid:
                                 selfdict = [list_of_appids[i]]

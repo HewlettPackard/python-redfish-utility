@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Set Command for RDMC """
+"""Set Command for RDMC"""
 import json
 import os
 import sys

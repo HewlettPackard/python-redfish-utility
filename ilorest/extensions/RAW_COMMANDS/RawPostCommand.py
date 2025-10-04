@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" RawPost Command for rdmc """
+"""RawPost Command for rdmc"""
 
 import json
 import re

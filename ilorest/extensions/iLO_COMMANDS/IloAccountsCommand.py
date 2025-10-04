@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Add Account Command for rdmc """
+"""Add Account Command for rdmc"""
 
 import getpass
 import os

@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Login Command for RDMC """
+"""Login Command for RDMC"""
 
 import getpass
 import os
@@ -129,10 +129,6 @@ class LoginCommand:
         else:
             ilo_ver = self.get_ilover_beforelogin(args, app_obj, options)
 
-        caching = True
-        if self.rdmc.opts.nocache:
-            caching = False
-
         if ilo_ver < 7 or (ilo_ver >= 7 and (options.usechif or options.noapptoken or args)):
             self.rdmc.app.login(
                 username=self.username,
@@ -149,7 +145,6 @@ class LoginCommand:
                 json_out=self.rdmc.json,
                 login_otp=self.login_otp,
                 log_dir=self.rdmc.log_dir,
-                cache=caching,
             )
         else:
             if options.hostappname or options.hostappid or options.salt:
@@ -494,8 +489,7 @@ class LoginCommand:
 
         except RequestException as e:
             raise GenBeforeLoginError(
-                f"Connection Error: Could not retrieve data from {path or '[unknown path]'}.\n"
-                f"Details: {e}\n"
+                f"Connection Error: Could not retrieve data from {path or '[unknown path]'}.\n" f"Details: {e}\n"
             )
 
         except Exception as e:

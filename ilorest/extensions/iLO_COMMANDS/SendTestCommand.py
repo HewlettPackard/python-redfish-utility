@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" SendTest Command for rdmc """
+"""SendTest Command for rdmc"""
 
 try:
     from rdmc_helper import (

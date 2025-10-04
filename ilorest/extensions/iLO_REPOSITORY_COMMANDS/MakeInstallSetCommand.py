@@ -15,7 +15,7 @@
 # ##
 
 # -*- coding: utf-8 -*-
-""" Install Set Command for rdmc """
+"""Install Set Command for rdmc"""
 
 import json
 import os

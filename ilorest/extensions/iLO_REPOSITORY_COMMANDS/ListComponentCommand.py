@@ -15,7 +15,7 @@
 # ##
 
 # -*- coding: utf-8 -*-
-""" List Component Command for rdmc """
+"""List Component Command for rdmc"""
 
 try:
     from rdmc_helper import (

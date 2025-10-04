@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" DetectiLO Command for RDMC """
+"""DetectiLO Command for RDMC"""
 from redfish.hpilo.vnichpilo import AppAccount
 from redfish.rest.connections import ChifDriverMissingOrNotFound, VnicNotEnabledError
 import requests

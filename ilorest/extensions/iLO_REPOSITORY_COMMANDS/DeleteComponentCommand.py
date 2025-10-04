@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Delete Component Command for rdmc """
+"""Delete Component Command for rdmc"""
 
 try:
     from rdmc_helper import (

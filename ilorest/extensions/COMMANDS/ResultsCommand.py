@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Results Command for rdmc """
+"""Results Command for rdmc"""
 
 from redfish.ris.resp_handler import ResponseHandler
 from redfish.ris.rmc_helper import EmptyRaiseForEAFP

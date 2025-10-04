@@ -14,7 +14,7 @@
 # limitations under the License.
 ###
 # -*- coding: utf-8 -*-
-""" BiosDefaultsCommand for rdmc """
+"""BiosDefaultsCommand for rdmc"""
 
 from argparse import RawDescriptionHelpFormatter
 

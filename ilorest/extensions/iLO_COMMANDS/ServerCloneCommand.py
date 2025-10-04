@@ -15,7 +15,7 @@
 ###
 
 # -*- coding: utf-8 -*-
-""" Server Clone Command for rdmc """
+"""Server Clone Command for rdmc"""
 
 import getpass
 import json
