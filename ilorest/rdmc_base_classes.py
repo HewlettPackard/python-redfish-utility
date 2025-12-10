@@ -442,7 +442,9 @@ class RdmcOptionParser(ArgumentParser):
             "--debug",
             dest="debug",
             action="store_true",
-            help="""Display debug information.""",
+            help="""[DEPRECATED] This flag is deprecated and will be removed in future versions.
+            Use '--logconfig' for enabling debug logs.
+            Enable debug mode for detailed logging output.""",
             default=False,
         )
         self.add_argument(
@@ -456,7 +458,9 @@ class RdmcOptionParser(ArgumentParser):
             "--nostdoutlog",
             dest="nostdoutlog",
             action="store_true",
-            help="""Disable debug logs to stdout.""",
+            help="""[DEPRECATED] This flag is deprecated and will be removed in future versions.
+            Use '--logconfig' for enabling debug logs.
+            Enable debug mode for detailed logging output.""",
             default=False,
         )
         self.add_argument(

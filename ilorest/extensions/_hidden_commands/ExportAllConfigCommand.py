@@ -20,9 +20,9 @@
 import json
 
 try:
-    from rdmc_helper import UI, InvalidCommandLineErrorOPTS, ReturnCodes
+    from rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 except ImportError:
-    from ilorest.rdmc_helper import UI, InvalidCommandLineErrorOPTS, ReturnCodes
+    from ilorest.rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 from redfish.ris import UndefinedClientError
 
 
@@ -91,7 +91,8 @@ class ExportAllConfigCommand:
             "-f",
             "--filename",
             dest="filename",
-            help="Use this flag if you wish to save the content to a file , if no file given it will get saved to AllConfig.json",
+            help="Use this flag if you wish to save the content to a file, "
+            "if no file given it will get saved to AllConfig.json",
             action="append",
             default=None,
         )

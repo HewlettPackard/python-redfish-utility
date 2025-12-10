@@ -26,10 +26,12 @@ from redfish.rest.connections import ChifDriverMissingOrNotFound, VnicNotEnabled
 import requests
 from requests.exceptions import SSLError, RequestException
 import platform
+from argparse import SUPPRESS
 
 try:
     from rdmc_helper import (
         Encryption,
+        LOGGER,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         PathUnavailableError,
@@ -37,6 +39,7 @@ try:
         UsernamePasswordRequiredError,
         VnicExistsError,
         VnicLoginError,
+        InactiveAppAccountTokenError,
         NoAppAccountError,
         GenBeforeLoginError,
         AppAccountExistsError,
@@ -44,6 +47,7 @@ try:
 except ModuleNotFoundError:
     from ilorest.rdmc_helper import (
         ReturnCodes,
+        LOGGER,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         PathUnavailableError,
@@ -51,6 +55,7 @@ except ModuleNotFoundError:
         UsernamePasswordRequiredError,
         VnicExistsError,
         VnicLoginError,
+        InactiveAppAccountTokenError,
         NoAppAccountError,
         GenBeforeLoginError,
         AppAccountExistsError,
@@ -94,6 +99,7 @@ class LoginCommand:
         self.auxcommands = dict()
         self.cert_data = dict()
         self.login_otp = None
+        self.ilo_gen = 6
 
     def run(self, line, help_disp=False):
         """wrapper function for main login function
@@ -123,14 +129,9 @@ class LoginCommand:
 
     def perform_login(self, options, skipbuild, user_ca_cert_data, args, app_obj):
 
-        if platform.system() == "Darwin":
-            # MAC OS remote mode
-            ilo_ver = 6
-        else:
-            ilo_ver = self.get_ilover_beforelogin(args, app_obj, options)
-
+        ilo_ver = self.ilo_gen
         if ilo_ver < 7 or (ilo_ver >= 7 and (options.usechif or options.noapptoken or args)):
-            self.rdmc.app.login(
+            login_response = self.rdmc.app.login(
                 username=self.username,
                 password=self.password,
                 sessionid=self.sessionid,
@@ -177,7 +178,7 @@ class LoginCommand:
 
             try:
                 # Function will log in, retrieve session id, call build monolith, .save()
-                self.rdmc.app.vnic_login(
+                login_response = self.rdmc.app.vnic_login(
                     app_obj=app_obj,
                     path=options.path,
                     skipbuild=skipbuild,
@@ -194,12 +195,18 @@ class LoginCommand:
                     biospassword=self.biospassword,
                     sessionid=self.sessionid,
                 )
+            except redfish.hpilo.vnichpilo.InactiveAppAccountTokenError:
+                LOGGER.error("Login failed due to an inactive or expired App Account token.")
+                raise InactiveAppAccountTokenError("Login failed due to an inactive or expired App Account token.")
             except Exception as excp:
-                raise VnicLoginError(
-                    """Error occurred while performing login using app account.
-                    Check if application account exists using 'appaccount details' command.
-                    Otherwise, try with --no_app_account option.\n"""
-                )
+                error_msg = """Error occurred while performing login using app account.
+                Check if application account exists using 'appaccount details' command.
+                Otherwise, try with --no_app_account option.\n"""
+                LOGGER.error(error_msg)
+                raise VnicLoginError(error_msg)
+
+        if options.session_id and login_response and hasattr(login_response, "_auth_key"):
+            self.rdmc.ui.printer(f"\nSessionID:{login_response._auth_key}\n\n")
 
     def loginfunction(self, line, skipbuild=None, json_out=False):
         """Main worker function for login class
@@ -222,6 +229,7 @@ class LoginCommand:
         if platform.system() == "Darwin":
             # Mac OS
             app_obj = None
+            self.ilo_gen = 6
         else:
             app_obj = AppAccount(
                 appname=options.hostappname,
@@ -229,9 +237,12 @@ class LoginCommand:
                 salt=options.salt,
                 username=options.user,
                 password=options.password,
-                log_dir=self.rdmc.log_dir if self.rdmc.opts.debug else None,
+                log_dir=self.rdmc.log_dir,
             )
-        self.loginvalidation(options, args, app_obj)
+
+            self.ilo_gen = self.get_ilover_beforelogin(args=args, app_obj=app_obj, options=options)
+
+        self.loginvalidation(options=options, args=args, app_obj=app_obj)
 
         # if proxy server provided in command line as --useproxy, it will be used,
         # otherwise it will the environment variable setting.
@@ -338,6 +349,8 @@ class LoginCommand:
         if not hasattr(options, "user_root_ca_password"):
             options.user_root_ca_password = self.rdmc.config.user_root_ca_password
 
+        ilo_ver = self.ilo_gen
+
         if (
             options.user
             and not options.password
@@ -366,12 +379,6 @@ class LoginCommand:
 
         if options.biospassword:
             self.biospassword = options.biospassword
-
-        if app_obj:
-            ilo_ver = self.get_ilover_beforelogin(args, app_obj, options)
-        else:
-            # Mac OS
-            ilo_ver = 6
 
         if ilo_ver >= 7:
             if not args:
@@ -562,6 +569,14 @@ class LoginCommand:
             "--use_chif",
             dest="usechif",
             help="Include this parameter in order to operate iLO7 and above using chif.",
+            default=None,
+            action="store_true",
+        )
+        customparser.add_argument(
+            "--show_session_id",
+            "-s",
+            dest="session_id",
+            help=SUPPRESS,
             default=None,
             action="store_true",
         )

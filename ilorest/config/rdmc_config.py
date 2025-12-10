@@ -18,16 +18,45 @@
 """Rdmc config"""
 
 import os
+import json
 
 try:
     from config.config import AutoConfigParser
+    from logging_config_path import get_logging_config_path
 except ImportError:
     from ilorest.config.config import AutoConfigParser
+    from ilorest.logging_config_path import get_logging_config_path
 
 
 class RdmcConfig(AutoConfigParser):
     """Rdmc config class for loading and parsing the .conf file global configuration options.
     Uses the AutoConfigParser."""
+
+    def _load_logdir_from_json(self):
+        """Load logdir from logging configuration JSON file.
+
+        :returns: logdir path from JSON config, or current directory as fallback
+        :rtype: str
+        """
+        config_path = get_logging_config_path()
+        try:
+            if os.path.isfile(config_path):
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    handlers = config.get("handlers", {})
+                    file_handler = handlers.get("file", {})
+                    filename = file_handler.get("filename", "")
+                    if "%(logdir)s" in filename:
+                        logdir = file_handler.get("filename").split("%(logdir)s")[0].rstrip("/\\")
+                        return logdir if logdir else os.getcwd()
+                    else:
+                        # If filename does not contain %(logdir)s, extract directory from filename
+                        return os.path.dirname(filename) if os.path.dirname(filename) else os.getcwd()
+        except Exception:
+            pass
+
+        # Fallback to current working directory if any issues
+        return os.getcwd()
 
     def __init__(self, filename=None):
         """Initialize RdmcConfig
@@ -39,7 +68,7 @@ class RdmcConfig(AutoConfigParser):
         AutoConfigParser.__init__(self, filename=filename)
         self._sectionname = "redfish"
         self._configfile = filename
-        self._ac__logdir = os.getcwd()
+        self._ac__logdir = self._load_logdir_from_json()
         self._ac__cache = True
         self._ac__url = ""
         self._ac__username = ""
@@ -76,7 +105,6 @@ class RdmcConfig(AutoConfigParser):
     @logdir.setter
     def logdir(self, value):
         """Set the current log directory
-
         :param value: current working directory for logging
         :type value: str
         """

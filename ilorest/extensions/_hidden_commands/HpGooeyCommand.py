@@ -863,7 +863,8 @@ class HpGooeyCommand:
                 compressed_data = databuf.getvalue()
 
             LOGGER.info(
-                f"Successfully compressed data. Original size: {len(blobfiledata)}, Compressed size: {len(compressed_data)}"
+                f"Successfully compressed data. Original size: {len(blobfiledata)}, "
+                f"Compressed size: {len(compressed_data)}"
             )
             return compressed_data
 

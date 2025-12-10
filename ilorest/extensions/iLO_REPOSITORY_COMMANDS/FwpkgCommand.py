@@ -352,9 +352,7 @@ class FwpkgCommand:
                                     and ":" in fw["Oem"]["Hpe"]["DeviceContext"]
                                 ):
                                     if (
-                                        (ilo_ver_int >= 6.169 and ilo_ver_int < 7.000)
-                                        or ilo_ver_int >= 7.113
-                                        or (ilo_ver_int >= 5.230 and ilo_ver_int < 6.000)
+                                        (ilo_ver_int >= 6.169 and ilo_ver_int < 7.000) or ilo_ver_int >= 7.113
                                     ) and command_name != "uploadcomp":
                                         if fw["Updateable"]:
                                             cc_flag = True
@@ -407,7 +405,7 @@ class FwpkgCommand:
                         if image["ResetRequired"]:
                             ctype = "B"
                             break
-                    elif image["UefiFlashable"]:
+                    elif image.get("UefiFlashable", image.get("UEFIFlashable", False)):
                         ctype = "C"
                         break
                     else:

@@ -14,7 +14,6 @@
 # limitations under the License.
 ###
 
-
 # -*- coding: utf-8 -*-
 """This is the helper module for RDMC"""
 
@@ -28,12 +27,19 @@ import sys
 import time
 from ctypes import byref, c_char_p, create_string_buffer
 
+try:
+    from logging_config_path import get_logging_config_path
+except ModuleNotFoundError:
+    from ilorest.logging_config_path import get_logging_config_path
+
+
 import pyaes
 import six
 from prompt_toolkit.completion import Completer, Completion
 
 import redfish.hpilo.risblobstore2 as risblobstore2
 import redfish.ris
+import logging.config
 
 try:
     import versioning
@@ -51,7 +57,6 @@ if os.name == "nt":
 # ---------End of imports---------
 
 
-# ---------Debug logger---------
 # Using hard coded list until better solution is found
 HARDCODEDLIST = [
     "modified",
@@ -63,34 +68,317 @@ HARDCODEDLIST = [
     "extref",
 ]
 
+# ---------Debug logger---------
+# Centralized logging behaviour:
+# - The JSON config in ilorest/logging_config.json defines handlers/formatters.
+# - `setup_logging_from_json()` loads that config and uses `prepare_log_directory()` to
+#   resolve and create a writable `logdir` (trying the configured path first and then
+#   platform-specific fallbacks).  This centralizes all directory-selection logic.
+# - `setup_fallback_logging()` is to support fallback logging if the JSON config
+#   cannot be loaded or applied for some reason.  It uses command line flags to retain old functionality.
+
 
 class InfoFilter(logging.Filter):
+    """Filter to allow only INFO and WARNING messages, blocking ERROR and above"""
+
     def filter(self, record):
         # Allow only records below ERROR (i.e., INFO and WARNING)
         return record.levelno < logging.ERROR
 
 
-# Initialize root logger
-LOGGER = logging.getLogger()
-LOGGER.setLevel(logging.ERROR)
+# Logger instance - configuration will be handled by JSON config file
+LOGGER = logging.getLogger(__name__)
 
-# Formatter
-LFMT = logging.Formatter("%(levelname)s\t: %(message)s")
 
-LOUT = logging.StreamHandler(sys.stdout)
-LOUT.setLevel(logging.ERROR)
-LOUT.addFilter(InfoFilter())
-LOUT.setFormatter(LFMT)
+def clear_existing_handlers():
+    """Clear any existing log handlers to avoid conflicts."""
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
 
-# Stderr handler: ERROR and above
-LERR = logging.StreamHandler(sys.stderr)
-LERR.setLevel(logging.ERROR)
-LERR.setFormatter(LFMT)
 
-# Attach handlers if none exist
-if not LOGGER.hasHandlers():
-    LOGGER.addHandler(LOUT)
-    LOGGER.addHandler(LERR)
+def setup_fallback_logging(reason="Unknown error", opts=None):
+    """
+    Fallback logging setup when all else fails.
+
+    Args:
+        reason: The reason for falling back to fallback logging
+        opts: Optional command line options that may contain logging flags
+    """
+    try:
+        clear_existing_handlers()
+
+        # Extract command line flags from opts or sys.argv
+        debug_flag = False
+        noinfo_flag = False
+        nostdout_flag = False
+        log_dir = os.path.join(os.getcwd(), "ilorest_logs")
+
+        if opts:
+            debug_flag = getattr(opts, "debug", False)
+            noinfo_flag = getattr(opts, "noinfolog", False)
+            nostdout_flag = getattr(opts, "nostdoutlog", False)
+            custom_logdir = getattr(opts, "logdir", None)
+            if custom_logdir:
+                log_dir = os.path.normpath(custom_logdir)
+        else:
+            # Check sys.argv as fallback
+            debug_flag = any(arg in ["-d", "--debug"] for arg in sys.argv)
+            noinfo_flag = any(arg in ["--noinfolog"] for arg in sys.argv)
+            nostdout_flag = any(arg in ["--nostdoutlog"] for arg in sys.argv)
+
+        # Create log directory
+        os.makedirs(log_dir, exist_ok=True)
+        log_file_path = os.path.join(log_dir, "iLORest.log")
+
+        # Determine logging level (debug takes precedence over noinfo)
+        if noinfo_flag and not debug_flag:
+            file_level = logging.ERROR
+        elif debug_flag:
+            file_level = logging.DEBUG
+        else:
+            file_level = logging.INFO
+
+        # Configure file handler
+        file_handler = logging.FileHandler(log_file_path)
+        file_handler.setLevel(file_level)
+        file_formatter = logging.Formatter("%(levelname)s\t: %(message)s")
+        file_handler.setFormatter(file_formatter)
+
+        handlers = [file_handler]
+
+        # Configure stdout handler so that INFO (and below) do NOT go to stdout.
+        # The console should show CRITICAL by default, but if the
+        # global file level is higher (e.g. ERROR due to --noinfolog), keep
+        # stdout at that higher level to respect the flag.
+        if not nostdout_flag:
+            stdout_handler = logging.StreamHandler(sys.stdout)
+            # If user requested debug output on the command line, allow stdout to
+            # receive DEBUG messages. Otherwise keep stdout quieter (CRITICAL)
+            if debug_flag:
+                stdout_level = logging.DEBUG
+            else:
+                # set to default CRITICAL
+                stdout_level = logging.CRITICAL
+            stdout_handler.setLevel(stdout_level)
+            stdout_handler.setFormatter(file_formatter)
+            handlers.append(stdout_handler)
+
+        # Apply configuration to the root logger
+        root_logger = logging.getLogger()
+        root_logger.setLevel(file_level)
+
+        # Clear any existing handlers (already done above) then add ours
+        for h in handlers:
+            root_logger.addHandler(h)
+
+        logger = logging.getLogger(__name__)
+        logger.debug("Fallback to basic configurations for logging: %s (logdir=%s)", reason, log_dir)
+        return True
+
+    except Exception as fallback_error:
+        # If even fallback setup failed, write to stderr directly
+        sys.stderr.write(f"Critical: All fallback logging attempts failed: {reason} - {fallback_error}\n")
+        return False
+
+
+def load_config_file(config_path):
+    """Load and validate the JSON configuration file."""
+    if not os.path.isfile(config_path):
+        raise FileNotFoundError(f"JSON config file not found: {config_path}")
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    # Validate basic structure
+    if not isinstance(config, dict):
+        raise ValueError("Config file must contain a JSON object")
+
+    if "handlers" not in config:
+        raise ValueError("Config file must contain 'handlers' section")
+
+    return config
+
+
+def prepare_log_directory(config):
+    """Determine and prepare a writable log directory based on config and platform.
+
+    Behavior (matching historical implementation):
+    - Try the JSON-configured path first (absolute).
+    - If that fails, fall back to a single directory:
+        - On Windows: use APPDATA if set
+        - Otherwise: use ~/.local/share
+    - Return the directory that is writable; raise PermissionError if neither works.
+    """
+    primary = config.get("logdir", "./ilorest_logs")
+    if not os.path.isabs(primary):
+        primary = os.path.abspath(primary)
+
+    def _writable_dir(path):
+        try:
+            os.makedirs(path, exist_ok=True)
+            testfile = os.path.join(path, ".write_test")
+            with open(testfile, "w") as fh:
+                fh.write("ok")
+            try:
+                os.remove(testfile)
+            except Exception:
+                pass
+            return True
+        except Exception:
+            return False
+
+    # Try primary configured path first
+    if _writable_dir(primary):
+        LOGGER.debug("Selected logdir (configured): %s", os.path.normpath(primary))
+        return os.path.normpath(primary)
+
+    # Single fallback to APPDATA or ~/.local/share (matching legacy behavior)
+    appdata = os.getenv("APPDATA")
+    if appdata:
+        fallback_dir = appdata
+    else:
+        fallback_dir = os.path.join(os.path.expanduser("~"), ".local", "share")
+
+    fallback_dir = os.path.join(fallback_dir, "ilorest_logs")
+
+    if _writable_dir(fallback_dir):
+        LOGGER.debug("Selected logdir (fallback): %s", os.path.normpath(fallback_dir))
+        return os.path.normpath(fallback_dir)
+
+    # Nothing worked
+    raise PermissionError(f"Unable to create or write to configured logdir '{primary}' or fallback '{fallback_dir}'")
+
+
+def configure_file_handler(config, logdir):
+    """Configure the file handler with proper path joining and validation."""
+    file_handler = config.get("handlers", {}).get("file", {})
+    if not file_handler:
+        return
+
+    original_filename = file_handler.get("filename", "iLORest.log")
+    if "%(logdir)s" in original_filename:
+        filename = original_filename.replace("%(logdir)s", logdir)
+    else:
+        filename = os.path.join(logdir, "iLORest.log")
+
+    file_handler["filename"] = os.path.normpath(filename)
+
+    # Test if we can write to the log file
+    try:
+        with open(file_handler["filename"], "a") as test_file:
+            pass  # Just test if we can open for writing
+    except (IOError, OSError, PermissionError) as e:
+        raise ValueError(f"Cannot write to log file {file_handler['filename']}: {e}")
+
+
+def set_logging_config_with_flags(config, nostdout=False, noinfo=False, debug=False):
+    """Modify logging configuration based on command-line flags.
+
+    :param config: The logging configuration dictionary to modify
+    :type config: dict
+    :param nostdout: Flag to suppress stdout logging
+    :type nostdout: bool
+    :param noinfo: Flag to suppress info level logging
+    :type noinfo: bool
+    :param debug: Flag to enable debug level logging
+    :type debug: bool
+    :returns: Modified configuration dictionary
+    :rtype: dict
+    """
+    # Handle priority: debug takes precedence over noinfo when both are set
+    if noinfo and debug:
+        noinfo = False
+
+    # Modify config based on early command-specific flags
+    if nostdout and "handlers" in config and "stdout" in config["handlers"]:
+        # Remove stdout handler from the configuration
+        del config["handlers"]["stdout"]
+        # Remove stdout from all logger handlers lists
+        for logger_name, logger_config in config.get("loggers", {}).items():
+            if "handlers" in logger_config and "stdout" in logger_config["handlers"]:
+                logger_config["handlers"] = [h for h in logger_config["handlers"] if h != "stdout"]
+
+    # Modify logging levels based on flags
+    if noinfo:
+        level = "ERROR"
+    elif debug:
+        level = "DEBUG"
+    else:
+        level = None
+
+    if level:
+        # Apply level to all loggers
+        for logger_name, logger_config in config.get("loggers", {}).items():
+            logger_config["level"] = level
+        # Also apply to handlers if needed
+        for handler_name, handler_config in config.get("handlers", {}).items():
+            if handler_name != "stderr":  # Keep stderr at ERROR level
+                handler_config["level"] = level
+
+    return config
+
+
+def setup_logging_from_json(opts=None):
+    """Setup logging from JSON config file using dictConfig with comprehensive fallback.
+
+    This function attempts to load logging configuration from a JSON file and falls back
+    to existing configuration if the JSON config fails for any reason.
+    If `opts` is provided, it extracts logging flags from the options object.
+
+    """
+    config_path = get_logging_config_path()
+
+    try:
+        # Load and validate configuration file
+        config = load_config_file(config_path)
+
+        # Extract logging flags from opts if provided and apply_flags is True
+        if opts:
+            nostdout = getattr(opts, "nostdoutlog", False)
+            noinfo = getattr(opts, "noinfolog", False)
+            debug = getattr(opts, "debug", False)
+            logdir = getattr(opts, "logdir", None)
+
+            # If caller passed an explicit logdir, use it to override the config value
+            if logdir:
+                # normalize and set
+                config["logdir"] = os.path.normpath(logdir)
+
+            # Modify config based on flags using the dedicated function
+            config = set_logging_config_with_flags(config, nostdout, noinfo, debug)
+
+        # Prepare log directory (this will create it if missing)
+        final_logdir = prepare_log_directory(config)
+
+        # Configure file handler paths (will replace %(logdir)s etc.)
+        configure_file_handler(config, final_logdir)
+
+        # Clear any existing handlers to avoid conflicts
+        clear_existing_handlers()
+
+        # Apply the logging configuration
+        logging.config.dictConfig(config)
+
+        # Test that logging is working (only if not suppressing info logs and flags applied)
+        if opts and not getattr(opts, "noinfolog", False):
+            logger = logging.getLogger(__name__)
+            logger.debug("Logging configuration loaded successfully from JSON (logdir=%s)", final_logdir)
+    except FileNotFoundError as e:
+        setup_fallback_logging(str(e), opts)
+        return None
+    except (PermissionError, IOError) as e:
+        setup_fallback_logging(f"File access error: {e}", opts)
+        return None
+    except json.JSONDecodeError as e:
+        setup_fallback_logging(f"Invalid JSON format: {e}", opts)
+        return None
+    except (KeyError, ValueError, TypeError) as e:
+        setup_fallback_logging(f"Invalid configuration structure: {e}", opts)
+        return None
+    except Exception as e:
+        setup_fallback_logging(f"Unexpected error loading config: {e}", opts)
+        return None
 
 
 # ---------End of debug logger---------
@@ -234,6 +522,8 @@ class ReturnCodes(object):
     ACCOUNT_SAVE_ERROR_ILO = 148
     GEN_BEFORE_LOGIN_ERROR = 149
     APPID_LIST_ERROR = 150
+    INACTIVE_APP_ACCOUNT_TOKEN = 151
+    REACTIVATE_APP_ACCOUNT_TOKEN_ERROR = 152
 
 
 class RdmcError(Exception):
@@ -590,6 +880,18 @@ class RemoveAccountError(RdmcError):
 
 class AppAccountExistsError(RdmcError):
     """Raised when errors occurred while removing app account"""
+
+    pass
+
+
+class ReactivateAppAccountTokenError(RdmcError):
+    """Raised when errors occurred while reactivating app account"""
+
+    pass
+
+
+class InactiveAppAccountTokenError(RdmcError):
+    """Raised when inactive app account token"""
 
     pass
 

@@ -131,7 +131,7 @@ class DetectiLOCommand:
         return ReturnCodes.SUCCESS
 
     def detect_local_ilotype(self, options):
-        app_obj = AppAccount(log_dir=self.rdmc.log_dir if self.rdmc.opts.debug else None)
+        app_obj = AppAccount(log_dir=self.rdmc.log_dir)
         security_state_dict = {
             0: "Error occurred while fetching the security state",
             1: "Factory",

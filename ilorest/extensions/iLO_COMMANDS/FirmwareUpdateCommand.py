@@ -228,7 +228,7 @@ class FirmwareUpdateCommand:
                         self.rdmc.ui.printer("\n iLO is uploading the necessary files. Please wait...\n")
 
                 time.sleep(0.5)
-            elif results["State"].lower().startswith(("progressing", "updating", "verifying", "writing")):
+            elif results["State"].lower().startswith(("progressing", "updating", "verifying", "writing", "backingup")):
                 counter = 0
 
                 for _ in range(2):

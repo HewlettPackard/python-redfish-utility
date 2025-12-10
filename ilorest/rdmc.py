@@ -26,9 +26,7 @@ import collections
 import copy
 import errno
 import glob
-import logging
 import os
-import re
 import shlex
 import sys
 import traceback
@@ -57,6 +55,7 @@ try:
     from config.rdmc_config import RdmcConfig
     from rdmc_helper import HARDCODEDLIST
     from rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
+    from security_masking import SecurityMasker
 except ModuleNotFoundError:
     from ilorest import cliutils
     from ilorest import versioning
@@ -64,12 +63,13 @@ except ModuleNotFoundError:
     from ilorest.config.rdmc_config import RdmcConfig
     from ilorest.rdmc_helper import HARDCODEDLIST
     from ilorest.rdmc_base_classes import RdmcCommandBase, RdmcOptionParser
+    from ilorest.security_masking import SecurityMasker
 
 try:
     from rdmc_helper import (
         LOGGER,
-        LOUT,
         UI,
+        setup_logging_from_json,
         AlreadyCloudConnectedError,
         BirthcertParseError,
         BootOrderMissingEntriesError,
@@ -125,6 +125,8 @@ try:
         NoAppAccountError,
         RemoveAccountError,
         AppAccountExistsError,
+        ReactivateAppAccountTokenError,
+        InactiveAppAccountTokenError,
         VnicLoginError,
         SavinginTPMError,
         SavinginiLOError,
@@ -136,13 +138,13 @@ except ModuleNotFoundError:
     from ilorest.rdmc_helper import (
         ReturnCodes,
         RdmcError,
+        setup_logging_from_json,
         ConfigurationFileError,
         CommandNotEnabledError,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         UI,
         LOGGER,
-        LOUT,
         InvalidFileFormattingError,
         NoChangesFoundOrMadeError,
         InvalidFileInputError,
@@ -192,6 +194,8 @@ except ModuleNotFoundError:
         NoAppAccountError,
         RemoveAccountError,
         AppAccountExistsError,
+        ReactivateAppAccountTokenError,
+        InactiveAppAccountTokenError,
         VnicLoginError,
         SavinginTPMError,
         SavinginiLOError,
@@ -206,7 +210,7 @@ if os.name != "nt":
     try:
         import setproctitle
     except ImportError:
-        pass
+        setproctitle = None
 
 # always flush stdout and stderr
 
@@ -369,24 +373,7 @@ class RdmcCommand(RdmcCommandBase):
 
     def mask_passwords(self, args):
         """Replaces password values in a command argument list with '****'."""
-        masked_args = []
-        sensitive_keywords = {"--password", "--pass", "-p"}
-
-        for i, arg in enumerate(args):
-            # Mask if it's a known password flag or follows a flag
-            if arg in sensitive_keywords:
-                masked_args.append(arg)  # Keep flag
-                masked_args.append("****")  # Mask value
-            elif any(arg.startswith(key + "=") for key in sensitive_keywords):
-                # Handle inline passwords like --password=mypassword
-                masked_args.append(re.sub(r"=(.*)", "=****", arg))
-            elif i > 0 and args[i - 1] in sensitive_keywords:
-                # If previous argument was a password flag, mask this value
-                masked_args.append("****")
-            else:
-                masked_args.append(arg)
-
-        return masked_args
+        return SecurityMasker.mask_command_arguments(args)
 
     def _run_command(self, opts, args, help_disp):
         """Calls the command's run function.
@@ -399,8 +386,6 @@ class RdmcCommand(RdmcCommandBase):
         :type help_disp: bool
         :returns: Command execution result.
         """
-        if opts.noinfolog and opts.debug:
-            opts.noinfolog = False
         if not args:
             LOGGER.error("No command provided. Exiting execution.")
             raise ValueError("No command provided.")
@@ -416,18 +401,6 @@ class RdmcCommand(RdmcCommandBase):
 
         self.load_command(cmd)
         LOGGER.debug(f"Command '{args[0]}' loaded successfully.")
-
-        if opts.noinfolog:
-            LOGGER.setLevel(logging.ERROR)
-        else:
-            LOGGER.setLevel(logging.INFO)
-
-        # Enable debug logging if needed
-        if opts.debug:
-            LOGGER.setLevel(logging.DEBUG)
-            if not opts.nostdoutlog:
-                LOUT.setLevel(logging.DEBUG)
-            LOGGER.debug("Debug mode enabled.")
 
         # Handle JSON output flag
         if any(a in ("-j", "--json") for a in args):
@@ -556,55 +529,22 @@ class RdmcCommand(RdmcCommandBase):
                     pass
                 else:
                     raise
-        if self.opts.noinfolog and self.opts.debug:
-            self.opts.noinfolog = False
         if self.opts.logdir and (self.opts.debug or not self.opts.noinfolog):
             logdir = self.opts.logdir
         else:
-            logdir = self.config.logdir
-
-        if logdir:
-            try:
-                os.makedirs(logdir)
-            except OSError as ex:
-                if ex.errno == errno.EEXIST:
-                    pass
-                else:
-                    raise
+            logdir = os.getcwd()
         self.log_dir = logdir
-        logfile = os.path.join(logdir, versioning.__shortname__ + ".log")
-        # Create a file logger since we got a logdir
         try:
-            if self.opts.debug or not self.opts.noinfolog:
-                lfile = logging.FileHandler(filename=logfile)
-        except (OSError, PermissionError, IOError) as e:
-            fallback_dir = os.getenv("APPDATA") or os.path.join(os.path.expanduser("~"), ".local", "share")
-            os.makedirs(fallback_dir, exist_ok=True)
-            logfile = os.path.join(fallback_dir, versioning.__shortname__ + ".log")
-            lfile = logging.FileHandler(filename=logfile)
+            setup_logging_from_json(opts=self.opts)
+        except Exception:
+            # setup_logging_from_json contains its own fallback logging
+            # mechanisms. If something unexpected happens still ensure
+            # the package logger exists.
+            try:
+                LOGGER.warning("Failed to initialize JSON logging configuration; using fallback.")
+            except Exception:
+                pass
 
-        formatter = logging.Formatter("%(asctime)s %(levelname)s\t: %(message)s")
-        if self.opts.debug or not self.opts.noinfolog:
-            lfile.setFormatter(formatter)
-
-        if getattr(self.opts, "noinfolog", False):
-            default_level = logging.ERROR
-        else:
-            default_level = logging.INFO
-
-        # Apply the base log level
-        if self.opts.debug or not self.opts.noinfolog:
-            lfile.setLevel(default_level)
-        LOGGER.setLevel(default_level)
-
-        # Override logging level for debug
-        if getattr(self.opts, "debug", False):
-            lfile.setLevel(logging.DEBUG)
-            LOGGER.setLevel(logging.DEBUG)
-            if not getattr(self.opts, "nostdoutlog", False):
-                LOUT.setLevel(logging.DEBUG)
-        if self.opts.debug or not self.opts.noinfolog:
-            LOGGER.addHandler(lfile)
         self.app.LOGGER = LOGGER
 
         if ("login" in line or any(x.startswith("--url") for x in line) or not line) and not (
@@ -620,12 +560,13 @@ class RdmcCommand(RdmcCommandBase):
         if nargv:
             try:
                 self.retcode = self._run_command(self.opts, nargv, help_disp)
-                if self.app.cache:
-                    if ("logout" not in line) and ("--logout" not in line):
-                        self.app.save()
-                        self.app.redfishinst = None
-                else:
-                    self.app.logout()
+                if "multiconnect" not in line:
+                    if self.app.cache:
+                        if ("logout" not in line) and ("--logout" not in line):
+                            self.app.save()
+                            self.app.redfishinst = None
+                    else:
+                        self.app.logout()
             except AttributeError:
                 self.retcode = 0
                 pass
@@ -647,12 +588,6 @@ class RdmcCommand(RdmcCommandBase):
         :param opts: Command options.
         :type opts: argparse.Namespace
         """
-        if opts.noinfolog and opts.debug:
-            opts.noinfolog = False
-        if opts.noinfolog:
-            LOGGER.setLevel(logging.ERROR)
-        else:
-            LOGGER.setLevel(logging.INFO)
         LOGGER.info("Starting interactive mode.")
         self.interactive = True
 
@@ -664,12 +599,6 @@ class RdmcCommand(RdmcCommandBase):
         if not self.app.typepath.adminpriv:
             self.ui.user_not_admin()
             LOGGER.warning("User does not have admin privileges.")
-
-        if opts.debug:
-            LOGGER.setLevel(logging.DEBUG)
-            if not opts.nostdoutlog:
-                LOUT.setLevel(logging.DEBUG)
-            LOGGER.debug("Debug mode enabled.")
 
         LOGGER.info("Loading available commands.")
         for command, values in self.commands_dict.items():
@@ -711,7 +640,7 @@ class RdmcCommand(RdmcCommandBase):
                 else:
                     line = input(prompt_string)
 
-                LOGGER.debug(f"User input: {line}")
+                LOGGER.debug(f"User input: {SecurityMasker.mask_user_input(line)}")
 
             except (EOFError, KeyboardInterrupt):
                 LOGGER.info("User exited interactive mode.")
@@ -728,7 +657,7 @@ class RdmcCommand(RdmcCommandBase):
             nargv.whitespace_split = True
             nargv = list(nargv)
 
-            LOGGER.debug(f"Parsed command arguments: {nargv}")
+            LOGGER.debug(f"Parsed command arguments: {SecurityMasker.mask_command_arguments(nargv)}")
 
             try:
                 if not (
@@ -740,7 +669,6 @@ class RdmcCommand(RdmcCommandBase):
 
                 self.retcode = self._run_command(opts, nargv, help_disp=False)
                 LOGGER.info(f"Command executed with return code: {self.retcode}")
-
                 self.check_for_tab_lists(nargv)
 
             except Exception as excp:
@@ -1114,6 +1042,12 @@ class RdmcCommand(RdmcCommandBase):
         except AppAccountExistsError as excp:
             self.retcode = ReturnCodes.ACCOUNT_EXISTS_CHECK_ERROR
             self.ui.error(excp)
+        except ReactivateAppAccountTokenError as excp:
+            self.retcode = ReturnCodes.REACTIVATE_APP_ACCOUNT_TOKEN_ERROR
+            self.ui.error(excp)
+        except InactiveAppAccountTokenError as excp:
+            self.retcode = ReturnCodes.INACTIVE_APP_ACCOUNT_TOKEN
+            self.ui.error(excp)
         except VnicLoginError as excp:
             self.retcode = ReturnCodes.VNIC_LOGIN_ERROR
             self.ui.error(excp)
@@ -1307,8 +1241,19 @@ class RdmcCommand(RdmcCommandBase):
 
 
 def ilorestcommand():
-    # Initialization of main command class
+    # Parse command line arguments early to extract logging flags
     ARGUMENTS = sys.argv[1:]
+    # Create a temporary parser to extract logging flags early
+    temp_parser = ArgumentParser(add_help=False)
+    temp_parser.add_argument("--nostdoutlog", action="store_true", default=False)
+    temp_parser.add_argument("--noinfolog", action="store_true", default=False)
+    temp_parser.add_argument("--debug", action="store_true", default=False)
+    temp_parser.add_argument("--logdir", dest="logdir", help="Use the provided directory for logs", default=None)
+    # Parse known args to extract logging flags
+    temp_opts, _ = temp_parser.parse_known_args(ARGUMENTS)
+
+    # Initialize logging from JSON configuration with parsed flags
+    setup_logging_from_json(temp_opts)
 
     RDMC = RdmcCommand(
         Args=ARGUMENTS,
