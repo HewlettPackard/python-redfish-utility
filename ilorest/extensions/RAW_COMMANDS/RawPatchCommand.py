@@ -124,11 +124,12 @@ class RawPatchCommand:
             body = contentsholder["body"]
             try:
                 response = requests.patch(path, json=body, verify=False)
-                if response.status_code == 200:
+                sys.stderr.write(f"[{response.status_code}]\n")
+                if response.content:
                     sys.stdout.write(response.content.decode("utf-8") + "\n")
-                return ReturnCodes.SUCCESS
+                return ReturnCodes.SUCCESS if 200 <= response.status_code < 300 else ReturnCodes.GENERAL_ERROR
             except Exception as e:
-                sys.stdout.write("Error: Failed to complete operation.\n")
+                sys.stderr.write(f"Error: Failed to complete operation - {str(e)}\n")
                 return ReturnCodes.INVALID_COMMAND_LINE_ERROR
 
         if "path" in contentsholder and "body" in contentsholder:
@@ -165,26 +166,36 @@ class RawPatchCommand:
         if options.response or options.getheaders:
             returnresponse = True
 
-        if results and returnresponse:
+        overall_success = True
+        if results:
             for result in results:
-                if options.getheaders:
-                    self.rdmc.ui.print_out_json(dict(result.getheaders()))
-
-                if options.response:
-                    self.rdmc.ui.printer(result.read)
-                    self.rdmc.ui.printer("\n")
+                status = getattr(result, "status", 200)
+                sys.stderr.write(f"[{status}]\n")
+                if not (200 <= status < 300):
+                    overall_success = False
+                if returnresponse:
+                    if options.getheaders:
+                        self.rdmc.ui.print_out_json(dict(result.getheaders()))
+                    if options.response:
+                        self.rdmc.ui.printer(result.read)
+                        self.rdmc.ui.printer("\n")
 
         self.cmdbase.logout_routine(self, options)
-        # Return code
-        return ReturnCodes.SUCCESS
+        return ReturnCodes.SUCCESS if overall_success else ReturnCodes.GENERAL_ERROR
 
     def patchvalidation(self, options):
         """Raw patch validation function
 
+        For service mode: Skip all validation to minimise requests.
+        For non-service mode: Perform minimal login only (skipbuild=True) so
+        schemas and registries are never fetched — raw commands don't need them.
+
         :param options: command line options
         :type options: list.
         """
-        self.rdmc.login_select_validation(self, options, skipbuild=True)
+        if getattr(options, "service", False):
+            return  # session already established; skip all unnecessary requests
+        self.cmdbase.login_validation(self, options, skipbuild=True)
 
     def sessionvalidation(self, options):
         """Raw patch session validation function

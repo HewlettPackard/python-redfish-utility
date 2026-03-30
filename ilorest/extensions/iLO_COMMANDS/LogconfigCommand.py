@@ -1,5 +1,5 @@
 ###
-# Copyright 2025 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2025-2026 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 # -*- coding: utf-8 -*-
 """Command for configuring logging options"""
+
 import json
 import logging
 import logging.config
@@ -62,11 +63,13 @@ class LogconfigCommand:
                 "Configure logging options for iLOREST\n\n\t"
                 "Example:\n\tilorest logconfig --enable-debug --logdir=/custom/path\n\t"
                 'ilorest logconfig --logdir="C:\\path with spaces"\n\t'
+                "ilorest logconfig --enable-logs\n\t"
                 "ilorest logconfig --enable-debug\n\t"
-                "ilorest logconfig --disable-debug\n\t"
+                "ilorest logconfig --disable-debug\n\t",
+                "ilorest logconfig --disable-logs\n\t"
                 "ilorest logconfig --log_file_size=5MB --log_retention_count=5\n\t"
                 "ilorest logconfig --log_file_size=10MB --log_retention_count=3\n\t"
-                "ilorest logconfig --show"
+                "ilorest logconfig --show",
             ),
             "summary": "Configure logging options such as debug mode, log directory, and file rotation.",
             "aliases": [],
@@ -257,7 +260,7 @@ class LogconfigCommand:
                     success = success and bool(
                         update_config_handlers_levels(self.logging_config_path, "DEBUG", handler_names=["file"])
                     )
-                    # Set stdout to WARNING to keep console clean
+                    # Set stdout to CRITICAL to keep console clean
                     success = success and bool(
                         update_config_handlers_levels(self.logging_config_path, "CRITICAL", handler_names=["stdout"])
                     )
@@ -312,6 +315,102 @@ class LogconfigCommand:
             LOGGER.debug(f"Failed to update logging config due to JSON/IO error: {str(ex)}")
             return False
 
+    def is_logging_disabled(self):
+        """Check if logging is currently disabled (set to CRITICAL level)
+
+        :returns: True if logging is disabled (CRITICAL), False otherwise
+        :rtype: bool
+        """
+        try:
+            config_data = self.load_logging_config()
+
+            # Check if file handler is set to CRITICAL
+            handlers = config_data.get("handlers", {})
+            file_handler = handlers.get("file", {})
+            file_level = file_handler.get("level", "INFO")
+
+            # Check root logger level
+            loggers = config_data.get("loggers", {})
+            root_logger = loggers.get("", {})
+            root_level = root_logger.get("level", "INFO")
+
+            # Logging is considered disabled if both are CRITICAL
+            return file_level == "CRITICAL" and root_level == "CRITICAL"
+        except Exception:
+            # If we can't determine, it's not disabled
+            return False
+
+    def enable_logging(self):
+        """Enable logging by setting file handler to INFO level
+
+        :returns: True if configuration update succeeded, False otherwise
+        :rtype: bool
+        """
+        try:
+            # Update persistent configuration for handlers and loggers
+            success = (
+                update_config_handlers_levels(self.logging_config_path, "INFO", handler_names=["file"])
+                and update_config_handlers_levels(self.logging_config_path, "CRITICAL", handler_names=["stdout"])
+                and update_config_loggers_levels(self.logging_config_path, "INFO")
+            )
+
+            if not success:
+                return False
+
+            # Apply runtime levels
+            try:
+                root_logger = logging.getLogger()
+                set_runtime_logger_levels(root_logger, logging.INFO, set_module_logger=LOGGER)
+                set_named_handler_level_if_exists(root_logger, "logconfig_stdout", logging.CRITICAL)
+                set_file_handlers_level(root_logger, logging.INFO)
+                LOGGER.info("Updated logging configuration: levels set to INFO")
+            except Exception:
+                LOGGER.debug("Failed to update runtime handler levels after saving config")
+                # Runtime application failures are non-fatal for persistence
+
+            return True
+        except (json.JSONDecodeError, IOError) as ex:
+            LOGGER.debug(f"Failed to enable logging config due to JSON/IO error: {str(ex)}")
+            return False
+
+    def disable_logging(self, info_disabled):
+        """Update logging levels in the logging configuration file to disable/enable logging
+
+        :param info_disabled: whether info logging should be disabled (set to CRITICAL level)
+        :type info_disabled: bool
+        :returns: True if configuration update succeeded, False otherwise
+        :rtype: bool
+        """
+        if not info_disabled:
+            return True
+
+        try:
+            # Update persistent configuration for handlers and loggers
+            success = (
+                update_config_handlers_levels(self.logging_config_path, "CRITICAL", handler_names=["file"])
+                and update_config_handlers_levels(self.logging_config_path, "CRITICAL", handler_names=["stdout"])
+                and update_config_loggers_levels(self.logging_config_path, "CRITICAL")
+            )
+
+            if not success:
+                return False
+
+            # Apply runtime levels
+            try:
+                root_logger = logging.getLogger()
+                set_runtime_logger_levels(root_logger, logging.CRITICAL, set_module_logger=LOGGER)
+                set_named_handler_level_if_exists(root_logger, "logconfig_stdout", logging.CRITICAL)
+                set_file_handlers_level(root_logger, logging.CRITICAL)
+                LOGGER.info("Updated logging configuration: levels set to CRITICAL")
+            except Exception:
+                LOGGER.debug("Failed to update runtime handler levels after saving config")
+                # Runtime application failures are non-fatal for persistence
+
+            return True
+        except (json.JSONDecodeError, IOError) as ex:
+            LOGGER.debug(f"Failed to update logging config due to JSON/IO error: {str(ex)}")
+            return False
+
     def update_logging_config_file_rotation(self, max_bytes=None, backup_count=None):
         """Update file rotation settings in the logging configuration file
 
@@ -325,10 +424,7 @@ class LogconfigCommand:
             success = update_config_file_rotation_settings(self.logging_config_path, max_bytes, backup_count)
 
             if not success:
-                warning_msg = (
-                            "Failed to update file rotation settings."
-                            "No changes were applied."
-                        )
+                warning_msg = "Failed to update file rotation settings. " "No changes were applied."
                 print(warning_msg)
                 return False
 
@@ -360,6 +456,8 @@ class LogconfigCommand:
                 LOGGER.info("Applied new file rotation configuration to current session")
             except Exception as ex:
                 LOGGER.warning(f"Failed to apply logging config to current session: {str(ex)}")
+
+            return True
 
         except InvalidCommandLineError:
             # Re-raise known command errors
@@ -401,8 +499,10 @@ class LogconfigCommand:
         """
         if help_disp:
             print("logconfig: Configure persistent logging options.")
-            print("Usage: logconfig [--enable-debug | --disable-debug] [--logdir=PATH]")
-            print("                 [--log_file_size=SIZE] [--log_retention_count=COUNT] [--show]")
+            print("Usage: logconfig [--enable-logs | --disable-logs] [--enable-debug | --disable-debug]")
+            print("                 [--logdir=PATH] [--log_file_size=SIZE] [--log_retention_count=COUNT] [--show]")
+            print("  --enable-logs       Enable default (INFO) logging globally for all commands")
+            print("  --disable-logs      Disable logging globally for all commands")
             print("  --enable-debug      Enable debug logging globally for all commands")
             print("  --disable-debug     Disable debug logging globally for all commands")
             print("  --logdir=PATH       Set the directory for log files (use quotes for path)")
@@ -411,11 +511,13 @@ class LogconfigCommand:
             print("  --log_retention_count=COUNT  Set the number of log files to retain")
             print("  --show              Show current logging configuration")
             print("")
-            print("Note: Use --enable-debug to enable or --disable-debug to disable persistent debug mode.")
-            print("      Without any flags, shows current status.")
+            print("Note: Use --enable-logs to enable default logging(INFO) if it has been disabled.")
+            print("      Use --enable-debug or --disable-debug to control debug mode.")
+            print("      Use --disable-logs to disable all logging.")
+            print("      These settings will persist across all future iLORest sessions.")
             return ReturnCodes.SUCCESS
         try:
-            (options, args) = self.rdmc.rdmc_parse_arglist(self, line)
+            options, args = self.rdmc.rdmc_parse_arglist(self, line)
 
             # Check for old debug syntax patterns
             line_str = " ".join(line) if isinstance(line, list) else str(line)
@@ -472,19 +574,71 @@ class LogconfigCommand:
             LOGGER.error(f"Failed to parse command arguments: {str(ex)}")
             return ReturnCodes.GENERAL_ERROR
 
+        # Check if logging is disabled and user is trying to use other flags without enabling first
+        # Allow --enable-logs, --disable-logs, and --show to work
+        if self.is_logging_disabled():
+            possible_ops = any(
+                [
+                    getattr(options, "enable_debug", False),
+                    getattr(options, "disable_debug", False),
+                    getattr(options, "logdir", None),
+                    getattr(options, "log_file_size", None),
+                    getattr(options, "backup_count", None),
+                ]
+            )
+
+            # If user is attempting operations while logging is disabled
+            if possible_ops and not getattr(options, "enable_logs", False):
+                raise InvalidCommandLineError(
+                    "Logging has been disabled. Please enable it using --enable-logs "
+                    "before configuring other logging options."
+                )
+
+        # Check for conflicting flags: --disable-logs cannot be used with other flags (except --show)
+        if getattr(options, "disable_logs", False):
+            # Map attribute names to their flag representations
+            conflict_checks = [
+                ("enable_logs", "--enable-logs"),
+                ("enable_debug", "--enable-debug"),
+                ("disable_debug", "--disable-debug"),
+                ("logdir", "--logdir"),
+                ("log_file_size", "--log_file_size"),
+                ("backup_count", "--log_retention_count"),
+            ]
+
+            conflicting_flags = [flag for attr, flag in conflict_checks if getattr(options, attr, None)]
+
+            if conflicting_flags:
+                raise InvalidCommandLineError(
+                    f"Invalid argument combination: --disable-logs cannot be used with {', '.join(conflicting_flags)}. "
+                    "Use --disable-logs alone (optionally with --show) to disable all logging."
+                )
+
+        # Check for conflicting flags: --enable-logs cannot be used with --disable-logs
+        if getattr(options, "enable_logs", False) and getattr(options, "disable_logs", False):
+            raise InvalidCommandLineError(
+                "Invalid argument combination: --enable-logs and --disable-logs cannot be used together."
+            )
+
         logOutput = []
 
         # Check if show flag was provided - only short-circuit when no action flags are given.
         # If --show is combined with other flags (enable/disable/logdir/etc.)
         # we should process the actions first, then display the configuration
-        if hasattr(options, "show") and options.show and not any(
-            [
-                hasattr(options, "enable_debug") and options.enable_debug,
-                hasattr(options, "disable_debug") and options.disable_debug,
-                hasattr(options, "logdir") and options.logdir,
-                hasattr(options, "log_file_size") and options.log_file_size,
-                hasattr(options, "backup_count") and options.backup_count,
-            ]
+        if (
+            hasattr(options, "show")
+            and options.show
+            and not any(
+                [
+                    hasattr(options, "enable_logs") and options.enable_logs,
+                    hasattr(options, "enable_debug") and options.enable_debug,
+                    hasattr(options, "disable_debug") and options.disable_debug,
+                    hasattr(options, "disable_logs") and options.disable_logs,
+                    hasattr(options, "logdir") and options.logdir,
+                    hasattr(options, "log_file_size") and options.log_file_size,
+                    hasattr(options, "backup_count") and options.backup_count,
+                ]
+            )
         ):
             try:
                 with open(self.logging_config_path, "r") as config_file:
@@ -532,6 +686,63 @@ class LogconfigCommand:
                 print("JSON configuration file not found")
             return ReturnCodes.SUCCESS
 
+        # Check if enable-logs flag was provided
+        if hasattr(options, "enable_logs") and options.enable_logs:
+            # Update current session logging to INFO to enable logging
+            root_logger = logging.getLogger()
+            root_logger.setLevel(logging.INFO)
+            LOGGER.setLevel(logging.INFO)
+
+            LOGGER.debug("Logging enabled for current session")
+
+            # Update logging configuration file with new logging levels
+            try:
+                success = self.enable_logging()
+                if success:
+                    LOGGER.info("Logging has been enabled globally.")
+                    LOGGER.info("Info logs will be written to the log file in future iLORest sessions.")
+                    LOGGER.info("To enable debug mode, use: logconfig --enable-debug")
+                    logOutput.append("Logging has been enabled globally.")
+                    logOutput.append("Info logs will be written to the log file in future iLORest sessions.")
+                    logOutput.append("To enable debug mode, use: logconfig --enable-debug")
+                else:
+                    warning_msg = "Failed to enable logging. No changes were applied."
+                    LOGGER.warning(warning_msg)
+                    print(warning_msg)
+            except Exception as ex:
+                error_msg = f"Failed to update logging config: {str(ex)}"
+                LOGGER.error(error_msg)
+                print(f"Error: {error_msg}")
+
+        # Check if disable-logs flag was provided
+        if hasattr(options, "disable_logs") and options.disable_logs:
+            # Update current session logging to CRITICAL to effectively disable all logging output
+            info_disabled = True
+            root_logger = logging.getLogger()
+            root_logger.setLevel(logging.CRITICAL)
+            LOGGER.setLevel(logging.CRITICAL)
+
+            LOGGER.debug("Logging disabled for current session")
+
+            # Update logging configuration file with new logging levels
+            try:
+                success = self.disable_logging(info_disabled)
+                if success:
+                    LOGGER.info("Logging has been disabled globally.")
+                    LOGGER.info("Only critical errors will be logged in future iLORest sessions.")
+                    LOGGER.info("To enable logging, use: logconfig --enable-logs")
+                    logOutput.append("Logging has been disabled globally.")
+                    logOutput.append("Only critical errors will be logged in future iLORest sessions.")
+                    logOutput.append("To enable logging, use: logconfig --enable-logs")
+                else:
+                    warning_msg = "Failed to disable logging. No changes were applied."
+                    LOGGER.warning(warning_msg)
+                    print(warning_msg)
+            except Exception as ex:
+                error_msg = f"Failed to update logging config: {str(ex)}"
+                LOGGER.error(error_msg)
+                print(f"Error: {error_msg}")
+
         # Check if enable-debug flag was provided
         if hasattr(options, "enable_debug") and options.enable_debug:
             debug_enabled = True
@@ -556,10 +767,7 @@ class LogconfigCommand:
                     logOutput.append("Debug mode will persist for all future iLORest sessions.")
                     logOutput.append("To disable debug mode, use: logconfig --disable-debug")
                 else:
-                    warning_msg = (
-                            "Failed to enable debug mode."
-                            "No changes were applied."
-                        )
+                    warning_msg = "Failed to enable debug mode. " "No changes were applied."
                     print(warning_msg)
             except Exception as ex:
                 LOGGER.error(f"Failed to update logging config: {str(ex)}")
@@ -588,45 +796,27 @@ class LogconfigCommand:
                     logOutput.append("Debug mode is now turned off for all future iLORest sessions.")
                     logOutput.append("To enable debug mode, use: logconfig --enable-debug")
                 else:
-                    warning_msg = (
-                        "Failed to disable debug mode."
-                        "No changes were applied."
-                    )
+                    warning_msg = "Failed to disable debug mode. " "No changes were applied."
                     print(warning_msg)
             except Exception as ex:
                 LOGGER.error(f"Failed to update logging config: {str(ex)}")
                 return ReturnCodes.GENERAL_ERROR
 
-        # If no specific action flags were provided and --show was not used, show current status
+        # If no specific action flags were provided and --show was not used, direct user to help
         if not any(
             [
+                hasattr(options, "enable_logs") and options.enable_logs,
                 hasattr(options, "enable_debug") and options.enable_debug,
                 hasattr(options, "disable_debug") and options.disable_debug,
+                hasattr(options, "disable_logs") and options.disable_logs,
                 hasattr(options, "logdir") and options.logdir,
                 hasattr(options, "log_file_size") and options.log_file_size,
                 hasattr(options, "backup_count") and options.backup_count,
                 hasattr(options, "show") and options.show,
             ]
         ):
-            try:
-                with open(self.logging_config_path, "r") as config_file:
-                    config_data = json.load(config_file)
-
-                debug_enabled = False
-                if "loggers" in config_data and "" in config_data["loggers"]:
-                    log_level = config_data["loggers"][""]["level"]
-                    debug_enabled = log_level == "DEBUG"
-
-                if debug_enabled:
-                    logOutput.append("Debug logging currently enabled globally.")
-                    logOutput.append("To disable persistent debug mode, use: logconfig --disable-debug")
-                else:
-                    logOutput.append("Debug logging currently disabled globally.")
-                    logOutput.append("To enable persistent debug mode, use: logconfig --enable-debug")
-            except Exception as ex:
-                LOGGER.warning(f"Failed to read logging config: {str(ex)}")
-                logOutput.append("Debug logging status unknown.")
-                logOutput.append("To enable persistent debug mode, use: logconfig --enable-debug")
+            logOutput.append("No logconfig parameters provided.")
+            logOutput.append("Use 'logconfig --help' to see available command line parameters and usage examples.")
 
         # Configure log directory
         if hasattr(options, "logdir") and options.logdir:
@@ -753,6 +943,23 @@ class LogconfigCommand:
         """arguments for the logconfig command"""
         if not customparser:
             return
+
+        # Logging control arguments
+        customparser.add_argument(
+            "--enable-logs",
+            dest="enable_logs",
+            action="store_true",
+            help="Enable logging globally for all commands.",
+            default=False,
+        )
+
+        customparser.add_argument(
+            "--disable-logs",
+            dest="disable_logs",
+            action="store_true",
+            help="Disable all logging.",
+            default=False,
+        )
 
         # Debug control arguments
         customparser.add_argument(

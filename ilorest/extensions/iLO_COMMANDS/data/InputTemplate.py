@@ -1,6 +1,9 @@
 template = {
     "commonSettings": {
-        "computeOpsManagement": {"activationKey": "ACTIVATION-KEY-XXXX-YYYY-ZZZZ", "workspace_id": "WORKSPACE-ID-PLACEHOLDER-12345"},
+        "computeOpsManagement": {
+            "activationKey": "ACTIVATION-KEY-XXXX-YYYY-ZZZZ",
+            "workspace_id": "WORKSPACE-ID-PLACEHOLDER-12345",
+        },
         "iloAuthentication": {"iloUser": "GENERIC_ADMIN_USER", "iloPassword": "GENERIC_SECURE_PASSWORD"},
         "network": {"dns": ["203.0.113.10", "203.0.113.11"], "ntp": ["198.51.100.50", "198.51.100.51"]},
         "proxy": {

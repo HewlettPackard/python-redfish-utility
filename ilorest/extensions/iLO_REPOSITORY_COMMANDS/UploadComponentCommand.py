@@ -43,6 +43,7 @@ from redfish.hpilo.rishpilo import (
 )
 from redfish.hpilo.rishpilo import BlobReturnCodes
 from redfish.hpilo.risblobstore2 import BlobStore2
+import redfish.ris
 
 try:
     from rdmc_helper import (
@@ -527,18 +528,22 @@ class UploadComponentCommand:
         :param options: command line options
         :type options: list.
         """
-        path = "/redfish/v1/UpdateService"
-        results = self.rdmc.app.get_handler(path, service=True, silent=True)
+        try:
+            path = "/redfish/v1/UpdateService"
+            results = self.rdmc.app.get_handler(path, service=True, silent=True)
 
-        if results and results.status == 200 and results.dict:
-            output = results.dict
+            if results and results.status == 200 and results.dict:
+                output = results.dict
 
-            if self.rdmc.opts.verbose:
-                self.rdmc.ui.printer("UpdateService state = " + (output["Oem"]["Hpe"]["State"]).upper() + "\n")
+                if self.rdmc.opts.verbose:
+                    self.rdmc.ui.printer("UpdateService state = " + (output["Oem"]["Hpe"]["State"]).upper() + "\n")
 
-            return (output["Oem"]["Hpe"]["State"]).upper(), results.dict
-        else:
-            return "UNKNOWN", {}
+                return (output["Oem"]["Hpe"]["State"]).upper(), results.dict
+
+        except redfish.ris.ris.SessionExpired:
+            LOGGER.debug("Session expired while retrieving UpdateService state.\n")
+
+        return "UNKNOWN", {}
 
     def findcompsig(self, comppath):
         """Try to find compsig if not included
@@ -554,7 +559,7 @@ class UploadComponentCommand:
 
         try:
             location = os.sep.join(cutpath[:-1])
-        except:
+        except Exception:
             location = os.curdir
 
         if not location:
@@ -678,6 +683,7 @@ class UploadComponentCommand:
                     ctypes.create_string_buffer(ilo_upload_filename.encode("utf-8")),
                     dispatchflag,
                 )
+                LOGGER.debug(f"Upload component response: {ret}")
 
                 upload_failed = False
                 if ret != 0:
@@ -717,10 +723,22 @@ class UploadComponentCommand:
             raise excep
 
         if options.response:
-            path = "/redfish/v1/UpdateService"
-            results = self.rdmc.app.get_handler(path, service=True, silent=True)
-            res = results.dict
-            self.get_update_service_status(res)
+            try:
+                path = "/redfish/v1/UpdateService"
+                results = self.rdmc.app.get_handler(path, service=True, silent=True)
+                res = results.dict
+                self.get_update_service_status(res)
+            except redfish.ris.ris.SessionExpired:
+                LOGGER.debug("Post component flash session expired.\n")
+                if not upload_failed:
+                    # After the component is flashed successfully,
+                    # sometime UpdateService response may not be
+                    # received due to the iLO reset, which causes
+                    # session expiry. In this case, the service
+                    # state is updated to COMPLETE.
+                    LOGGER.debug("Component flash completed, session has expired.\n")
+                    self.status_content["State"] = "COMPLETE"
+
             self.rdmc.ui.printer("UpdateService Status:")
             UI().print_out_json(self.status_content)
         LOGGER.info("\nUpdate Service Status: {}".format(self.status_content))

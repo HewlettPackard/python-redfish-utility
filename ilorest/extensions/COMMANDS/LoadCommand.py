@@ -177,6 +177,7 @@ class LoadCommand:
 
             results = False
             eth_conf = False
+            thermal_conf = False
             validation_errs = []
 
             for loadcontent in loadcontents:
@@ -220,6 +221,37 @@ class LoadCommand:
                                 "Skipping network configurations as" " --force_network_config is not included.\n"
                             )
                             continue
+
+                    if "Thermal" in content:
+                        import platform
+                        import tempfile
+
+                        patchpath = "/redfish/v1/Chassis/1/Thermal/"
+
+                        try:
+                            payload = loadcontent[content][patchpath]
+                        except KeyError:
+                            continue
+
+                        # Only include writable Thermal properties under Oem/Hpe, exclude read-only arrays
+                        writable_props = {"FanPercentMinimum", "ThermalConfiguration"}
+                        hpe_data = payload.get("Oem", {}).get("Hpe", {})
+                        filtered_hpe = {k: v for k, v in hpe_data.items() if k in writable_props}
+
+                        if not filtered_hpe:
+                            continue
+
+                        filtered_payload = {"Oem": {"Hpe": filtered_hpe}}
+                        tempdir = "/tmp" if platform.system() == "Darwin" else tempfile.gettempdir()
+                        temp_file = os.path.join(tempdir, "temp_thermal_patch.json")
+                        out_file = open(temp_file, "w")
+                        patch_payload = {patchpath: filtered_payload}
+                        json.dump(patch_payload, out_file, indent=6)
+                        out_file.close()
+                        self.auxcommands["rawpatch"].run(temp_file + " --service")
+                        os.remove(temp_file)
+                        thermal_conf = True
+                        continue
 
                     inputlist.append(content)
                     if options.biospassword:
@@ -282,7 +314,7 @@ class LoadCommand:
                 raise redfish.ris.ValidationError()
 
             if not results:
-                if eth_conf:
+                if eth_conf or thermal_conf:
                     continue
                 else:
                     self.rdmc.ui.printer("No differences found from current configuration.\n")

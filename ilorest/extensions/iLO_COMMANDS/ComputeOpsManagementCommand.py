@@ -144,6 +144,7 @@ class ComputeOpsManagementCommand:
                 "computeopsmanagement connect --activationkey <ACTIVATION KEY> --proxy http://proxy.abc.com:8080\n\t"
                 "computeopsmanagement disconnect\n\t"
                 "computeopsmanagement multiconnect --input_file_json_template\n\t"
+                "computeopsmanagement multiconnect --input_file servers.json --precheck\n\t"
                 "computeopsmanagement multiconnect --input_file servers.json\n\t"
                 "computeopsmanagement multiconnect --input_file servers.json --allow_ilo_reset\n\t"
                 "computeopsmanagement multiconnect --input_file servers.json --output report.json\n\t"
@@ -240,6 +241,7 @@ class ComputeOpsManagementCommand:
         # Try to import tqdm, fall back to simple progress if not available
         try:
             from tqdm import tqdm
+
             return tqdm
         except ImportError:
             # Create a simple progress bar fallback that displays to stdout
@@ -537,7 +539,7 @@ class ComputeOpsManagementCommand:
         # Load and validate configuration (do once, not in loop)
         try:
             config = self._validate_input_file(config_file)
-        except (Exception) as e:
+        except Exception as e:
             raise e
 
         # Generate default output filename if not provided
@@ -547,10 +549,7 @@ class ComputeOpsManagementCommand:
         LOGGER.info(f"Report will be saved to: {output_file}")
 
         # Initialize report with new format
-        report = {
-            "iloPrecheck": [],
-            "resultCount": {"ilos": "0", "preCheckPassed": "0", "preCheckFailed": "0"}
-        }
+        report = {"iloPrecheck": [], "resultCount": {"ilos": "0", "preCheckPassed": "0", "preCheckFailed": "0"}}
 
         # Counters for result tracking
         counters = {"total": 0, "preCheckPassed": 0, "preCheckFailed": 0}
@@ -730,10 +729,7 @@ class ComputeOpsManagementCommand:
             from requests.auth import HTTPBasicAuth
 
             response = requests.get(
-                f"{base_url}/redfish/v1/",
-                auth=HTTPBasicAuth(username, password),
-                verify=False,
-                timeout=30
+                f"{base_url}/redfish/v1/", auth=HTTPBasicAuth(username, password), verify=False, timeout=30
             )
 
             if response.status_code == 200:
@@ -993,9 +989,11 @@ class ComputeOpsManagementCommand:
             # Check that all individual iLOs have authentication
             for ilo in individual_ilos:
                 individual_auth = ilo.get("iloAuthentication", {})
-                if not (isinstance(individual_auth, dict) and
-                       individual_auth.get("iloUser") and 
-                       individual_auth.get("iloPassword")):
+                if not (
+                    isinstance(individual_auth, dict)
+                    and individual_auth.get("iloUser")
+                    and individual_auth.get("iloPassword")
+                ):
                     raise InvalidCommandLineError(
                         "The operation failed as iLO credential is not provided in the input json"
                     )
@@ -1003,9 +1001,7 @@ class ComputeOpsManagementCommand:
             # Check that all ranges have authentication
             for range_config in ranges:
                 range_auth = range_config.get("iloAuthentication", {})
-                if not (isinstance(range_auth, dict) and
-                       range_auth.get("iloUser") and
-                       range_auth.get("iloPassword")):
+                if not (isinstance(range_auth, dict) and range_auth.get("iloUser") and range_auth.get("iloPassword")):
                     raise InvalidCommandLineError(
                         "The operation failed as iLO credential is not provided in the input json"
                     )
@@ -1081,7 +1077,7 @@ class ComputeOpsManagementCommand:
         # Load and validate configuration (do once, not in loop)
         try:
             config = self._validate_input_file(config_file)
-        except (Exception) as e:
+        except Exception as e:
             raise e
 
         # Generate default output filename if not provided
@@ -1447,10 +1443,7 @@ class ComputeOpsManagementCommand:
                 ilo_version = float(validation_result.get("iloVersion", "0.0"))
             else:
                 model_version, ilo_version = self._get_ilo_version_from_response(
-                    response.json(),
-                    base_url,
-                    username,
-                    password
+                    response.json(), base_url, username, password
                 )
                 model = f"iLO{str(model_version)}" if model_version else ""
 
@@ -1673,10 +1666,10 @@ class ComputeOpsManagementCommand:
                     parts = firmware_version.split()
                     if len(parts) >= 3:
                         # Handle old format: "iLO 6 v1.66" -> parts[2] = "v1.66"
-                        if parts[0].lower() == "ilo" and parts[2].startswith('v'):
-                            version_str = parts[2].lstrip('v')  # Remove 'v' prefix from old format
+                        if parts[0].lower() == "ilo" and parts[2].startswith("v"):
+                            version_str = parts[2].lstrip("v")  # Remove 'v' prefix from old format
                         # Handle new format: "iLO 7 1.19.00 Nov 24 2025" -> parts[2] = "1.19.00"
-                        elif parts[0].lower() == "ilo" and not parts[2].startswith('v'):
+                        elif parts[0].lower() == "ilo" and not parts[2].startswith("v"):
                             version_str = parts[2]  # Use version number as-is from new format
                         # Handle direct version format: "1.19.00 Nov 24 2025" -> parts[0] = "1.19.00"
                         else:
@@ -2162,10 +2155,12 @@ class ComputeOpsManagementCommand:
 
             eth_interfaces_url = f"{base_url}/redfish/v1/Managers/1/EthernetInterfaces"
 
-            dhcp_ntp_is_enabled, dhcp_disabled_successfully, dhcp_check_attempted = self._check_dhcp_ntp_config_on_interfaces(
-                session,
-                base_url,
-                eth_interfaces_url,
+            dhcp_ntp_is_enabled, dhcp_disabled_successfully, dhcp_check_attempted = (
+                self._check_dhcp_ntp_config_on_interfaces(
+                    session,
+                    base_url,
+                    eth_interfaces_url,
+                )
             )
 
             if dhcp_check_attempted and not dhcp_ntp_is_enabled:
@@ -2354,16 +2349,10 @@ class ComputeOpsManagementCommand:
                         dhcpv4_ntp_enabled = interface_data.get("DHCPv4", {}).get("UseNTPServers", False)
                         dhcpv6_ntp_enabled = interface_data.get("DHCPv6", {}).get("UseNTPServers", False)
                         oem_dhcpv4_ntp = (
-                            interface_data.get("Oem", {})
-                            .get("Hpe", {})
-                            .get("DHCPv4", {})
-                            .get("UseNTPServers", False)
+                            interface_data.get("Oem", {}).get("Hpe", {}).get("DHCPv4", {}).get("UseNTPServers", False)
                         )
                         oem_dhcpv6_ntp = (
-                            interface_data.get("Oem", {})
-                            .get("Hpe", {})
-                            .get("DHCPv6", {})
-                            .get("UseNTPServers", False)
+                            interface_data.get("Oem", {}).get("Hpe", {}).get("DHCPv6", {}).get("UseNTPServers", False)
                         )
 
                         if any([dhcpv4_ntp_enabled, dhcpv6_ntp_enabled, oem_dhcpv4_ntp, oem_dhcpv6_ntp]):
@@ -2393,12 +2382,8 @@ class ComputeOpsManagementCommand:
 
                             if interface_state == "Enabled":
                                 dhcp_check_attempted = True
-                                dhcpv4_ntp_enabled = interface_data.get("DHCPv4", {}).get(
-                                    "UseNTPServers", False
-                                )
-                                dhcpv6_ntp_enabled = interface_data.get("DHCPv6", {}).get(
-                                    "UseNTPServers", False
-                                )
+                                dhcpv4_ntp_enabled = interface_data.get("DHCPv4", {}).get("UseNTPServers", False)
+                                dhcpv6_ntp_enabled = interface_data.get("DHCPv6", {}).get("UseNTPServers", False)
                                 oem_dhcpv4_ntp = (
                                     interface_data.get("Oem", {})
                                     .get("Hpe", {})
@@ -2412,9 +2397,7 @@ class ComputeOpsManagementCommand:
                                     .get("UseNTPServers", False)
                                 )
 
-                                if any(
-                                    [dhcpv4_ntp_enabled, dhcpv6_ntp_enabled, oem_dhcpv4_ntp, oem_dhcpv6_ntp]
-                                ):
+                                if any([dhcpv4_ntp_enabled, dhcpv6_ntp_enabled, oem_dhcpv4_ntp, oem_dhcpv6_ntp]):
                                     dhcp_ntp_is_enabled = True
                                     LOGGER.info("DHCP NTP enabled (retry check)")
                                 else:
@@ -2865,7 +2848,7 @@ class ComputeOpsManagementCommand:
             line.append("-h")
             try:
                 (_, _) = self.rdmc.rdmc_parse_arglist(self, line)
-            except Exception:
+            except:
                 return ReturnCodes.SUCCESS
             return ReturnCodes.SUCCESS
         try:
@@ -3082,11 +3065,11 @@ class ComputeOpsManagementCommand:
         )
 
         exclusive_group.add_argument(
-           "--precheck",
-           "-c",
-           dest="precheck",
-           help="Perform precheck validation only (no onboarding or configuration)",
-           required=False,
-           action="store_true",
-           default=False,
+            "--precheck",
+            "-c",
+            dest="precheck",
+            help="Perform precheck validation only (no onboarding or configuration)",
+            required=False,
+            action="store_true",
+            default=False,
         )

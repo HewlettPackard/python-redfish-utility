@@ -20,22 +20,23 @@
 # ---------Imports---------
 from __future__ import unicode_literals
 
+import gzip
 import json
 import logging
+import logging.handlers
 import os
+import shutil
 import sys
 import time
 from ctypes import byref, c_char_p, create_string_buffer
 
-try:
-    from logging_config_path import get_logging_config_path
-except ModuleNotFoundError:
-    from ilorest.logging_config_path import get_logging_config_path
-
+# Removed import of get_logging_config_path to avoid circular import
 
 import pyaes
 import six
 from prompt_toolkit.completion import Completer, Completion
+import threading
+import uuid
 
 import redfish.hpilo.risblobstore2 as risblobstore2
 import redfish.ris
@@ -77,6 +78,15 @@ HARDCODEDLIST = [
 # - `setup_fallback_logging()` is to support fallback logging if the JSON config
 #   cannot be loaded or applied for some reason.  It uses command line flags to retain old functionality.
 
+# Store command ID storage directly in the sys module to avoid ANY PyInstaller duplication
+if not hasattr(sys, '_ilorest_command_id_storage'):
+    sys._ilorest_command_id_storage = {}
+
+
+def _get_storage():
+    """Get the command ID storage dict from sys module"""
+    return sys._ilorest_command_id_storage
+
 
 class InfoFilter(logging.Filter):
     """Filter to allow only INFO and WARNING messages, blocking ERROR and above"""
@@ -84,6 +94,146 @@ class InfoFilter(logging.Filter):
     def filter(self, record):
         # Allow only records below ERROR (i.e., INFO and WARNING)
         return record.levelno < logging.ERROR
+
+
+class CommandIDFilter(logging.Filter):
+    """Filter that injects a unique command ID into log records for tracing command execution"""
+
+    def filter(self, record):
+        # Get command ID from thread-specific dict storage
+        thread_id = threading.current_thread().ident
+        storage = _get_storage()
+        command_id = storage.get(thread_id, {}).get('command_id')
+        record.command_id = command_id if command_id else "N/A"
+        return True
+
+
+def set_command_id(command_id: str) -> None:
+    """Set the command ID for the current execution context.
+
+    Args:
+        command_id: Unique identifier for the command execution
+    """
+    thread_id = threading.current_thread().ident
+    storage = _get_storage()
+    if thread_id not in storage:
+        storage[thread_id] = {}
+    storage[thread_id]['command_id'] = command_id
+
+
+def generate_command_id() -> str:
+    """Generate a new unique command ID.
+
+    Returns:
+        A short unique identifier for the command execution
+    """
+    return str(uuid.uuid4())[:8]
+
+
+class CompressedRotatingFileHandler(logging.handlers.RotatingFileHandler):
+    """
+    Handler for logging to a file with rotation and gzip compression of old logs.
+
+    This handler extends RotatingFileHandler to automatically compress rotated
+    log files using gzip. When a log file is rotated (renamed from .log to .log.1,
+    .log.2, etc.), each file is compressed to save disk space (.log.1.gz, .log.2.gz).
+
+    Attributes:
+        All attributes from RotatingFileHandler, plus automatic compression on rotation.
+    """
+
+    def _safe_remove(self, filepath):
+        """Safely remove a file, ignoring errors and logging to stderr."""
+        try:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        except Exception as e:
+            sys.stderr.write(f"Warning: Failed to remove file {filepath}: {e}\n")
+
+    def _safe_rename(self, src, dest):
+        """Safely rename a file, ignoring errors and logging to stderr."""
+        try:
+            if os.path.exists(src):
+                os.rename(src, dest)
+        except Exception as e:
+            sys.stderr.write(f"Warning: Failed to rename {src} to {dest}: {e}\n")
+
+    def _safe_compress(self, source, dest):
+        """Safely compress a file, ignoring errors and logging to stderr."""
+        try:
+            if os.path.exists(source):
+                self._compress_file(source, dest)
+        except Exception as e:
+            sys.stderr.write(f"Warning: Failed to compress {source} to {dest}: {e}\n")
+
+    def doRollover(self):
+        """
+        Do a rollover with compression.
+
+        Overrides the parent class method to add gzip compression after rotation.
+        The compression happens in the following order:
+        1. Flush and close the current log file (prevents data loss)
+        2. Rotate existing backup files (rename .log.N to .log.N+1)
+        3. Compress each rotated file with gzip
+        4. Rename current log to .log.1 and compress it
+        5. Open a new log file
+        """
+        if self.stream:
+            self.stream.flush()  # Prevent data loss by flushing buffer during rotation and compression
+            self.stream.close()
+            self.stream = None
+
+        # Rotate existing backup files and compress them
+        for i in range(self.backupCount - 1, 0, -1):
+            sfn = self.rotation_filename("%s.%d" % (self.baseFilename, i))
+            dfn = self.rotation_filename("%s.%d" % (self.baseFilename, i + 1))
+
+            # Remove old compressed file if it exists
+            self._safe_remove(dfn + ".gz")
+
+            # If source file exists, compress it to destination
+            if os.path.exists(sfn):
+                self._safe_compress(sfn, dfn + ".gz")
+                self._safe_remove(sfn)
+            # Also handle case where source is already compressed
+            elif os.path.exists(sfn + ".gz"):
+                self._safe_remove(dfn + ".gz")
+                self._safe_rename(sfn + ".gz", dfn + ".gz")
+
+        # Rotate the current log file to .1 and compress it
+        # Create backup if backupCount > 0
+        if self.backupCount > 0:
+            dfn = self.rotation_filename(self.baseFilename + ".1")
+            self._safe_remove(dfn + ".gz")
+
+            if os.path.exists(self.baseFilename):
+                self._safe_compress(self.baseFilename, dfn + ".gz")
+                self._safe_remove(self.baseFilename)
+        else:
+            # backupCount=0: just delete the current log without creating backup
+            if os.path.exists(self.baseFilename):
+                self._safe_remove(self.baseFilename)
+
+        # Open new log file
+        if not self.delay:
+            self.stream = self._open()
+
+    def _compress_file(self, source, dest):
+        """
+        Compress a file using gzip.
+
+        Args:
+            source (str): Path to the source file to compress
+            dest (str): Path to the destination .gz file
+        """
+        try:
+            with open(source, 'rb') as f_in:
+                with gzip.open(dest, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+        except Exception as e:
+            # Log compression errors but don't fail the rotation
+            # Use sys.stderr as fallback since logging might not be fully initialized
+            sys.stderr.write(f"Warning: Failed to compress log file {source}: {e}\n")
 
 
 # Logger instance - configuration will be handled by JSON config file
@@ -327,7 +477,23 @@ def setup_logging_from_json(opts=None):
     If `opts` is provided, it extracts logging flags from the options object.
 
     """
+    try:
+        from logging_config_path import get_logging_config_path
+    except ModuleNotFoundError:
+        from ilorest.logging_config_path import get_logging_config_path
+
+    # Import wrapper module to ensure it sets up sys.path for all platforms
+    # Try package import first (works when running installed), then top-level fallback
+    try:
+        from ilorest import rdmc_helper_wrapper  # noqa: F401
+    except Exception:
+        try:
+            import rdmc_helper_wrapper  # noqa: F401
+        except Exception:
+            # Silent fallback: wrapper is optional for flat-file use if paths already correct
+            pass
     config_path = get_logging_config_path()
+    LOGGER.debug("Attempting to load logging configuration from: %s", config_path)
 
     try:
         # Load and validate configuration file
@@ -359,11 +525,8 @@ def setup_logging_from_json(opts=None):
 
         # Apply the logging configuration
         logging.config.dictConfig(config)
-
-        # Test that logging is working (only if not suppressing info logs and flags applied)
-        if opts and not getattr(opts, "noinfolog", False):
-            logger = logging.getLogger(__name__)
-            logger.debug("Logging configuration loaded successfully from JSON (logdir=%s)", final_logdir)
+        logger = logging.getLogger(__name__)
+        logger.debug("Logging configuration loaded successfully from JSON (logdir=%s)", final_logdir)
     except FileNotFoundError as e:
         setup_fallback_logging(str(e), opts)
         return None

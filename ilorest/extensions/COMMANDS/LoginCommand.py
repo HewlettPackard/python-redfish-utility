@@ -197,7 +197,7 @@ class LoginCommand:
                 )
             except redfish.hpilo.vnichpilo.InactiveAppAccountTokenError:
                 LOGGER.error("Login failed due to an inactive or expired App Account token.")
-                raise InactiveAppAccountTokenError("Login failed due to an inactive or expired App Account token.")
+                raise InactiveAppAccountTokenError()
             except Exception as excp:
                 error_msg = """Error occurred while performing login using app account.
                 Check if application account exists using 'appaccount details' command.
@@ -207,6 +207,9 @@ class LoginCommand:
 
         if options.session_id and login_response and hasattr(login_response, "_auth_key"):
             self.rdmc.ui.printer(f"\nSessionID:{login_response._auth_key}\n\n")
+
+        if options.session_loc and login_response and hasattr(login_response, "_session_location"):
+            self.rdmc.ui.printer(f"Location:{login_response._session_location}\n\n")
 
     def loginfunction(self, line, skipbuild=None, json_out=False):
         """Main worker function for login class
@@ -441,7 +444,9 @@ class LoginCommand:
         try:
             if args:
                 ip = args[0]
-                path = f"https://{ip}/redfish/v1"
+                path = f"{ip}/redfish/v1"
+                if ip and "https://" not in ip:
+                    path = f"https://{ip}/redfish/v1"
 
                 response = requests.get(path, verify=False, timeout=10)
                 response.raise_for_status()
@@ -576,6 +581,13 @@ class LoginCommand:
             "--show_session_id",
             "-s",
             dest="session_id",
+            help=SUPPRESS,
+            default=None,
+            action="store_true",
+        )
+        customparser.add_argument(
+            "--show_session_loc",
+            dest="session_loc",
             help=SUPPRESS,
             default=None,
             action="store_true",

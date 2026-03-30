@@ -466,9 +466,9 @@ def validate_rotation_parameters(max_bytes=None, backup_count=None):
 
         if backup_count is not None:
             if not isinstance(backup_count, int):
-                return False, "backup_count must be an integer"
+                return False, "log_retention_count must be an integer"
             if backup_count < 0:
-                return False, "backup_count must be a non-negative integer"
+                return False, "log_retention_count must be a non-negative integer"
 
         return True, None
     except Exception:

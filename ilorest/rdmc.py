@@ -26,6 +26,7 @@ import collections
 import copy
 import errno
 import glob
+import json
 import os
 import shlex
 import sys
@@ -46,6 +47,11 @@ from six.moves import input
 import redfish.hpilo
 import redfish.rest.v1
 import redfish.ris
+
+try:
+    from logging_config_path import get_logging_config_path
+except ModuleNotFoundError:
+    from ilorest.logging_config_path import get_logging_config_path
 
 
 try:
@@ -70,6 +76,8 @@ try:
         LOGGER,
         UI,
         setup_logging_from_json,
+        generate_command_id,
+        set_command_id,
         AlreadyCloudConnectedError,
         BirthcertParseError,
         BootOrderMissingEntriesError,
@@ -139,6 +147,8 @@ except ModuleNotFoundError:
         ReturnCodes,
         RdmcError,
         setup_logging_from_json,
+        generate_command_id,
+        set_command_id,
         ConfigurationFileError,
         CommandNotEnabledError,
         InvalidCommandLineError,
@@ -390,6 +400,7 @@ class RdmcCommand(RdmcCommandBase):
             LOGGER.error("No command provided. Exiting execution.")
             raise ValueError("No command provided.")
 
+        # Command ID set at start of run() method
         masked_args = self.mask_passwords(args)
 
         LOGGER.info(f"Executing command: {args[0]} with arguments: {masked_args}")
@@ -532,7 +543,17 @@ class RdmcCommand(RdmcCommandBase):
         if self.opts.logdir and (self.opts.debug or not self.opts.noinfolog):
             logdir = self.opts.logdir
         else:
-            logdir = os.getcwd()
+            try:
+                config_path = get_logging_config_path()
+                with open(config_path, 'r') as f:
+                    config_data = json.load(f)
+                    logdir = config_data.get('logdir', os.path.join(os.getcwd(), "ilorest_logs"))
+                    # Resolve relative paths
+                    if not os.path.isabs(logdir):
+                        logdir = os.path.abspath(logdir)
+            except (FileNotFoundError, json.JSONDecodeError, KeyError):
+                # Fallback to cwd if config can't be read
+                logdir = os.path.join(os.getcwd(), "ilorest_logs")
         self.log_dir = logdir
         try:
             setup_logging_from_json(opts=self.opts)
@@ -658,6 +679,10 @@ class RdmcCommand(RdmcCommandBase):
             nargv = list(nargv)
 
             LOGGER.debug(f"Parsed command arguments: {SecurityMasker.mask_command_arguments(nargv)}")
+
+            # Generate new command ID for each command in interactive mode
+            cmd_id = generate_command_id()
+            set_command_id(cmd_id)
 
             try:
                 if not (
@@ -1251,6 +1276,11 @@ def ilorestcommand():
     temp_parser.add_argument("--logdir", dest="logdir", help="Use the provided directory for logs", default=None)
     # Parse known args to extract logging flags
     temp_opts, _ = temp_parser.parse_known_args(ARGUMENTS)
+
+    # Generate unique command ID BEFORE setting up logging
+    # This ensures ALL logs (including initialization) are tagged with the command ID
+    cmd_id = generate_command_id()
+    set_command_id(cmd_id)
 
     # Initialize logging from JSON configuration with parsed flags
     setup_logging_from_json(temp_opts)

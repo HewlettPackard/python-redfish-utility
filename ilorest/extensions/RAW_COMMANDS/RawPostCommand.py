@@ -129,7 +129,8 @@ class RawPostCommand:
                     raise InvalidCommandLineError("Invalid format for --headers option.")
 
         if getattr(options, "no_auth"):
-            if options.url:
+            url = options.url
+            if url and "https://" not in url:
                 url = "https://" + options.url.rstrip("/")
             else:
                 url = "https://16.1.15.1"
