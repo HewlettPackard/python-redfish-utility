@@ -79,7 +79,7 @@ HARDCODEDLIST = [
 #   cannot be loaded or applied for some reason.  It uses command line flags to retain old functionality.
 
 # Store command ID storage directly in the sys module to avoid ANY PyInstaller duplication
-if not hasattr(sys, '_ilorest_command_id_storage'):
+if not hasattr(sys, "_ilorest_command_id_storage"):
     sys._ilorest_command_id_storage = {}
 
 
@@ -103,7 +103,7 @@ class CommandIDFilter(logging.Filter):
         # Get command ID from thread-specific dict storage
         thread_id = threading.current_thread().ident
         storage = _get_storage()
-        command_id = storage.get(thread_id, {}).get('command_id')
+        command_id = storage.get(thread_id, {}).get("command_id")
         record.command_id = command_id if command_id else "N/A"
         return True
 
@@ -118,7 +118,7 @@ def set_command_id(command_id: str) -> None:
     storage = _get_storage()
     if thread_id not in storage:
         storage[thread_id] = {}
-    storage[thread_id]['command_id'] = command_id
+    storage[thread_id]["command_id"] = command_id
 
 
 def generate_command_id() -> str:
@@ -227,8 +227,8 @@ class CompressedRotatingFileHandler(logging.handlers.RotatingFileHandler):
             dest (str): Path to the destination .gz file
         """
         try:
-            with open(source, 'rb') as f_in:
-                with gzip.open(dest, 'wb') as f_out:
+            with open(source, "rb") as f_in:
+                with gzip.open(dest, "wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
         except Exception as e:
             # Log compression errors but don't fail the rotation

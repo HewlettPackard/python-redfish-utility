@@ -28,25 +28,38 @@ import importlib
 import importlib.util
 import site
 
+VMWARE_PATH = "/opt/ilorest"
+LINUX_PATH = "/etc/ilorest"
+WINDOWS_PATH = r"C:\Program Files\Hewlett Packard Enterprise\RESTful Interface Tool"
+
 # To ensure this wrapper module is importable from logging.config.dictConfig
 if importlib.util.find_spec("rdmc_helper_wrapper") is None or __name__ == "__main__":
-    paths_to_add = [
-        os.path.dirname(os.path.abspath(__file__)),  # Current directory (ilorest package)
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),  # Parent directory
-        "/opt/ilorest",  # VMware flat extraction
-        "/etc/ilorest",  # Linux system paths
-        r"C:\Program Files\Hewlett Packard Enterprise\RESTful Interface Tool",  # Windows install
-    ]
+    paths_to_add = []
 
-    # Add PyPI site-packages directories
-    try:
-        for site_pkg in site.getsitepackages():
-            paths_to_add.append(site_pkg)
-            ilorest_pkg = os.path.join(site_pkg, "ilorest")
-            if os.path.isdir(ilorest_pkg):
-                paths_to_add.append(ilorest_pkg)
-    except Exception:
-        pass
+    # Detect if we are in a package install (PyPI) or flat extraction (esxi)
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_file_dir)
+
+    # detects package installation
+    is_package_install = os.path.exists(os.path.join(current_file_dir, "__init__.py"))
+
+    if not is_package_install:
+        # Flat installation paths only (VMware, Windows install)
+        paths_to_add = [
+            current_file_dir,  # Current directory
+            parent_dir,  # Parent directory
+            VMWARE_PATH,  # VMware flat extraction
+            LINUX_PATH,  # Linux system paths
+            WINDOWS_PATH,  # Windows install
+        ]
+    else:
+        # Package installation (PyPI) - adds site-packages root
+        try:
+            for site_pkg in site.getsitepackages():
+                if os.path.isdir(site_pkg) and site_pkg not in paths_to_add:
+                    paths_to_add.append(site_pkg)
+        except Exception as ex:
+            print("Failed to get site packages: %s", ex)
 
     for path in paths_to_add:
         if os.path.isdir(path) and path not in sys.path:

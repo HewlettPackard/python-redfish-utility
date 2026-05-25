@@ -256,6 +256,19 @@ class AppAccountCommand:
                     self._cleanup_orphaned_ilo_account(ilo_account, options.user, options.password)
 
                 try:
+                    is_not_self = not options.self_register and options.hostappid and "00b5" not in options.hostappid
+                    if not exists_in_tpm and is_not_self:
+                        delete_response = self.rdmc.app.delete_token(app_obj)
+                        LOGGER.debug(f"delete_response:{delete_response}")
+
+                    app_obj = AppAccount(
+                        appname=options.hostappname if "hostappname" in options else "self_register",
+                        appid=options.hostappid if "hostappid" in options else "self_register",
+                        salt=options.salt if "salt" in options else "self_register",
+                        username=options.user,
+                        password=options.password,
+                        log_dir=self.rdmc.log_dir,
+                    )
                     errorcode = self.rdmc.app.generate_save_token(app_obj)
                     if errorcode == 0:
                         self.rdmc.ui.printer("Application account has been generated and saved successfully.\n")
@@ -290,6 +303,8 @@ class AppAccountCommand:
                         "Alternatively, you can use the --no_app_account "
                         "option in the Login Command to log in using your iLO user account credentials.\n"
                     )
+                except Exception as err:
+                    LOGGER.debug(f"Appaccount creation failed:{err}")
 
             elif options.command.lower() == "delete":
                 is_self = getattr(options, "self_register", False)
@@ -297,6 +312,8 @@ class AppAccountCommand:
                 # True when the target is the caller's own iLORest self-registered account
                 is_self_registered_id = options.hostappid and "00b5" in options.hostappid.lower()
                 is_own_account = is_self or is_self_registered_id
+                if is_own_account and not has_credentials:
+                    raise UsernamePasswordRequiredError("Please provide username and password.\n")
 
                 # Try to delete from both TPM and iLO
                 deleted_from_tpm = False

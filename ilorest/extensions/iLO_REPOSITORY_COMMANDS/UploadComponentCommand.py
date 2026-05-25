@@ -129,6 +129,7 @@ class UploadComponentCommand:
 
         self.uploadcommandvalidation(options)
         fwpkg = False
+        wait_time = 4800
         if (
             options.component.endswith(".fwpkg")
             or options.component.endswith(".fup")
@@ -138,7 +139,7 @@ class UploadComponentCommand:
         ):
             fwpkg = True
             command_name = self.cmdbase.name
-            comp, loc, ctype, pldmfw = self.auxcommands["flashfwpkg"].preparefwpkg(
+            comp, loc, ctype, pldmfw, wait_time = self.auxcommands["flashfwpkg"].preparefwpkg(
                 self, options.component, command_name
             )
             # if pldm firmware
@@ -168,9 +169,9 @@ class UploadComponentCommand:
 
             # ret = self.uploadfunction(filestoupload, options)
             if "blobstore" in self.rdmc.app.current_client.base_url:
-                ret = self.uploadlocally(filestoupload, options)
+                ret = self.uploadlocally(filestoupload, options, wait_time)
             else:
-                ret = self.uploadfunction(filestoupload, options)
+                ret = self.uploadfunction(filestoupload, options, wait_time)
 
             if ret == ReturnCodes.SUCCESS and not options.update_target:
 
@@ -353,7 +354,7 @@ class UploadComponentCommand:
         else:
             return [(filename, options.component, options.componentsig, 0)]
 
-    def uploadfunction(self, filelist, options=None):
+    def uploadfunction(self, filelist, options=None, wait_time=4800):
         """Main upload command worker function
 
         :param filelist: List of files to upload.
@@ -461,7 +462,7 @@ class UploadComponentCommand:
                 if options.update_target:
                     self.rdmc.ui.printer("Component " + filename + " flashing successfully.\n")
 
-            if not self.wait_for_state_change():
+            if not self.wait_for_state_change(wait_time):
                 if options.response:
                     self.rdmc.ui.printer("UpdateService Status:")
                     UI().print_out_json(self.status_content)
@@ -490,6 +491,9 @@ class UploadComponentCommand:
         :param wait_time: time to wait on upload
         :type wait_time: int.
         """
+        # handling case when wait_time is 0 or string "0"
+        wait_time = int(wait_time) if str(wait_time).isdigit() and int(wait_time) > 0 else 4800
+        LOGGER.debug(f"wait_time received: {wait_time}")
         total_time = 0
         result = dict()
         spinner = ["|", "/", "-", "\\"]
@@ -580,7 +584,7 @@ class UploadComponentCommand:
 
         return compsig
 
-    def uploadlocally(self, filelist, options=None):
+    def uploadlocally(self, filelist, options=None, wait_time=4800):
         """Upload component locally
 
         :param filelist: List of files to upload.
@@ -677,11 +681,14 @@ class UploadComponentCommand:
                 if options.update_target:
                     self.rdmc.ui.printer("Flashing component " + filename + "\n")
 
+                # handling case when wait_time is 0 or string "0"
+                wait_time = int(wait_time) if str(wait_time).isdigit() and int(wait_time) > 0 else 4800
                 ret = dll.uploadComponent(
                     ctypes.create_string_buffer(compsigpath.encode("utf-8")),
                     ctypes.create_string_buffer(componentpath.encode("utf-8")),
                     ctypes.create_string_buffer(ilo_upload_filename.encode("utf-8")),
                     dispatchflag,
+                    wait_time,
                 )
                 LOGGER.debug(f"Upload component response: {ret}")
 
@@ -698,7 +705,7 @@ class UploadComponentCommand:
                         self.rdmc.ui.printer("Component " + filename + " flashed successfully.\n")
                     self.rdmc.ui.printer("[200] The operation completed successfully.\n")
                     if not options.update_target:
-                        if not self.wait_for_state_change():
+                        if not self.wait_for_state_change(wait_time):
                             if options.response:
                                 self.rdmc.ui.printer("UpdateService Status:")
                                 UI().print_out_json(self.status_content)

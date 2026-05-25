@@ -268,7 +268,6 @@ class LoadCommand:
                             try:
                                 if self.rdmc.app.loadset(
                                     seldict=items,
-                                    latestschema=options.latestschema,
                                     uniqueoverride=options.uniqueoverride,
                                 ):
                                     results = True
@@ -331,10 +330,6 @@ class LoadCommand:
         :param options: command line options
         :type options: list.
         """
-
-        if self.rdmc.opts.latestschema:
-            options.latestschema = True
-
         try:
             self.cmdbase.login_validation(self, options)
         except Exception:
@@ -559,15 +554,6 @@ class LoadCommand:
             "--outputdirectory",
             dest="outdirectory",
             help="""use the provided directory to output data for multiple server configuration""",
-            default=None,
-        )
-        customparser.add_argument(
-            "--latestschema",
-            dest="latestschema",
-            action="store_true",
-            help="Optionally use the latest schema instead of the one "
-            "requested by the file. Note: May cause errors in some data "
-            "retrieval due to difference in schema versions.",
             default=None,
         )
         customparser.add_argument(

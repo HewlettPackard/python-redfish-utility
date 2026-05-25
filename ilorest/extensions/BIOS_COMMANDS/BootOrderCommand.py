@@ -122,31 +122,42 @@ class BootOrderCommand:
 
         props = self.rdmc.app.getprops(skipnonsetting=False)
 
+        bootpath = None
         for prop in props:
-            bootname = prop.get("Name")
+            bootname = prop.get("Name", "")
 
-            self.rdmc.ui.printer("bootname is : {0}\n\n".format(bootname))
+            #self.rdmc.ui.printer("bootname is : {0}\n\n".format(bootname))
 
             if self.rdmc.app.typepath.defs.isgen10:
                 if "current" in bootname.lower() or "pending" in bootname.lower():
-                    try:
-                        bootpath = prop.get("@odata.id")
-                    except:
-                        bootpath = prop.get("links")
+                    # dict.get() never raises, so no try/except needed here
+                    bootpath = prop.get("@odata.id") or prop.get("links")
+                    if bootpath:
+                        break
             else:
                 bootpath = "/rest/v1/systems/1/bios/boot"
+                break
 
-        self.rdmc.ui.printer("bootpath is : {0}\n\n".format(bootpath))
+        if not bootpath:
+            raise InvalidCommandLineError(
+                "Unable to find boot settings path. "
+                "Please ensure HpeServerBootSettings is available."
+            )
 
-        bootsources = self.rdmc.app.get_handler(bootpath, service=True, silent=True).dict["BootSources"]
+        #self.rdmc.ui.printer("bootpath is : {0}\n\n".format(bootpath))
+
+        bootpath_dict = self.rdmc.app.get_handler(bootpath, service=True, silent=True).dict
+        # "BootSources" exists on iLO5/6; iLO7/Gen12 uses standard Redfish BootOptions
+        # and no longer has BootSources - fall back to empty list so the command still works
+        bootsources = bootpath_dict.get("BootSources", [])
 
         bootoverride = None
         self.auxcommands["select"].selectfunction("HpeBios.")
         try:
             bootmode = self.auxcommands["get"].getworkerfunction("BootMode", options, results=True, uselist=True)
         except:
-            bootmode = dict()
-            bootmode["BootMode"] = "Uefi"
+            # Return same list-of-dicts structure as getworkerfunction so bootmode[0] works below
+            bootmode = [{"BootMode": "Uefi"}]
 
         self.auxcommands["select"].selectfunction("ComputerSystem.")
         onetimebootsettings = self.auxcommands["get"].getworkerfunction(
@@ -155,6 +166,21 @@ class BootOrderCommand:
             results=True,
             uselist=True,
         )
+
+        # iLO 7+ no longer includes BootSourceOverrideTarget@Redfish.AllowableValues as an
+        # inline OData annotation. Fall back to reading it directly from the system resource.
+        allowable_key = self.rdmc.app.typepath.defs.bootoverridetargettype
+        if not onetimebootsettings or not onetimebootsettings[0].get("Boot", {}).get(allowable_key):
+            sysprops = self.rdmc.app.get_handler(
+                self.rdmc.app.typepath.defs.systempath, service=True, silent=True
+            ).dict
+            boot_section = sysprops.get("Boot", {})
+            fallback_values = (
+                boot_section.get(allowable_key)
+                or boot_section.get("BootSourceOverrideTarget@Redfish.AllowableValues")
+                or []
+            )
+            onetimebootsettings = [{"Boot": {allowable_key: fallback_values}}]
 
         bootstatus = self.auxcommands["get"].getworkerfunction(
             ["Boot/BootSourceOverrideEnabled"],
@@ -364,7 +390,7 @@ class BootOrderCommand:
                 else:
                     raise InvalidOrNothingChangedSettingsError("Entry is the current boot setting.")
             elif (
-                uefionetimebootsettings
+                isinstance(uefionetimebootsettings, dict)
                 and uefionetimebootsettings["Boot"]["UefiTargetBootSourceOverrideSupported"]
                 and entry in (item for item in uefionetimebootsettings["Boot"]["UefiTargetBootSourceOverrideSupported"])
             ):
@@ -397,14 +423,14 @@ class BootOrderCommand:
                 except KeyError:
                     pass
 
-                if not entry == uefitargetstatus["Boot"]["UefiTargetBootSourceOverride"]:
+                if not entry == uefitargetstatus[0]["Boot"]["UefiTargetBootSourceOverride"]:
                     newlist += " Boot/UefiTargetBootSourceOverride=" + entry
-                elif not targetstatus["Boot"]["BootSourceOverrideTarget"] == "UefiTarget":
+                elif not targetstatus[0]["Boot"]["BootSourceOverrideTarget"] == "UefiTarget":
                     newlist += " Boot/BootSourceOverrideTarget=UefiTarget"
 
                 if bootoverride:
                     if self.rdmc.app.typepath.defs.isgen9 and newlist:
-                        if not bootoverride.split("=")[-1] == bootstatus["Boot"]["BootSourceOverrideEnabled"]:
+                        if not bootoverride.split("=")[-1] == bootstatus[0]["Boot"]["BootSourceOverrideEnabled"]:
                             # Preemptively set UefiTargetBootSourceOverride so iLO 4 doesn't complain
                             self.rdmc.app.patch_handler(
                                 self.rdmc.app.typepath.defs.systempath,
@@ -481,6 +507,8 @@ class BootOrderCommand:
         if not securebootoption.lower() in actionlist:
             raise InvalidCommandLineError("%s is not a valid option for " "the securebootkeys flag." % securebootoption)
 
+        action = None
+        path = None
         if securebootoption == actionlist[0]:
             action = "ResetAllKeysToDefault"
         elif securebootoption == actionlist[1]:

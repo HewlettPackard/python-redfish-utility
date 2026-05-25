@@ -178,7 +178,7 @@ class FwpkgCommand:
             )
 
         try:
-            components, tempdir, comptype, _ = self.preparefwpkg(self, options.fwpkg, command_name="flashfwpkg")
+            components, tempdir, comptype, _, install_wait_time = self.preparefwpkg(self, options.fwpkg, command_name="flashfwpkg")
             if comptype == "D":
                 LOGGER.error("Component Type D, Unable to flash this fwpkg file.")
                 raise InvalidFileInputError("Unable to flash this fwpkg file.")
@@ -262,7 +262,7 @@ class FwpkgCommand:
                 message = "This firmware is set to flash on reboot.\n"
             if ".bin" not in components[0]:
                 if "blobstore" not in self.rdmc.app.redfishinst.base_url:
-                    if not self.auxcommands["uploadcomp"].wait_for_state_change():
+                    if not self.auxcommands["uploadcomp"].wait_for_state_change(install_wait_time):
                         # Failed to upload the component.
                         raise FirmwareUpdateError("Error while processing the component.")
 
@@ -326,6 +326,12 @@ class FwpkgCommand:
         """
         ilo_ver_int = self.rdmc.app.getiloversion()
         ctype = ""
+        total_install_time_sec = 0
+        per_device_time = payload.get("package", {}).get("installation", {}).get(
+            "per_device_install_time_seconds", 0
+        )
+        per_device_time = int(per_device_time) if per_device_time and str(per_device_time).isdigit() else 0
+
         if "Uefi" in payload["UpdatableBy"] and "RuntimeAgent" in payload["UpdatableBy"]:
             ctype = "D"
         elif "Uefi" in payload["UpdatableBy"] and "Bmc" in payload["UpdatableBy"]:
@@ -341,12 +347,16 @@ class FwpkgCommand:
                             fw["Oem"]["Hpe"].get("Targets") is not None
                             and device["Target"] in fw["Oem"]["Hpe"]["Targets"]
                         ):
+                            total_install_time_sec += self.get_total_install_time_sec(device, per_device_time)
+
                             if fw["Oem"]["Hpe"].get("DeviceContext") is None:
                                 LOGGER.error("DeviceContext is not found, please wait for a while & try again.")
                                 raise UploadError("DeviceContext is not found, please wait for a while & try again.")
                             else:
-                                # print device context in debugger
-                                LOGGER.info("DeviceContext {}".format(fw["Oem"]["Hpe"]["DeviceContext"]))
+                                # Log firmware metadata for debugging component identification.
+                                # NOTE: Use %s placeholder formatting (not .format()) - Python's logging module expects
+                                # % formatting internally. Using .format() causes TypeError in logging subsystem.
+                                LOGGER.info("DeviceContext %s", fw["Oem"]["Hpe"]["DeviceContext"])
                                 if (
                                     "Slot=" in fw["Oem"]["Hpe"]["DeviceContext"]
                                     and ":" in fw["Oem"]["Hpe"]["DeviceContext"]
@@ -357,9 +367,8 @@ class FwpkgCommand:
                                         if fw["Updateable"]:
                                             cc_flag = True
                                         else:
-                                            raise FlashUnsupportedByIloError(
-                                                "The flashing of this component " "is not supported by iLO.\n"
-                                            )
+                                            LOGGER.debug(f'Updateable is {fw["Updateable"]} for {fw["Oem"]["Hpe"].get("Targets")}')
+                                            continue
                                     else:
                                         cc_flag = True
                                 else:
@@ -393,8 +402,16 @@ class FwpkgCommand:
                             error_msg + ilo_ver[0] + ", FW is above 2.30 or the particular drive HW is present\n"
                         )
                     raise IncompatibleiLOVersionError(error_msg)
+
+                if not ctype:
+                    raise FlashUnsupportedByIloError(
+                        "The flashing of this component is not supported by iLO.\n"
+                    )
         else:
             for device in payload["Devices"]["Device"]:
+
+                total_install_time_sec += self.get_total_install_time_sec(device, per_device_time)
+
                 for image in device["FirmwareImages"]:
                     flash_key = next((key for key in image.keys() if key.lower() == "directflashok"), None)
 
@@ -410,8 +427,30 @@ class FwpkgCommand:
                         break
                     else:
                         ctype = "D"
-        LOGGER.info("Component Type identified is {}".format(ctype))
-        return ctype
+        LOGGER.info("Component Type identified is %s", ctype)
+
+        LOGGER.debug(f"Total device install time in seconds: {total_install_time_sec}")
+        if not total_install_time_sec:
+            devices = payload.get("Devices", {}).get("Device", [])
+            total_install_time_sec = per_device_time * len(devices)
+            LOGGER.debug(f"Total device install time in seconds:- {total_install_time_sec}")
+
+        return ctype, total_install_time_sec
+
+    @staticmethod
+    def get_total_install_time_sec(device, per_device_time=0):
+        """
+        get installation wait time by .fwpkg file payload data
+        :param device: payload data of .fwpkg file
+        :type device: dict
+        :param per_device_time: installation time in sec
+        :type per_device_time: integer
+        returns: integer value
+        """
+        if isinstance(device, dict) and "FirmwareImages" in device and device["FirmwareImages"]:
+            install_sec = device["FirmwareImages"][0].get("InstallDurationSec", 0)
+            return int(install_sec) if str(install_sec).isdigit() and int(install_sec) > 0 else per_device_time
+        return per_device_time
 
     @staticmethod
     def check_decoupled(self, pkgfile):
@@ -470,6 +509,7 @@ class FwpkgCommand:
         payloaddata = None
         tempdir = tempfile.mkdtemp()
         pldmflag = False
+        install_wait_time = 4800
         pkgfile_l = pkgfile.lower()
         if (
             not pkgfile_l.endswith(".fup")
@@ -505,7 +545,7 @@ class FwpkgCommand:
             and not pkgfile_l.endswith(".bin")
             and not pkgfile_l.endswith(".pup")
         ):
-            comptype = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata, command_name)
+            comptype, install_wait_time = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata, command_name)
         else:
             comptype = "A"
 
@@ -553,7 +593,7 @@ class FwpkgCommand:
 
         elif self.rdmc.app.getiloversion() > 5.230 and payloaddata.get("PackageFormat") == "FWPKG-v2":
             imagefiles = [pkgfile]
-        return imagefiles, tempdir, comptype, pldmflag
+        return imagefiles, tempdir, comptype, pldmflag, install_wait_time
 
     def type_c_change(self, tdir, pkgloc):
         """Special changes for type C

@@ -29,6 +29,7 @@ import glob
 import json
 import os
 import shlex
+import signal
 import sys
 import traceback
 import warnings
@@ -545,9 +546,9 @@ class RdmcCommand(RdmcCommandBase):
         else:
             try:
                 config_path = get_logging_config_path()
-                with open(config_path, 'r') as f:
+                with open(config_path, "r") as f:
                     config_data = json.load(f)
-                    logdir = config_data.get('logdir', os.path.join(os.getcwd(), "ilorest_logs"))
+                    logdir = config_data.get("logdir", os.path.join(os.getcwd(), "ilorest_logs"))
                     # Resolve relative paths
                     if not os.path.isabs(logdir):
                         logdir = os.path.abspath(logdir)
@@ -933,7 +934,7 @@ class RdmcCommand(RdmcCommandBase):
         except redfish.ris.ValueChangedError as excp:
             self.retcode = ReturnCodes.RIS_VALUE_CHANGED_ERROR
         except redfish.ris.ris.SchemaValidationError as excp:
-            self.ui.printer("Error found in schema, try running with the " "--latestschema flag.\n")
+            self.ui.printer("Error found in schema.\n")
             self.retcode = ReturnCodes.RIS_SCHEMA_PARSE_ERROR
         # ****** RMC/RIS ERRORS ******
         except redfish.rest.connections.RetriesExhaustedError as excp:
@@ -1288,11 +1289,24 @@ def ilorestcommand():
     RDMC = RdmcCommand(
         Args=ARGUMENTS,
         name=versioning.__shortname__,
-        usage=versioning.__shortname__ + " [command]",
+        usage="ilorest [command]",
         summary="HPE RESTful Interface Tool",
         aliases=[versioning.__shortname__],
         argparser=RdmcOptionParser(),
     )
+
+    # Register SIGTERM handler for graceful CHIF channel cleanup.
+    # Without this, a killed ilorest process leaves /dev/hpilo channels open,
+    # eventually exhausting the 16-channel pool and blocking all CHIF communication.
+    def _sigterm_handler(signum, frame):
+        LOGGER.warning("SIGTERM received — performing graceful shutdown")
+        try:
+            RDMC.app.logout()
+        except Exception:
+            pass
+        sys.exit(ReturnCodes.GENERAL_ERROR)
+
+    signal.signal(signal.SIGTERM, _sigterm_handler)
 
     # Main execution function call wrapper
     if "setproctitle" in sys.modules:

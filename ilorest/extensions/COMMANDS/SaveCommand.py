@@ -30,6 +30,8 @@ try:
         InvalidFileFormattingError,
         ReturnCodes,
         iLORisCorruptionError,
+        NoContentsFoundForOperationError,
+        LOGGER,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -39,6 +41,8 @@ except ImportError:
         InvalidFileFormattingError,
         ReturnCodes,
         iLORisCorruptionError,
+        NoContentsFoundForOperationError,
+        LOGGER,
     )
 
 # default file name
@@ -190,7 +194,8 @@ class SaveCommand:
                     raise iLORisCorruptionError(
                         "iLO Database seems to be corrupted. Please check. Reboot the server to " "restore\n"
                     )
-        except Exception:
+        except Exception as excp:
+            LOGGER.debug(f"Error found: {excp}")
             config_path = None
             contents = list()
             if options.selector is not None:
@@ -224,6 +229,10 @@ class SaveCommand:
                         "/redfish/v1/systems/1/bios/mappings",
                         "/redfish/v1/systems/1/bios/oem/hpe/mappings/",
                     ]
+
+            if not config_path:
+                LOGGER.debug("No content found for the selected type.")
+                raise NoContentsFoundForOperationError("No content found for the selected type.")
             result = None
             for b in config_path:
                 try:

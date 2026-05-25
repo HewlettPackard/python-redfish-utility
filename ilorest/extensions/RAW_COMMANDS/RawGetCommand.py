@@ -19,13 +19,18 @@
 
 Core Functionality of RawGetCommand:
 -----------------------------------
-This command provides direct HTTP GET access to iLO Redfish endpoints with optimized
-performance and comprehensive authentication handling across different iLO generations.
+This command provides direct HTTP GET access to iLO Redfish endpoints
+ with optimized performance and comprehensive authentication handling
+ across different iLO generations.
 
 Authentication Flow:
-1. Check if ilo_generation.json cache exists, create if not
-2. Check for cached session - if available, use it
-3. Otherwise, create temp session based on iLO version and mode:
+1. Determine connection mode (out-of-band vs in-band)
+2. For out-of-band (--url provided): Handle immediately without local iLO detection
+   - Requires URL and credentials
+   - Create HTTP session, get output, logout
+3. Check for cached session (from prior login) - use if available without iLO detection
+4. For in-band without cached session: Check if ilo_generation.json cache exists, create if not
+5. Create temp session based on iLO version and mode:
 
    For iLO5/6 (Inband):
    - Check security mode (production=3 vs high security=4,5,6)
@@ -36,11 +41,8 @@ Authentication Flow:
    For iLO7 (Inband):
    - Check if app account exists
    - If app account exists: Do ilorest login, get output, logout
-   - If no app account: Require credentials, login with --no_app_account, get output, logout
-
-   For Out-of-band (any iLO version):
-   - Requires URL and credentials
-   - Create HTTP session, get output, logout
+   - If no app account: Require credentials, login with --no_app_account,
+   get output, logout
 
 Key Features:
 1. Multi-Protocol Support: HTTP/HTTPS (network) and CHIF/BlobStore2 (in-band)
@@ -55,6 +57,7 @@ import sys
 
 import requests
 from urllib.parse import urljoin
+from redfish.rest.v1 import RestClient
 
 # Get logger instance
 LOGGER = logging.getLogger(__name__)
@@ -64,14 +67,16 @@ try:
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         ReturnCodes,
-        LOGGER, Encryption,
+        LOGGER,
+        Encryption,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         ReturnCodes,
-        LOGGER, Encryption,
+        LOGGER,
+        Encryption,
     )
 
 try:
@@ -81,7 +86,10 @@ except ImportError:
 
 
 class RawGetCommand(RawCommandBase):
-    """Raw form of the get command with optimized session and request handling"""
+    """
+    Raw form of the get command with optimized
+    session and request handling
+    """
 
     def __init__(self):
         super().__init__()
@@ -112,47 +120,182 @@ class RawGetCommand(RawCommandBase):
         if getattr(options, "no_auth", False):
             return self._handle_no_auth_request(options, headers, path)
 
+        # Handle sessionid requests
+        if getattr(options, "sessionid", False):
+            headers = {"X-Auth-Token": options.sessionid}
+            VNIC_IP = "16.1.15.1"
+
+            if not options.url or (options.url and VNIC_IP in options.url):
+                ilo_version = self._detect_ilo_version()
+                LOGGER.debug(f"ilo_version: {ilo_version}")
+
+                vnic_enabled = self._is_vnic_available()
+                LOGGER.debug(f"Is VNIC enabled: {vnic_enabled}")
+
+                if not vnic_enabled:
+                    if (options.url and VNIC_IP in options.url) or (ilo_version and ilo_version >= 7):
+                        # If vNIC is disabled & either vNIC IP provided in the --url or
+                        #  iLO version is >=7 then display error message
+                        sys.stderr.write("VNIC is disabled. Please enable it before making a request.\n")
+                        return ReturnCodes.VNIC_NOT_ENABLED_ERROR
+
+                    return self.handle_blobstore_request(
+                        options,
+                        headers,
+                    )
+
+            # HTTP GET request
+            url = options.url if options.url else VNIC_IP
+            if not url.startswith("https://"):
+                url = f"https://{url}"
+
+            path = urljoin(url, options.path)
+            LOGGER.debug(f"HTTP request to {path}\n")
+            LOGGER.debug(f"Headers: {headers}\n")
+            try:
+                response = requests.get(
+                    path,
+                    headers=headers,
+                    verify=False,
+                )
+                return self._handle_response(response, options)
+            except requests.exceptions.Timeout as err:
+                LOGGER.error(f"Connection timeout to {url}: {err}")
+                sys.stderr.write(f"Error: Connection timeout to {url}.")
+                sys.stderr.write("iLO may be resetting or unreachable.\n")
+                return ReturnCodes.V1_SERVER_DOWN_OR_UNREACHABLE_ERROR
+            except requests.exceptions.ConnectionError as err:
+                LOGGER.error(f"Connection failed to {url}: {err}")
+                sys.stderr.write(f"Error: Connection failed to {url}.")
+                sys.stderr.write("iLO may be resetting or unreachable.\n")
+                return ReturnCodes.V1_SERVER_DOWN_OR_UNREACHABLE_ERROR
+            except Exception as err:
+                LOGGER.error(f"Failed to complete request: {err}")
+                sys.stderr.write(f"Error: Failed to complete operation - {err}\n")
+                return ReturnCodes.GENERAL_ERROR
+
         # Execute the main authentication flow
         return self._execute_main_flow(options, headers, session_token_from_headers, path)
+
+    def handle_blobstore_request(self, options, headers):
+        """
+        get details from blobstore
+        """
+        # If vNIC IP is not provided in the --url &
+        # vNIC is disabled then proceed with blobstore request
+        LOGGER.debug(f"blobstore request to {options.path}")
+        username, password = self._get_cred(options)
+        rest_obj = RestClient(
+            sessionid=options.sessionid,
+            username=username,
+            password=password,
+            base_url="blobstore://.",
+        )
+        response = rest_obj.get(options.path, headers=headers)
+        return self._old_framework_handle_response(
+            options,
+            response,
+        )
+
+    def _old_framework_handle_response(self, options, response):
+        """Handle the response and format output from get_handler()"""
+        is_silent = getattr(options, "silent", False)
+
+        if options.filename:
+            return self._write_response_into_file(response, options)
+
+        if options.binfile:
+            return self._write_response_in_binary(response, options)
+
+        body = response.dict if hasattr(response, "dict") else response
+        status_msg = self._get_status_message_from_response(response, body)
+
+        out = self._body_stream(options)
+        # --silent suppresses only the status line, the JSON body is still written
+        if not is_silent:
+            out.write(f"[{response.status}] {status_msg}\n")
+
+        show_headers = getattr(options, "getheaders", False)
+        show_response = getattr(options, "response", False)
+
+        if show_headers:
+            if hasattr(response, "getheaders") and response.getheaders():
+                headers = dict(response.getheaders())
+                sys.stdout.write(f"{json.dumps(headers, separators=(',', ':'))},\n")
+
+        if 200 <= response.status < 300:
+            try:
+                if show_response and body is not None:
+                    sys.stdout.write(f"{json.dumps(body, separators=(',', ':'))}\n")
+                elif getattr(options, "service", False) and not show_headers:
+                    # Output as Python dict format (with single quotes)
+                    sys.stdout.write(f"{body}\n")
+                elif not show_headers and not show_response and body is not None:
+                    sys.stdout.write(f"{json.dumps(body, indent=2, sort_keys=True, separators=(',', ':'))}\n")
+                sys.stdout.flush()
+                return ReturnCodes.SUCCESS
+            except Exception as e:
+                LOGGER.error(f"Response formatting failed: {e}")
+                sys.stderr.write(f"Error: Response formatting failed: {str(e)}\n")
+                return ReturnCodes.GENERAL_ERROR
+
+        if body is not None:
+            out.write(f"{json.dumps(body, separators=(',', ':'))}\n")
+            out.flush()
+
+        if response.status == 401:
+            return ReturnCodes.RIS_SESSION_EXPIRED
+        elif response.status >= 400:
+            return ReturnCodes.RIS_ILO_RESPONSE_ERROR
+        return ReturnCodes.GENERAL_ERROR
 
     def _execute_main_flow(self, options, headers, session_token_from_headers, path):
         """Execute the main authentication and request flow
 
         Flow:
-        1. Check/create ilo_generation.json cache
-        2. Check for cached session -> use if available
-        3. Otherwise create temp session based on iLO version and mode
-        4. Execute request and handle response
-        5. Cleanup temp session if created
+        1. Determine connection mode - handle out-of-band immediately (no iLO detection needed)
+        2. Check for cached session (from prior login) - use if available (no iLO detection needed)
+        3. For in-band without cached session: Check/create ilo_generation.json cache
+        4. Create temp session based on iLO version and mode
+        5. Execute request and handle response
+        6. Cleanup temp session if created
         """
-        # Step 1: Get iLO version and security state in ONE efficient call
-        # This avoids multiple CHIF library initializations
-        LOGGER.debug("Step 1: Checking ilo_generation.json cache")
-        ilo_version, security_state = self._get_ilo_info_cached()
-
-        # Determine connection mode
+        # Step 1: Determine connection mode early
         is_outofband = bool(getattr(options, "url", None))
-        # is_inband = not is_outofband
-        has_credentials = bool(getattr(options, "user", None) and getattr(options, "password", None))
 
         LOGGER.debug(
-            f"Connection mode: {'Out-of-band' if is_outofband else 'In-band'}, "
-            f"iLO version: {ilo_version}, Has credentials: {has_credentials}"
+            f"Connection mode: {'Out-of-band' if is_outofband else 'In-band'}"
         )
 
-        # Step 2: Check for cached session
+        # Out-of-band handling (same for all iLO versions)
+        # Handle immediately - no need for local iLO version detection
+        if is_outofband:
+            return self._handle_outofband_request(options, headers, path)
+
+        # Step 2: Check for cached session BEFORE iLO detection
+        # A cached session from a prior 'ilorest login --url ...' means we
+        # already have a valid remote session and don't need local iLO detection.
         LOGGER.debug("Step 2: Checking for cached session")
         cached_session = self._get_cached_session_if_valid(options)
         if cached_session:
             LOGGER.debug("Using cached session")
             return self._execute_with_cached_session(options, headers, path, cached_session)
 
-        # Step 3: Create temp session based on scenario
-        LOGGER.debug("Step 3: Creating temp session")
+        # Step 3: Get iLO version and security state in ONE efficient call (in-band only)
+        # Only reached when there is no cached session, so we need local detection
+        # This avoids multiple CHIF library initializations
+        LOGGER.debug("Step 3: Checking ilo_generation.json cache")
+        ilo_version, security_state = self._get_ilo_info_cached()
 
-        # Out-of-band handling (same for all iLO versions)
-        if is_outofband:
-            return self._handle_outofband_request(options, headers, path)
+        has_credentials = bool(getattr(options, "user", None) and getattr(options, "password", None))
+
+        LOGGER.debug(
+            f"iLO version: {ilo_version}, Has credentials: {has_credentials}"
+        )
+
+
+        # Step 4: Create temp session based on scenario
+        LOGGER.debug("Step 4: Creating temp session")
 
         # In-band handling (varies by iLO version)
         if ilo_version and ilo_version >= 7:
@@ -282,7 +425,6 @@ class RawGetCommand(RawCommandBase):
     def _execute_with_cached_session(self, options, headers, path, cached_session):
         """Execute request using cached session"""
         is_inband = not getattr(options, "url", None)
-        ilo_version = self._detect_ilo_version()
 
         # Get the actual session URL to determine connection type
         # This respects the actual cached session type (blobstore vs HTTP)
@@ -315,6 +457,8 @@ class RawGetCommand(RawCommandBase):
             LOGGER.debug(f"Cached session URL is HTTPS ({session_url}) - using HTTP")
         else:
             # In-band without cached session URL - determine by iLO version
+            # Only detect iLO version here where it's actually needed
+            ilo_version = self._detect_ilo_version()
             # iLO7+ can use HTTP (VNIC), iLO5/6 use CHIF
             use_chif = ilo_version is None or ilo_version < 7
             # For iLO7 in-band without explicit session URL, use VNIC default
@@ -336,12 +480,13 @@ class RawGetCommand(RawCommandBase):
         }
 
         # Prepare fallback credentials in case cached session fails
-        username , password = self._get_cred(options)
+        username, password = self._get_cred(options)
         if username and password:
             auth_info["auth"] = (username, password)
 
         LOGGER.debug("Calling with cached session:execute_with_auth_info")
         return self._execute_with_auth_info(options, headers, path, auth_info)
+
     def _get_cred(self, options):
         global_encode = getattr(options, "encode", False)  # Check for global encode
         username = getattr(options, "user", None)
@@ -395,7 +540,7 @@ class RawGetCommand(RawCommandBase):
         Requires URL and credentials for temp session creation
         """
         url = getattr(options, "url", None)
-        username , password = self._get_cred(options)
+        username, password = self._get_cred(options)
 
         if not url:
             sys.stderr.write("Error: Out-of-band mode requires --url parameter.\n")
@@ -436,7 +581,7 @@ class RawGetCommand(RawCommandBase):
         """
         LOGGER.debug("Handling iLO7 in-band request")
 
-        username , password = self._get_cred(options)
+        username, password = self._get_cred(options)
 
         # Check if app account exists
         has_app_account = self._check_ilo7_app_account()
@@ -533,7 +678,7 @@ class RawGetCommand(RawCommandBase):
         """
         LOGGER.debug(f"Handling iLO{int(ilo_version)} in-band request")
 
-        username , password = self._get_cred(options)
+        username, password = self._get_cred(options)
         has_credentials = bool(username and password)
 
         # Use passed security_state to avoid redundant CHIF detection
@@ -845,8 +990,8 @@ class RawGetCommand(RawCommandBase):
         class ChifResponse:
             def __init__(self, data, status_code):
                 self.status_code = status_code
-                self.content = json.dumps(data).encode("utf-8") if data else b""
-                self.text = json.dumps(data) if data else ""
+                self.content = json.dumps(data, separators=(",", ":")).encode("utf-8") if data else b""
+                self.text = json.dumps(data, separators=(",", ":")) if data else ""
                 self.headers = {"Content-Type": "application/json"}
 
             def json(self):
@@ -861,11 +1006,6 @@ class RawGetCommand(RawCommandBase):
 
     def _handle_response(self, response, options):
         """Handle the response and format output"""
-        if getattr(options, "silent", False):
-            if response.status_code >= 200 and response.status_code < 300:
-                return ReturnCodes.SUCCESS
-            else:
-                return ReturnCodes.GENERAL_ERROR
 
         return_response = getattr(options, "response", False) or getattr(options, "getheaders", False)
 
@@ -943,7 +1083,7 @@ class RawGetCommand(RawCommandBase):
                 data = response.content
             elif hasattr(response, "status") and response.status == 200:
                 # status from legacy old framework
-                data = json.dumps(response.dict).encode("utf-8")
+                data = json.dumps(response.dict, separators=(",", ":")).encode("utf-8")
             else:
                 response_code = None
                 if hasattr(response, "status_code"):
@@ -975,16 +1115,19 @@ class RawGetCommand(RawCommandBase):
         try:
             body = response.json() if response.content else None
             status_msg = self._get_status_message_from_response(response, body)
+            is_silent = getattr(options, "silent", False) if options else False
 
             out = self._body_stream(options)
-            out.write(f"[{response.status_code}] {status_msg}\n")
+            # --silent suppresses only the status line, not the body
+            if not is_silent:
+                out.write(f"[{response.status_code}] {status_msg}\n")
             show_headers = getattr(options, "getheaders", False) if options else True
             show_body = getattr(options, "response", False) if options else True
 
             if show_headers:
-                sys.stdout.write(f"{json.dumps(dict(response.headers))}\n")
+                sys.stdout.write(f"{json.dumps(dict(response.headers), separators=(',', ':'))}\n")
             if show_body and body is not None:
-                sys.stdout.write(f"{json.dumps(body)}\n")
+                sys.stdout.write(f"{json.dumps(body, separators=(',', ':'))}\n")
             sys.stdout.flush()
 
             if 200 <= response.status_code < 300:
@@ -1011,9 +1154,16 @@ class RawGetCommand(RawCommandBase):
         :returns: Status message string
         """
         # For error responses, try to extract MessageId from the response body
-        if response.status_code >= 400:
+        if hasattr(response, "status_code"):
+            status_code = response.status_code
+            resp_data = response.json() if response.content else None
+        else:
+            status_code = getattr(response, "status", None)
+            resp_data = response.dict if hasattr(response, "dict") else response
+
+        if status_code and status_code >= 400:
             try:
-                data = body if body else (response.json() if response.content else None)
+                data = body if body else resp_data
                 if data and "error" in data:
                     ext_info = data["error"].get("@Message.ExtendedInfo", [])
                     if ext_info and len(ext_info) > 0:
@@ -1024,7 +1174,7 @@ class RawGetCommand(RawCommandBase):
                 pass
 
         # Fall back to generic status messages
-        return self._get_status_message(response.status_code)
+        return self._get_status_message(status_code)
 
     def _get_status_message(self, status_code):
         """Get human-readable status message for HTTP status code"""
@@ -1048,9 +1198,12 @@ class RawGetCommand(RawCommandBase):
         """Format JSON output"""
         body = response.json() if response.content else None
         status_msg = self._get_status_message_from_response(response, body)
+        is_silent = getattr(options, "silent", False) if options else False
 
         out = self._body_stream(options)
-        out.write(f"[{response.status_code}] {status_msg}\n")
+        # --silent suppresses only the status line, not the body
+        if not is_silent:
+            out.write(f"[{response.status_code}] {status_msg}\n")
         if 200 <= response.status_code < 300:
             try:
                 if body is not None:
@@ -1058,7 +1211,7 @@ class RawGetCommand(RawCommandBase):
                         # Output as Python dict format (with single quotes)
                         sys.stdout.write(f"{repr(body)}\n")
                     else:
-                        sys.stdout.write(f"{json.dumps(body, indent=2, sort_keys=True)}\n")
+                        sys.stdout.write(f"{json.dumps(body, indent=2, sort_keys=True, separators=(',', ':'))}\n")
                 out.flush()
                 return ReturnCodes.SUCCESS
             except Exception as e:
@@ -1067,15 +1220,14 @@ class RawGetCommand(RawCommandBase):
                 return ReturnCodes.INVALID_COMMAND_LINE_ERROR
         else:
             if body is not None:
-                out.write(f"{json.dumps(body)}\n")
+                out.write(f"{json.dumps(body, separators=(',', ':'))}\n")
                 out.flush()
 
         if response.status_code == 401:
             return ReturnCodes.RIS_SESSION_EXPIRED
-        elif response.status_code > 299:
+        elif response.status_code >= 400:
             return ReturnCodes.RIS_ILO_RESPONSE_ERROR
-        else:
-            return ReturnCodes.GENERAL_ERROR
+        return ReturnCodes.GENERAL_ERROR
 
     def _handle_error_response(self, response):
         """Handle error responses"""
@@ -1136,23 +1288,18 @@ class RawGetCommand(RawCommandBase):
             is_silent = getattr(options, "silent", False)
             is_service = getattr(options, "service", False)
 
-            username , password = self._get_cred(options)
+            username, password = self._get_cred(options)
 
             results = self.rdmc.app.get_handler(
                 path,
                 headers=headers,
-                silent=is_silent,
+                silent=False,
                 service=is_service,
                 username=username,
                 password=password,
             )
 
-            if is_silent:
-                if results and results.status == 200:
-                    return ReturnCodes.SUCCESS
-                return ReturnCodes.GENERAL_ERROR
-
-            if not results or results.status != 200:
+            if not results or not (200 <= results.status < 300):
                 status = results.status if results else 500
 
                 # Handle 401 Unauthorized - cached session expired, retry with fresh login
@@ -1176,22 +1323,24 @@ class RawGetCommand(RawCommandBase):
                     results = self.rdmc.app.get_handler(
                         path,
                         headers=headers,
-                        silent=is_silent,
+                        silent=False,
                         service=is_service,
                         username=username,
                         password=password,
                     )
 
                     # Check if retry succeeded
-                    if results and results.status == 200:
+                    if results and 200 <= results.status < 300:
                         LOGGER.info("Retry after re-login successful")
                     else:
                         retry_status = results.status if results else 500
                         LOGGER.error(f"Retry after re-login failed with status: {retry_status}")
-                        sys.stderr.write(f"[{retry_status}] {self._get_status_message(retry_status)}\n")
+                        if not is_silent:
+                            sys.stderr.write(f"[{retry_status}] {self._get_status_message(retry_status)}\n")
                         return ReturnCodes.GENERAL_ERROR
                 else:
-                    sys.stderr.write(f"[{status}] {self._get_status_message(status)}\n")
+                    if not is_silent:
+                        sys.stderr.write(f"[{status}] {self._get_status_message(status)}\n")
                     return ReturnCodes.GENERAL_ERROR
 
             return_response = getattr(options, "response", False) or getattr(options, "getheaders", False)
@@ -1202,6 +1351,12 @@ class RawGetCommand(RawCommandBase):
             if options.binfile:
                 return self._write_response_in_binary(results, options)
 
+            # Print status line (suppressed by --silent), matching other handlers
+            if not is_silent:
+                status = results.status if results else 200
+                out = self._body_stream(options)
+                out.write(f"[{status}] {self._get_status_message(status)}\n")
+
             if return_response:
                 if getattr(options, "getheaders", False):
                     resp_headers = {}
@@ -1209,18 +1364,18 @@ class RawGetCommand(RawCommandBase):
                         resp_headers = dict(results.getheaders())
                     elif hasattr(results, "_headers") and results._headers:
                         resp_headers = dict(results._headers)
-                    sys.stdout.write(f"{json.dumps(resp_headers)}\n")
+                    sys.stdout.write(f"{json.dumps(resp_headers, separators=(',', ':'))}\n")
                 if getattr(options, "response", False):
                     body = results.dict if hasattr(results, "dict") else {}
-                    sys.stdout.write(f"{json.dumps(body)}\n")
+                    sys.stdout.write(f"{json.dumps(body, separators=(',', ':'))}\n")
                 sys.stdout.flush()
             else:
                 body = results.dict if hasattr(results, "dict") else results
                 if isinstance(body, (dict, list)):
                     if is_service:
-                        sys.stdout.write(f"{json.dumps(body)}\n")
+                        sys.stdout.write(f"{json.dumps(body, separators=(',', ':'))}\n")
                     else:
-                        sys.stdout.write(f"{json.dumps(body, indent=2, sort_keys=True)}\n")
+                        sys.stdout.write(f"{json.dumps(body, indent=2, sort_keys=True, separators=(',', ':'))}\n")
                 else:
                     sys.stdout.write(f"{body}\n")
                 sys.stdout.flush()

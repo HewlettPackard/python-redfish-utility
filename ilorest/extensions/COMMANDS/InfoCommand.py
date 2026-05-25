@@ -86,7 +86,7 @@ class InfoCommand:
                     if not (item.lower() in HARDCODEDLIST or "@odata" in item.lower()):
                         item = "Attributes/" + item
 
-                outdata = self.rdmc.app.info(props=item, dumpjson=options.json, latestschema=options.latestschema)
+                outdata = self.rdmc.app.info(props=item, dumpjson=options.json)
 
                 if autotest:
                     return outdata
@@ -121,7 +121,7 @@ class InfoCommand:
                     self.rdmc.ui.printer("%s\n" % item)
             else:
                 raise InfoMissingEntriesError(
-                    "No info items available for this selected type." " Try running with the --latestschema flag."
+                    "No info items available for this selected type."
                 )
 
         self.cmdbase.logout_routine(self, options)
@@ -134,10 +134,6 @@ class InfoCommand:
         :param options: command line options
         :type options: list.
         """
-
-        if self.rdmc.opts.latestschema:
-            options.latestschema = True
-
         self.cmdbase.login_select_validation(self, options)
 
     def definearguments(self, customparser):
@@ -171,13 +167,4 @@ class InfoCommand:
             " displayed output to JSON format. Preserving the JSON data"
             " structure makes the information easier to parse.",
             default=False,
-        )
-        customparser.add_argument(
-            "--latestschema",
-            dest="latestschema",
-            action="store_true",
-            help="Optionally use the latest schema instead of the one "
-            "requested by the file. Note: May cause errors in some data "
-            "retrieval due to difference in schema versions.",
-            default=None,
         )

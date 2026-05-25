@@ -182,7 +182,6 @@ class SetCommand:
                 try:
                     contents = self.rdmc.app.loadset(
                         seldict=payload,
-                        latestschema=options.latestschema,
                         fltrvals=(fsel, fval),
                         uniqueoverride=options.uniqueoverride,
                     )
@@ -391,9 +390,6 @@ class SetCommand:
 
     def setvalidation(self, options):
         """Set data validation function"""
-
-        if self.rdmc.opts.latestschema:
-            options.latestschema = True
         if self.rdmc.config.commit.lower() == "true":
             options.commit = True
         try:
@@ -452,15 +448,6 @@ class SetCommand:
             help="Use this flag to perform a reboot command function after"
             " completion of operations.  For help with parameters and"
             " descriptions regarding the reboot flag, run help reboot.",
-            default=None,
-        )
-        customparser.add_argument(
-            "--latestschema",
-            dest="latestschema",
-            action="store_true",
-            help="Optionally use the latest schema instead of the one "
-            "requested by the file. Note: May cause errors in some data "
-            "retrieval due to difference in schema versions.",
             default=None,
         )
         customparser.add_argument(

@@ -755,24 +755,25 @@ class ComputeOpsManagementCommand:
                         validation_data["status"] = "PASSED"
                     else:
                         # Check activationKey/workspace_id based on iLO version capabilities
-                        is_pin_supported = self._is_pin_onboarding_supported(ilo_version, model)
-
+                        is_pin_supported, pin_err_msg, pin_rec_msg = self._is_pin_onboarding_supported(ilo_version, model)
+                        workspace_id = com_settings.get("workspace_id", "")
+                        activation_key = com_settings.get("activationKey", "")
                         if not is_pin_supported:
-                            workspace_id = com_settings.get("workspace_id", "")
-                            if not workspace_id:
-                                validation_data["error"] = "The version of iLO requires a valid workspace_id"
-                                validation_data["recommendation"] = (
-                                    "Provide a valid workspace_id in the configuration for onboarding"
-                                )
-                                return validation_data
-                        else:
-                            activation_key = com_settings.get("activationKey", "")
-                            if not activation_key:
-                                validation_data["error"] = "The version of iLO requires a valid activation Key"
-                                validation_data["recommendation"] = (
-                                    "Provide a valid activation Key in the configuration for onboarding"
-                                )
-                                return validation_data
+                            validation_data["error"] = pin_err_msg
+                            validation_data["recommendation"] = pin_rec_msg
+                            return validation_data
+                        elif not workspace_id:
+                            validation_data["error"] = "The version of iLO requires a valid workspace_id"
+                            validation_data["recommendation"] = (
+                                "Provide a valid workspace_id in the configuration for onboarding"
+                            )
+                            return validation_data
+                        elif not activation_key:
+                            validation_data["error"] = "The version of iLO requires a valid activation Key"
+                            validation_data["recommendation"] = (
+                                "Provide a valid activation Key in the configuration for onboarding"
+                            )
+                            return validation_data
 
                         merged_network = network_settings.copy() if isinstance(network_settings, dict) else {}
                         individual_network = individual_settings.get("network", {})
@@ -1505,7 +1506,14 @@ class ComputeOpsManagementCommand:
             # Determine if PIN-based onboarding is supported
             workspace_id = com_settings.get("workspace_id")
             activation_key = com_settings.get("activationKey")
-            pin_supported = self._is_pin_onboarding_supported(ilo_version, model_version)
+            pin_supported, pin_err_msg, pin_rec_msg = self._is_pin_onboarding_supported(ilo_version, model_version)
+
+            if not pin_supported:
+                result["onboardStatus"] = "not attempted"
+                result["onboardError"] = pin_err_msg
+                result["recommendation"] = pin_rec_msg
+                LOGGER.warning(f"{ip}: {result['onboardError']}")
+                return False, ilo_was_reset, False, result
 
             credential = activation_key if pin_supported and activation_key else workspace_id
             if credential:
@@ -1543,7 +1551,6 @@ class ComputeOpsManagementCommand:
                         result["recommendation"] = "Verify activation key/workspace_id and network settings, then retry"
                     LOGGER.warning(f"{ip}: Failed to enable COM - {result['onboardError']}")
                     return False, ilo_was_reset, False, result
-
         except requests.exceptions.ConnectionError:
             result["onboardError"] = "iLO is not reachable"
             result["recommendation"] = "Verify network connectivity to iLO"
@@ -1692,20 +1699,32 @@ class ComputeOpsManagementCommand:
         :type ilo_version: float
         :param major_version: iLO major version
         :type major_version: int
-        :returns: True if PIN onboarding is supported
-        :rtype: bool
+        :returns: Tuple of (is_supported, error_msg, recommendation)
+        :rtype: tuple
         """
         # PIN-based onboarding support:
         # - iLO 6: available from version 1.64 onwards
         # - iLO 5: available from version 3.09 onwards
         # - iLO 7: available from version 1.12 onwards
-        if major_version == 6 and ilo_version >= 1.64:
-            return True
-        elif major_version == 5 and ilo_version >= 3.09:
-            return True
-        elif major_version == 7 and ilo_version >= 1.12:
-            return True
-        return False
+        supported_versions_map = {
+            5: 3.09,
+            6: 1.64,
+            7: 1.12,
+        }
+        if major_version in supported_versions_map:
+            required = supported_versions_map[major_version]
+            if ilo_version < required:
+                error_msg = f"iLO version {ilo_version} incompatible - requires {required} or higher"
+                recommendation = "Upgrade to the latest iLO version to use HPE Compute Ops Management"
+                LOGGER.warning(error_msg)
+                return False, error_msg, recommendation
+
+            return True, "", ""
+        else:
+            error_msg = f"Unsupported iLO major version {major_version}"
+            recommendation = "Use iLO 5, 6 or 7 with the required minimum firmware version"
+            LOGGER.warning(error_msg)
+            return False, error_msg, recommendation
 
     def _check_ilo_version_compatibility(self, model, ilo_version, ip):
         """Check if iLO version is compatible with COM requirements

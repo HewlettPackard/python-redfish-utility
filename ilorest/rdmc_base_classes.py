@@ -388,7 +388,7 @@ class RdmcOptionParser(ArgumentParser):
 
     def __init__(self):
         super().__init__(
-            usage="%s [GLOBAL OPTIONS] [COMMAND] [COMMAND ARGUMENTS] " "[COMMAND OPTIONS]" % versioning.__shortname__,
+            usage="ilorest [GLOBAL OPTIONS] [COMMAND] [COMMAND ARGUMENTS] [COMMAND OPTIONS]",
             description="iLOrest is a command-line or interactive interface that allows users "
             "to manage Hewlett Packard Enterprise products that take advantage"
             " of RESTful APIs.\n\nIn order to view or manage a system you must"
@@ -507,15 +507,6 @@ class RdmcOptionParser(ArgumentParser):
             help="Use this flag if you wish to to enable "
             "Redfish only compliance. It is enabled by default "
             "in systems with iLO5 and above.",
-            default=False,
-        )
-        self.add_argument(
-            "--latestschema",
-            dest="latestschema",
-            action="store_true",
-            help="Optionally use the latest schema instead of the one "
-            "requested by the file. Note: May cause errors in some data "
-            "retrieval due to difference in schema versions.",
             default=False,
         )
         self.add_argument(
