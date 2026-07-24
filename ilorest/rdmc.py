@@ -576,7 +576,8 @@ class RdmcCommand(RdmcCommandBase):
                 self.app.logout()
         else:
             creds, enc = self._pull_creds(nargv)
-            self.app.restore(creds=creds, enc=enc)
+            # Pass log_dir into restore so restored client can enable rest.debug.log
+            self.app.restore(creds=creds, enc=enc, log_dir=self.log_dir)
             self.opts.is_redfish = self.app.typepath.updatedefinesflag(redfishflag=self.opts.is_redfish)
 
         if nargv:

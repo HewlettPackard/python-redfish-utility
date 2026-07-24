@@ -58,7 +58,7 @@ set_env_var()
 
 setup(
     name="ilorest",
-    version="7.1.0.0",
+    version="7.3.0.0",
     description="HPE iLORest Tool",
     author="Hewlett Packard Enterprise",
     author_email="rajeevalochana.kallur@hpe.com",
@@ -66,12 +66,12 @@ setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "License :: OSI Approved :: Apache Software License",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: Communications",
     ],
     keywords="Hewlett Packard Enterprise",
@@ -111,6 +111,6 @@ setup(
         "future",
         'enum; python_version <= "2.7.19"',
         'futures; python_version <= "2.7.19"',
-        "python-ilorest-library >= 7.1.0.0",
+        "python-ilorest-library >= 7.3.0.0",
     ],
 )

@@ -43,9 +43,10 @@ def get_logging_config_path():
     # windows path, linux paths, and python installation paths are included in the search list
     platform_paths = [
         r"C:\Program Files\Hewlett Packard Enterprise\RESTful Interface Tool",
-        "/opt/ilorest",
+        "/scratch/hpe_ilorest/config",  # ESXi persistent scratch partition (survives reboots)
         "/etc/ilorest",
         "/usr/local",
+        "/opt/ilorest",
         sys.prefix,
     ]
 

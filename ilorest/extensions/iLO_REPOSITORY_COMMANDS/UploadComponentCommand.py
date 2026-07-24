@@ -45,6 +45,8 @@ from redfish.hpilo.rishpilo import BlobReturnCodes
 from redfish.hpilo.risblobstore2 import BlobStore2
 import redfish.ris
 
+DEFAULT_WAIT_TIME = 5700  # default_upload_time, default_flash_time, buffer_flash(1800+3600+300)
+
 try:
     from rdmc_helper import (
         UI,
@@ -129,7 +131,7 @@ class UploadComponentCommand:
 
         self.uploadcommandvalidation(options)
         fwpkg = False
-        wait_time = 4800
+        wait_time = DEFAULT_WAIT_TIME
         if (
             options.component.endswith(".fwpkg")
             or options.component.endswith(".fup")
@@ -354,13 +356,15 @@ class UploadComponentCommand:
         else:
             return [(filename, options.component, options.componentsig, 0)]
 
-    def uploadfunction(self, filelist, options=None, wait_time=4800):
+    def uploadfunction(self, filelist, options=None, wait_time=DEFAULT_WAIT_TIME):
         """Main upload command worker function
 
         :param filelist: List of files to upload.
         :type filelist: list.
         :param options: command line options
         :type options: list.
+        :param wait_time: wait_time for component flash
+        :type wait_time: integer
         """
 
         # returns a tuple with the state and the result dict
@@ -484,15 +488,11 @@ class UploadComponentCommand:
             self.status_content["Result"] = complete_res
         self.status_content["State"] = (result["Oem"]["Hpe"]["State"]).upper()
 
-    def wait_for_state_change(self, wait_time=4800):
+    def wait_for_state_change(self, wait_time=DEFAULT_WAIT_TIME):
         """Wait for the iLO UpdateService to a move to terminal state.
-        :param options: command line options
-        :type options: list.
-        :param wait_time: time to wait on upload
-        :type wait_time: int.
+        :param wait_time: wait time during component flash
+        :type wait_time: integer
         """
-        # handling case when wait_time is 0 or string "0"
-        wait_time = int(wait_time) if str(wait_time).isdigit() and int(wait_time) > 0 else 4800
         LOGGER.debug(f"wait_time received: {wait_time}")
         total_time = 0
         result = dict()
@@ -584,13 +584,15 @@ class UploadComponentCommand:
 
         return compsig
 
-    def uploadlocally(self, filelist, options=None, wait_time=4800):
+    def uploadlocally(self, filelist, options=None, wait_time=DEFAULT_WAIT_TIME):
         """Upload component locally
 
         :param filelist: List of files to upload.
         :type filelist: list.
         :param options: command line options
         :type options: list.
+        :param wait_time: wait_time for component flash
+        :type wait_time: integer
         """
         new_chif_needed = False
         upload_failed = False
@@ -681,8 +683,7 @@ class UploadComponentCommand:
                 if options.update_target:
                     self.rdmc.ui.printer("Flashing component " + filename + "\n")
 
-                # handling case when wait_time is 0 or string "0"
-                wait_time = int(wait_time) if str(wait_time).isdigit() and int(wait_time) > 0 else 4800
+                LOGGER.debug(f"Sending wait_time to uploadComponent: {wait_time}")
                 ret = dll.uploadComponent(
                     ctypes.create_string_buffer(compsigpath.encode("utf-8")),
                     ctypes.create_string_buffer(componentpath.encode("utf-8")),

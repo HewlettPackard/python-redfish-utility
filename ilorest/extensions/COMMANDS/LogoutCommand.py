@@ -22,6 +22,11 @@ try:
 except ImportError:
     from ilorest.rdmc_helper import InvalidCommandLineErrorOPTS, ReturnCodes
 
+try:
+    from tpm_lock import TpmFileLock
+except ImportError:
+    from ilorest.tpm_lock import TpmFileLock
+
 
 class LogoutCommand:
     """Constructor"""
@@ -52,7 +57,10 @@ class LogoutCommand:
             else:
                 raise InvalidCommandLineErrorOPTS("")
 
-        self.rdmc.app.logout("")
+        # Acquire the TPM file lock during logout to prevent concurrent
+        # sem_unlink from destroying the semaphore while another process is mid-login.
+        with TpmFileLock():
+            self.rdmc.app.logout("")
 
     def run(self, line, help_disp=False):
         """Wrapper function for main logout function

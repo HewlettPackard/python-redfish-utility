@@ -103,7 +103,7 @@ class DeleteComponentCommand:
         elif args:
             self.deletecomponents(comps, args)
         else:
-            InvalidCommandLineError("Please include the component(s) you wish to delete")
+            raise InvalidCommandLineError("Please include the component(s) you wish to delete")
 
         self.cmdbase.logout_routine(self, options)
         # Return code
@@ -117,9 +117,14 @@ class DeleteComponentCommand:
         :param delopts: delete items list
         :type delopts: list.
         """
-        if "," in delopts:
-            delopts = delopts.split(",")
-        elif not isinstance(delopts, list):
+
+        if isinstance(delopts, list):
+            """Handle case like ['value1,value2']"""
+            if len(delopts) == 1 and isinstance(delopts[0], str) and "," in delopts[0]:
+                delopts = [x.strip() for x in delopts[0].split(",")]
+        elif isinstance(delopts, str):
+            delopts = [x.strip() for x in delopts.split(",")]
+        else:
             delopts = [delopts]
 
         for opt in delopts:

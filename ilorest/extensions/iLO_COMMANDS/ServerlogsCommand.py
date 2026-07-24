@@ -30,11 +30,10 @@ import sys
 import tempfile
 import time
 
-from six.moves import queue
-
 import redfish.hpilo.risblobstore2 as risblobstore2
 from redfish.rest.connections import SecurityStateError
 from redfish.ris.utils import filter_output
+from six.moves import queue
 
 try:
     from rdmc_helper import (
@@ -144,7 +143,7 @@ class ServerlogsCommand:
             self.parser.print_help()
             return ReturnCodes.SUCCESS
         try:
-            (options, _) = self.rdmc.rdmc_parse_arglist(self, line)
+            options, _ = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -853,10 +852,65 @@ class ServerlogsCommand:
         """
         try:
             self.downloadahslocalworker(options)
-        except Exception:
+        except BaseException:
+            # Reason: Ensure the BLACKBOX partition is unmounted on ANY exit path
+            # (including Ctrl+C / KeyboardInterrupt). unmountbb() is gated by
+            # dontunmount and only does CHIF-level unmount. We also need to
+            # clean up the filesystem-level mount to prevent stacked orphan mounts.
+            self.dontunmount = False
             self.unmountbb()
+            bbpath = os.path.join(tempfile.gettempdir(), "BLACKBOX")
+            if os.path.ismount(bbpath):
+                self.manualunmountbb(bbpath)
             raise
         return
+
+    def _check_ahs_availability(self):
+        """Check if AHS is accessible or in use by another application.
+
+        Queries the ActiveHealthSystem Redfish endpoint to determine if the AHS
+        partition is currently locked by another consumer (e.g., iLO GUI download,
+        another CLI session, or an internal iLO process).
+
+        Raises:
+            NoContentsFoundForOperationError: If AHS is currently in use by another application.
+        """
+        try:
+            val = "/redfish/v1/Managers/1/ActiveHealthSystem/"
+            resp = self.rdmc.app.get_handler(val, silent=True)
+            if resp and resp.dict:
+                ahs_data = resp.dict
+                # Reason: iLO reports AHS unavailability via the "Status" property
+                # or via an Oem property when the partition is locked by another consumer.
+                status = ahs_data.get("Status", {})
+                state = status.get("State", "")
+                health = status.get("Health", "")
+
+                # iLO sets State to "InUse" or "Unavailable" when another application
+                # has the AHS partition locked
+                if state in ("InUse", "Unavailable", "UnavailableOffline"):
+                    raise NoContentsFoundForOperationError(
+                        "Active Health System Log is inaccessible because it is being used by "
+                        "another application. Please wait for the other operation to complete "
+                        "and try again."
+                    )
+
+                # Also check Oem/Hpe section for AHS-specific busy indicators
+                oem = ahs_data.get("Oem", {}).get("Hpe", ahs_data.get("Oem", {}).get("Hp", {}))
+                if oem:
+                    ahs_status = oem.get("AHSStatus", "")
+                    if ahs_status and ahs_status.lower() in ("busy", "inuse", "unavailable"):
+                        raise NoContentsFoundForOperationError(
+                            "Active Health System Log is inaccessible because it is being used by "
+                            "another application. Please wait for the other operation to complete "
+                            "and try again."
+                        )
+        except NoContentsFoundForOperationError:
+            raise
+        except Exception as excp:
+            # Reason: If we cannot reach the AHS endpoint (e.g., pure CHIF with no
+            # REST access), log a warning and proceed to attempt the mount anyway.
+            LOGGER.warning("Unable to pre-check AHS availability: %s", excp)
 
     def downloadahslocalworker(self, options):
         """Worker function to download AHS logs locally
@@ -881,7 +935,6 @@ class ServerlogsCommand:
             )
 
         secstate = risblobstore2.BlobStore2().get_security_state()
-        # self.rdmc.ui.printer('Security State is {}...\n'.format(secstate))
 
         if isinstance(secstate, bytes):
             secstate = secstate.decode("utf-8")
@@ -893,15 +946,28 @@ class ServerlogsCommand:
         if int(secstate) > 3:
             raise SecurityStateError("AHS logs cannot be downloaded locally " "in high security state.\n")
 
+        # Reason: Check AHS availability before attempting the mount to fail fast
+        # with a clear message if another application has the partition locked.
+        self._check_ahs_availability()
+
         self.lib = risblobstore2.BlobStore2.gethprestchifhandle()
 
         self.rdmc.ui.printer("Mounting AHS partition...\n")
 
         try:
-            (manual_ovr, abspath) = self.getbbabspath()
-        except (PartitionMoutingError, IOError):
+            manual_ovr, abspath = self.getbbabspath()
+        except PartitionMoutingError as excp:
+            # Reason: If the partition mounted but had no data, retrying won't help
+            # (another application holds the data lock). Only retry if the partition
+            # itself failed to mount.
+            if "contains no data files" in str(excp):
+                raise
             self.mountbb()
-            (manual_ovr, abspath) = self.getbbabspath()
+            manual_ovr, abspath = self.getbbabspath()
+            self.dontunmount = False
+        except IOError:
+            self.mountbb()
+            manual_ovr, abspath = self.getbbabspath()
             self.dontunmount = False
 
         LOGGER.info("Blackbox folder path:%s", ",".join(next(os.walk(abspath))[2]))
@@ -970,22 +1036,28 @@ class ServerlogsCommand:
         LOGGER.info("Reading Blackbox to determine data files.")
         allfile = list(set(allfile) | set(cfilelist))
         LOGGER.info("Final filelist %s", str(allfile))
+
+        # OPTIMIZE: Pre-compute the cfilelist base names as a set for O(1) lookup
+        # instead of rebuilding the list comprehension on every file (O(n²) → O(n)).
+        cfile_basenames = {x.split(".")[0] for x in cfilelist}
+
+        # OPTIMIZE: Set ctypes argtypes once outside the loop instead of on every call.
+        self.lib.gendatlisting.argtypes = [
+            ctypes.c_char_p,
+            ctypes.c_bool,
+            ctypes.c_uint,
+        ]
+
         for files in allfile:
             if files.startswith((".", "..")):
                 continue
 
             bisrequiredfile = False
 
-            if files.split(".")[0] in [x.split(".")[0] for x in cfilelist]:
+            if files.split(".")[0] in cfile_basenames:
                 if files.endswith("bb"):
                     bisrequiredfile = True
                     self.lib.updatenfileoptions()
-
-            self.lib.gendatlisting.argtypes = [
-                ctypes.c_char_p,
-                ctypes.c_bool,
-                ctypes.c_uint,
-            ]
 
             filesize = os.stat(os.path.join(self.abspath, files)).st_size
             self.lib.gendatlisting(files.encode("ascii", "ignore"), bisrequiredfile, filesize)
@@ -997,20 +1069,22 @@ class ServerlogsCommand:
         allfiles = list()
 
         filenames = next(os.walk(self.abspath))[2]
-        timenow = (str(datetime.datetime.now()).split()[0]).split("-")
-        strdate = enddate = datetime.date(int(timenow[0]), int(timenow[1]), int(timenow[2]))
+
+        # OPTIMIZE: Use datetime attributes directly instead of string-splitting
+        # the repr of datetime.now(). Clearer and avoids unnecessary string ops.
+        now = datetime.datetime.now()
+        strdate = enddate = datetime.date(now.year, now.month, now.day)
 
         if not options.downloadallahs and not options.customiseAHS:
-            weekago = datetime.datetime.now() - datetime.timedelta(days=6)
-            weekagostr = (str(weekago).split()[0]).split("-")
-            strdate = datetime.date(int(weekagostr[0]), int(weekagostr[1]), int(weekagostr[2]))
+            weekago = now - datetime.timedelta(days=6)
+            strdate = datetime.date(weekago.year, weekago.month, weekago.day)
 
         if options.customiseAHS:
             instring = options.customiseAHS
             if instring.startswith(("'", '"')) and instring.endswith(("'", '"')):
                 instring = instring[1:-1]
             try:
-                (strdatestr, enddatestr) = [e.split("-") for e in instring.split("from=")[-1].split("&&to=")]
+                strdatestr, enddatestr = [e.split("-") for e in instring.split("from=")[-1].split("&&to=")]
                 strdate = datetime.date(int(strdatestr[0]), int(strdatestr[1]), int(strdatestr[2]))
                 enddate = datetime.date(int(enddatestr[0]), int(enddatestr[1]), int(enddatestr[2]))
             except Exception as excp:
@@ -1085,49 +1159,69 @@ class ServerlogsCommand:
         :type enddate: datetime obj
         """
         LOGGER.info("Updating min and max dates for download.")
-        self.lib.updateMinDate.argtypes = [
-            ctypes.c_int,
-            ctypes.c_int,
-            ctypes.c_int,
-        ]
+        three_ints = [ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        self.lib.updateMinDate.argtypes = three_ints
+        self.lib.updateMaxDate.argtypes = three_ints
         self.lib.updateMinDate(strdate.year, strdate.month, strdate.day)
-        self.lib.updateMaxDate.argtypes = [
-            ctypes.c_int,
-            ctypes.c_int,
-            ctypes.c_int,
-        ]
         self.lib.updateMaxDate(enddate.year, enddate.month, enddate.day)
 
     def getclistfilelisting(self):
         """Get files present within clist.pkg ."""
         LOGGER.info("Getting all config files that are required.")
         sclistpath = os.path.join(self.abspath, "clist.pkg")
+        LOGGER.debug(
+            "AHS data directory: %s, exists: %s, is_dir: %s",
+            self.abspath,
+            os.path.exists(self.abspath),
+            os.path.isdir(self.abspath),
+        )
+        if os.path.isdir(self.abspath):
+            try:
+                dir_contents = os.listdir(self.abspath)
+                LOGGER.debug("Directory contents (%d files): %s", len(dir_contents), dir_contents[:20])
+            except OSError as excp:
+                LOGGER.debug("Cannot list directory %s: %s", self.abspath, excp)
         cfilelist = []
         if os.path.isfile(sclistpath):
-            cfile = open(sclistpath, "rb")
-            data = cfile.read()
+            with open(sclistpath, "rb") as cfile:
+                data = cfile.read()
 
-            if data == "":
+            # Reason: clist.pkg is read in binary mode, so ``data`` is ``bytes``.
+            # Comparing it to the str "" is always False on Python 3, which left
+            # empty files undetected. A truthiness check works for empty bytes.
+            if not data:
                 raise InvalidCListFileError("Could not read Cfile\n")
 
-            sizeofcfile = len(str(data))
+            # Reason: len(data) is the real byte count. len(str(data)) measures
+            # the ``b'...'`` repr (escapes + prefix), inflating the count and
+            # reading past the buffer, producing garbage config-record names.
+            sizeofcfile = len(data)
             sizeofrecord = self.lib.sizeofchifbbfilecfgrecord()
-            count = sizeofcfile / sizeofrecord
-            revcount = 0
 
-            while count >= 1:
+            # Reason: guard against a zero/invalid record size to avoid a
+            # ZeroDivisionError when the native helper cannot size the record.
+            if not sizeofrecord or sizeofrecord <= 0:
+                LOGGER.warning("Invalid config record size %s; skipping clist.pkg parsing.", sizeofrecord)
+                return cfilelist
+
+            # OPTIMIZE: Set ctypes argtypes/restype once outside the loop
+            # instead of reassigning on every record iteration.
+            self.lib.getbbfilecfgrecordname.argtypes = [ctypes.c_char_p]
+            self.lib.getbbfilecfgrecordname.restype = ctypes.c_char_p
+
+            for revcount in range(sizeofcfile // sizeofrecord):
                 dat = data[revcount * sizeofrecord : (revcount + 1) * sizeofrecord]
                 dat = ctypes.create_string_buffer(dat)
-                self.lib.getbbfilecfgrecordname.argtypes = [ctypes.c_char_p]
-                self.lib.getbbfilecfgrecordname.restype = ctypes.c_char_p
                 ptrname = self.lib.getbbfilecfgrecordname(dat)
-                name = str(bytearray(ptrname[:32][:]))
 
-                if name not in cfilelist:
+                # Reason: the record name is a null-padded byte field. Decode it
+                # and drop the NUL padding. str(bytearray(...)) produced the
+                # literal text "bytearray(b'...')" on Python 3, so no config
+                # file ever matched and AHS assembly silently produced bad data.
+                name = bytes(ptrname[:32]).split(b"\x00")[0].decode("ascii", "ignore")
+
+                if name and name not in cfilelist:
                     cfilelist.append(name)
-
-                count = count - 1
-                revcount = revcount + 1
         else:
             cfilelist = [f for f in os.listdir(self.abspath) if f.endswith(".zbb")]
 
@@ -1138,8 +1232,33 @@ class ServerlogsCommand:
         """Get blackbox folder path."""
         LOGGER.info("Obtaining the absolute path of blackbox.")
         count = 0
+        max_attempts = 20
+        empty_data_count = 0
+        max_empty_data_retries = 3
 
-        while count < 20:
+        while count < max_attempts:
+            if count > 0 and count % 4 == 0:
+                # Reason: Log progress instead of printing to stdout so that
+                # automation scripts parsing the output are not broken. The old
+                # 5.x/6.x behaviour only printed "Mounting AHS partition..." and
+                # then the result. Progress is still visible with the -d flag.
+                LOGGER.info(
+                    "Waiting for AHS partition to become available (attempt %d/%d)...",
+                    count,
+                    max_attempts,
+                )
+
+                # Reason: Re-check AHS availability mid-loop to detect if another
+                # application grabbed the lock after our initial pre-check. This
+                # enables early exit with a clear message instead of waiting the
+                # full timeout.
+                try:
+                    self._check_ahs_availability()
+                except NoContentsFoundForOperationError:
+                    raise
+                except Exception:
+                    pass
+
             if os.name == "nt":
                 drives = self.get_available_drives()
 
@@ -1152,10 +1271,30 @@ class ServerlogsCommand:
                             self.abspath = abspathbb
                             cfilelist = self.getclistfilelisting()
                             if not cfilelist:
+                                empty_data_count += 1
+                                LOGGER.warning(
+                                    "BLACKBOX partition mounted but data directory is empty "
+                                    "(attempt %d/%d).",
+                                    empty_data_count,
+                                    max_empty_data_retries,
+                                )
+                                if empty_data_count >= max_empty_data_retries:
+                                    raise PartitionMoutingError(
+                                        "AHS partition (BLACKBOX) mounted successfully but contains no data files. "
+                                        "This typically means the Active Health System Log is being used by another "
+                                        "application (e.g., iLO GUI download or another CLI session). "
+                                        "Please wait for the other operation to complete and try again."
+                                    )
+                                # Reason: unmountbb() is a no-op here (dontunmount=True).
+                                # On Windows, the CHIF unmount is needed before remount.
+                                self.dontunmount = False
                                 self.unmountbb()
+                                self.dontunmount = True
                                 self.manualmountbb()
                             else:
                                 return False, abspathbb
+                    except PartitionMoutingError:
+                        raise
                     except Exception:
                         pass
             else:
@@ -1168,11 +1307,44 @@ class ServerlogsCommand:
 
                         if r"/BLACKBOX" in lin:
                             abspathbb = lin.split()[1]
-                            self.abspath = abspathbb
+                            # Reason: On Linux, /proc/mounts shows the mount root
+                            # (e.g., /tmp/BLACKBOX) but AHS data files live in the
+                            # "data/" subdirectory. The path correction used to happen
+                            # only AFTER this function returned (in downloadahslocalworker),
+                            # so getclistfilelisting() was searching the wrong directory
+                            # and always returning [].
+                            data_subdir = os.path.join(abspathbb, "data")
+                            if os.path.isdir(data_subdir):
+                                self.abspath = data_subdir
+                            else:
+                                self.abspath = abspathbb
+                            LOGGER.debug(
+                                "BLACKBOX found in /proc/mounts at: %s. "
+                                "Using data path: %s",
+                                abspathbb,
+                                self.abspath,
+                            )
                             cfilelist = self.getclistfilelisting()
                             if not cfilelist:
-                                self.unmountbb()
-                                self.manualmountbb()
+                                empty_data_count += 1
+                                LOGGER.warning(
+                                    "BLACKBOX partition mounted but data directory is empty "
+                                    "(attempt %d/%d).",
+                                    empty_data_count,
+                                    max_empty_data_retries,
+                                )
+                                if empty_data_count >= max_empty_data_retries:
+                                    raise PartitionMoutingError(
+                                        "AHS partition (BLACKBOX) mounted successfully but contains no data files. "
+                                        "This typically means the Active Health System Log is being used by another "
+                                        "application (e.g., iLO GUI download or another CLI session). "
+                                        "Please wait for the other operation to complete and try again."
+                                    )
+                                # Reason: Use manualunmountbb (filesystem umount) here
+                                # instead of unmountbb() which is a CHIF-level unmount
+                                # gated by dontunmount=True (always a no-op in this path).
+                                # Previously this stacked mounts on /tmp/BLACKBOX.
+                                self.manualunmountbb(abspathbb)
                             else:
                                 return False, abspathbb
 
@@ -1184,17 +1356,31 @@ class ServerlogsCommand:
             count = count + 1
             time.sleep(5)
 
-        raise PartitionMoutingError("iLO not responding to request " "for mounting AHS partition")
+        raise PartitionMoutingError(
+            "iLO not responding to request for mounting AHS partition. "
+            "This may occur if the Active Health System Log is being used by another "
+            "application (e.g., iLO GUI download or another CLI session). "
+            "Please wait for the other operation to complete and try again."
+        )
 
     def manualmountbb(self):
         """Manually mount blackbox when after fixed time."""
         LOGGER.info("Manually mounting the blackbox.")
 
         try:
+            dirpath = os.path.join(tempfile.gettempdir(), "BLACKBOX")
+
+            # Reason: Prevent stacked mounts. If the mountpoint already has a
+            # filesystem mounted on it (from a previous failed attempt or another
+            # invocation), unmount it first to avoid accumulating orphan mounts
+            # that persist after Ctrl+C or error exit.
+            if os.path.ismount(dirpath):
+                LOGGER.info("Mountpoint %s already mounted; unmounting before remount.", dirpath)
+                self.manualunmountbb(dirpath)
+
             context = pyudev.Context()
             for device in context.list_devices(subsystem="block"):
                 if device.get("ID_FS_LABEL") == "BLACKBOX":
-                    dirpath = os.path.join(tempfile.gettempdir(), "BLACKBOX")
 
                     if not os.path.exists(dirpath):
                         try:
@@ -1269,7 +1455,7 @@ class ServerlogsCommand:
                 if (str(tofilter)[0] == str(tofilter)[-1]) and str(tofilter).startswith(("'", '"')):
                     tofilter = tofilter[1:-1]
 
-                (sel, val) = tofilter.split("=")
+                sel, val = tofilter.split("=")
                 sel = sel.strip()
                 val = val.strip()
 

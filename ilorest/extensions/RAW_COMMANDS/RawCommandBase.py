@@ -44,6 +44,7 @@ validation across different iLO versions and security modes.
 import json
 import logging
 import re
+from urllib.parse import urlparse
 
 try:
     from rdmc_helper import InvalidCommandLineError, Encryption
@@ -433,11 +434,20 @@ class RawCommandBase:
         import requests
 
         headers = self._prepare_request_headers(headers, body)
-        kwargs = self._prepare_request_kwargs(headers, body, auth, timeout, method)
+        kwargs = self._prepare_request_kwargs(headers, body, auth, timeout, method, path)
 
-        method_func = self._get_request_method(method, requests)
         LOGGER.debug(f"Executing {method} request to {self._mask_url_credentials(path)}")
 
+        # For local VNIC targets, use session with trust_env=False to bypass proxy
+        if self._should_bypass_proxies(path):
+            session = requests.Session()
+            session.trust_env = False
+            try:
+                return session.request(method.upper(), path, **kwargs)
+            finally:
+                session.close()
+
+        method_func = self._get_request_method(method, requests)
         return method_func(path, **kwargs)
 
     def _prepare_request_headers(self, headers, body):
@@ -450,7 +460,7 @@ class RawCommandBase:
 
         return headers
 
-    def _prepare_request_kwargs(self, headers, body, auth, timeout, method):
+    def _prepare_request_kwargs(self, headers, body, auth, timeout, method, path=None):
         """Prepare keyword arguments for requests call"""
         kwargs = {"headers": headers, "verify": False, "timeout": timeout}
 
@@ -459,6 +469,11 @@ class RawCommandBase:
 
         if body and method.upper() in ["POST", "PUT", "PATCH"]:
             kwargs["data"] = json.dumps(body) if isinstance(body, dict) else body  # type: ignore[assignment]
+
+        # For local in-band VNIC and loopback targets, bypass system proxy settings.
+        # Proxy traversal can break 16.1.15.1 TLS handshake and cause raw timeouts.
+        if self._should_bypass_proxies(path):
+            kwargs["proxies"] = {"http": "", "https": ""}
 
         return kwargs
 
@@ -478,6 +493,22 @@ class RawCommandBase:
             raise InvalidCommandLineError(f"Unsupported HTTP method: {method}")
 
         return method_func
+
+    def _should_bypass_proxies(self, path):
+        """Return True when request target should ignore proxy settings.
+        
+        Local VNIC endpoints like 16.1.15.1 should never go through system proxies.
+        """
+        if not path:
+            return False
+
+        try:
+            parsed = urlparse(path)
+            host = (parsed.hostname or "").lower()
+        except Exception:
+            return False
+
+        return host in {"16.1.15.1", "localhost", "127.0.0.1", "::1"}
 
     def _detect_ilo_version(self):
         """Detect iLO version using three-tier caching strategy for optimal performance
@@ -2591,7 +2622,20 @@ class RawCommandBase:
             session_data = {"UserName": app_username, "Password": app_password}
 
             LOGGER.debug("Performing direct HTTP login with app account credentials")
-            response = requests.post(session_url, json=session_data, verify=False, timeout=30)
+
+            # Local VNIC endpoint must bypass environment proxies.
+            session = requests.Session()
+            session.trust_env = False
+            try:
+                response = session.post(
+                    session_url,
+                    json=session_data,
+                    verify=False,
+                    timeout=30,
+                    proxies={"http": "", "https": ""},
+                )
+            finally:
+                session.close()
 
             if response.status_code in [200, 201]:
                 session_token, session_location = self._get_session_headers(response)
@@ -2621,8 +2665,20 @@ class RawCommandBase:
         if session_data is None:
             return None, None
 
-        response = requests.post(session_url, json=session_data, verify=False, timeout=30)
-        return self._handle_vnic_login_response(response)
+        # Local VNIC endpoint must bypass environment proxies.
+        session = requests.Session()
+        session.trust_env = False
+        try:
+            response = session.post(
+                session_url,
+                json=session_data,
+                verify=False,
+                timeout=30,
+                proxies={"http": "", "https": ""},
+            )
+            return self._handle_vnic_login_response(response)
+        finally:
+            session.close()
 
     def _prepare_vnic_session_data(self, user, password, no_app_account):
         """Prepare session data for VNIC login"""

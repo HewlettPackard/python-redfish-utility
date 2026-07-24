@@ -170,8 +170,10 @@ class RawPatchCommand:
         if results:
             for result in results:
                 status = getattr(result, "status", 200)
-                sys.stderr.write(f"[{status}]\n")
+                # Only report non-2xx status codes to stderr; successful
+                # responses (200-299) are silent to avoid confusing output.
                 if not (200 <= status < 300):
+                    sys.stderr.write(f"[{status}]\n")
                     overall_success = False
                 if returnresponse:
                     if options.getheaders:

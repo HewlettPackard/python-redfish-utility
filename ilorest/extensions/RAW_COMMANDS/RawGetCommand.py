@@ -869,7 +869,23 @@ class RawGetCommand(RawCommandBase):
             response = self._perform_request(options, auth_info, full_path, headers)
             LOGGER.debug(f"Request completed, response status: {response.status_code if response else 'None'}")
             return self._handle_response(response, options)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        except requests.exceptions.ConnectionError as e:
+            import traceback
+
+            err_text = str(e).lower()
+            if "connection aborted" in err_text and "filenotfounderror" in err_text:
+                LOGGER.debug(
+                    "RawGet connection aborted with FileNotFoundError (emitting user-friendly output, rc=33). "
+                    f"request_url={url}, request_path={full_path}, exception={repr(e)}"
+                )
+                LOGGER.debug(traceback.format_exc())
+                return ReturnCodes.V1_SERVER_DOWN_OR_UNREACHABLE_ERROR
+
+            LOGGER.error(f"Request execution failed: {e}")
+            LOGGER.debug(traceback.format_exc())
+            sys.stderr.write(f"Error: Request failed - {str(e)}\n")
+            return ReturnCodes.V1_SERVER_DOWN_OR_UNREACHABLE_ERROR
+        except requests.exceptions.Timeout as e:
             LOGGER.error(f"Request execution failed: {e}")
             import traceback
 
@@ -1279,6 +1295,22 @@ class RawGetCommand(RawCommandBase):
 
                     LOGGER.debug(traceback.format_exc())
                     sys.stderr.write(f"Error: Failed to initialize session - {str(login_ex)}\n")
+                    try:
+                        import redfish.hpilo.rishpilo as rishpilo
+                        if isinstance(login_ex, rishpilo.HpIloChifPacketExchangeError):
+                            LOGGER.debug("Detected CHIF packet exchange error - iLO unreachable during login")
+                            return ReturnCodes.RIS_ILO_CHIF_PACKET_EXCHANGE_ERROR
+                        elif isinstance(login_ex, rishpilo.HpIloChifAccessDeniedError):
+                            LOGGER.debug("Detected CHIF access denied error during login")
+                            return ReturnCodes.V1_INVALID_CREDENTIALS_ERROR
+                        elif isinstance(login_ex, rishpilo.HpIloInitialError):
+                            LOGGER.debug("Detected iLO initialization error - iLO unreachable during login")
+                            return ReturnCodes.RIS_ILO_CHIF_PACKET_EXCHANGE_ERROR
+                    except (ImportError, AttributeError):
+                        LOGGER.debug("ImportError or AttributeError while checking for iLO exceptions during login validation")
+                        pass
+
+                    # Runtime initialization failures are not command-line errors.
                     return ReturnCodes.INVALID_COMMAND_LINE_ERROR
 
             if not hasattr(self.rdmc.app, "get_handler"):
@@ -1293,7 +1325,7 @@ class RawGetCommand(RawCommandBase):
             results = self.rdmc.app.get_handler(
                 path,
                 headers=headers,
-                silent=False,
+                silent=True,
                 service=is_service,
                 username=username,
                 password=password,
@@ -1316,14 +1348,38 @@ class RawGetCommand(RawCommandBase):
 
                     # Force fresh login with provided credentials
                     LOGGER.debug("Performing fresh login with credentials")
-                    self.cmdbase.login_validation(self, options, skipbuild=True)
+                    try:
+                        self.cmdbase.login_validation(self, options, skipbuild=True)
+                    except Exception as login_ex:
+                        LOGGER.error(f"Re-login validation failed: {login_ex}")
+                        import traceback
+                        LOGGER.debug(traceback.format_exc())
+
+                        # Return appropriate error code based on exception type
+                        try:
+                            import redfish.hpilo.rishpilo as rishpilo
+                            if isinstance(login_ex, rishpilo.HpIloChifPacketExchangeError):
+                                LOGGER.debug("Detected CHIF packet exchange error - iLO unreachable during re-login")
+                                return ReturnCodes.RIS_ILO_CHIF_PACKET_EXCHANGE_ERROR
+                            elif isinstance(login_ex, rishpilo.HpIloChifAccessDeniedError):
+                                LOGGER.debug("Detected CHIF access denied error during re-login")
+                                return ReturnCodes.V1_INVALID_CREDENTIALS_ERROR
+                            elif isinstance(login_ex, rishpilo.HpIloInitialError):
+                                LOGGER.debug("Detected iLO initialization error - iLO unreachable during re-login")
+                                return ReturnCodes.RIS_ILO_CHIF_PACKET_EXCHANGE_ERROR
+                        except (ImportError, AttributeError):
+                            LOGGER.debug("ImportError or AttributeError while checking for iLO exceptions during relogin validation")
+                            pass
+
+                        sys.stderr.write(f"Error: Re-login failed - {str(login_ex)}\n")
+                        return ReturnCodes.INVALID_COMMAND_LINE_ERROR
 
                     # Retry the request with fresh session
                     LOGGER.debug("Retrying request with fresh session")
                     results = self.rdmc.app.get_handler(
                         path,
                         headers=headers,
-                        silent=False,
+                        silent=True,
                         service=is_service,
                         username=username,
                         password=password,
@@ -1335,12 +1391,16 @@ class RawGetCommand(RawCommandBase):
                     else:
                         retry_status = results.status if results else 500
                         LOGGER.error(f"Retry after re-login failed with status: {retry_status}")
+                        if retry_status == 401:
+                            return ReturnCodes.RIS_SESSION_EXPIRED
                         if not is_silent:
                             sys.stderr.write(f"[{retry_status}] {self._get_status_message(retry_status)}\n")
                         return ReturnCodes.GENERAL_ERROR
                 else:
                     if not is_silent:
                         sys.stderr.write(f"[{status}] {self._get_status_message(status)}\n")
+                        if status == 401:
+                            return ReturnCodes.RIS_SESSION_EXPIRED
                     return ReturnCodes.GENERAL_ERROR
 
             return_response = getattr(options, "response", False) or getattr(options, "getheaders", False)
@@ -1389,6 +1449,20 @@ class RawGetCommand(RawCommandBase):
             LOGGER.debug(traceback.format_exc())
             error_msg = str(e) if str(e) else "Unknown error occurred"
             sys.stderr.write(f"Error: Legacy framework failed - {error_msg}\n")
+            try:
+                import redfish.hpilo.rishpilo as rishpilo
+                import redfish.ris as ris
+
+                if isinstance(e, (rishpilo.HpIloChifPacketExchangeError, rishpilo.HpIloInitialError)):
+                    return ReturnCodes.RIS_ILO_CHIF_PACKET_EXCHANGE_ERROR
+                if isinstance(e, rishpilo.HpIloChifAccessDeniedError):
+                    return ReturnCodes.V1_INVALID_CREDENTIALS_ERROR
+                if isinstance(e, ris.SessionExpired):
+                    return ReturnCodes.RIS_SESSION_EXPIRED
+            except (ImportError, AttributeError):
+                LOGGER.debug("ImportError or AttributeError while checking for iLO exceptions during legacy framework execution")
+                pass
+
             return ReturnCodes.INVALID_COMMAND_LINE_ERROR
 
     def getvalidation(self, options):

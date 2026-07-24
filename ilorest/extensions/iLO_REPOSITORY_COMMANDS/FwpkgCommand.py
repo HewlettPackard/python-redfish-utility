@@ -25,10 +25,13 @@ import zipfile
 import tempfile
 from io import open
 
+from collections import Counter
 import ctypes
 from ctypes import c_char_p, c_int, c_bool
 
 from redfish.hpilo.risblobstore2 import BlobStore2
+
+from .UploadComponentCommand import DEFAULT_WAIT_TIME
 
 try:
     from rdmc_helper import (
@@ -41,6 +44,7 @@ try:
         TaskQueueError,
         FirmwareUpdateError,
         FlashUnsupportedByIloError,
+        NoContentsFoundForOperationError,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -53,6 +57,7 @@ except ImportError:
         TaskQueueError,
         FirmwareUpdateError,
         FlashUnsupportedByIloError,
+        NoContentsFoundForOperationError,
     )
 
 
@@ -287,7 +292,7 @@ class FwpkgCommand:
 
         try:
             results = results[0]
-        except:
+        except Exception:
             pass
 
         powerstate = results.resp.dict["PowerState"]
@@ -326,7 +331,10 @@ class FwpkgCommand:
         """
         ilo_ver_int = self.rdmc.app.getiloversion()
         ctype = ""
-        total_install_time_sec = 0
+        total_install_time = 0
+        default_upload_time = 1800  # 30min
+        default_flash_time = 3600   # 1Hour
+        buffer_flash_time = 300  # 5min
         per_device_time = payload.get("package", {}).get("installation", {}).get(
             "per_device_install_time_seconds", 0
         )
@@ -335,8 +343,11 @@ class FwpkgCommand:
         if "Uefi" in payload["UpdatableBy"] and "RuntimeAgent" in payload["UpdatableBy"]:
             ctype = "D"
         elif "Uefi" in payload["UpdatableBy"] and "Bmc" in payload["UpdatableBy"]:
-            fw_url = "/redfish/v1/UpdateService/FirmwareInventory/" + "?$expand=."
-            data = self.rdmc.app.get_handler(fw_url, silent=True).dict["Members"]
+            data = self.get_firmware_inventory_data()
+            if not data:
+                raise NoContentsFoundForOperationError(
+                    "FirmwareInventory data is empty.\n"
+                )
             da_flag = False
             cc_flag = False
             if data is not None:
@@ -347,7 +358,7 @@ class FwpkgCommand:
                             fw["Oem"]["Hpe"].get("Targets") is not None
                             and device["Target"] in fw["Oem"]["Hpe"]["Targets"]
                         ):
-                            total_install_time_sec += self.get_total_install_time_sec(device, per_device_time)
+                            total_install_time += self.get_total_install_time_sec(device, per_device_time, default_flash_time)
 
                             if fw["Oem"]["Hpe"].get("DeviceContext") is None:
                                 LOGGER.error("DeviceContext is not found, please wait for a while & try again.")
@@ -408,9 +419,42 @@ class FwpkgCommand:
                         "The flashing of this component is not supported by iLO.\n"
                     )
         else:
-            for device in payload["Devices"]["Device"]:
+            data = self.get_firmware_inventory_data()
+            target_count = Counter()
+            # Build target occurrence count from FirmwareInventory data.
+            for fw in data:
+                targets = fw.get("Oem", {}).get("Hpe", {}).get("Targets", [])
+                if targets and isinstance(targets, list):
+                    target_count.update(targets)
+                elif targets and isinstance(targets, str):
+                    target_count[targets] += 1
 
-                total_install_time_sec += self.get_total_install_time_sec(device, per_device_time)
+            LOGGER.debug("target_count: %s", target_count)
+            payload_install_time = 0
+            for device in payload["Devices"]["Device"]:
+                install_time = self.get_total_install_time_sec(
+                    device,
+                    per_device_time,
+                    default_flash_time,
+                )
+                # Keep track of total install time from the component payload.
+                # This is used as a fallback when no matched target install time
+                # is added.
+                payload_install_time += install_time
+
+                if target_count:
+                    device_target = device["Target"]
+                    match_count = target_count.get(device_target, 0)
+
+                    # If the payload device target matches FirmwareInventory,
+                    # multiply the payload install time by the match count.
+                    if match_count:
+                        LOGGER.debug(
+                            "Target: %s, Match count: %s",
+                            device_target,
+                            match_count,
+                        )
+                        total_install_time += install_time * match_count
 
                 for image in device["FirmwareImages"]:
                     flash_key = next((key for key in image.keys() if key.lower() == "directflashok"), None)
@@ -427,30 +471,64 @@ class FwpkgCommand:
                         break
                     else:
                         ctype = "D"
+
+            # If no matched target install time was added, fall back to the
+            # component payload per-device install time.
+            if not total_install_time:
+                total_install_time += payload_install_time
+
+        LOGGER.debug("total_install_time: %s", total_install_time)
         LOGGER.info("Component Type identified is %s", ctype)
 
-        LOGGER.debug(f"Total device install time in seconds: {total_install_time_sec}")
-        if not total_install_time_sec:
-            devices = payload.get("Devices", {}).get("Device", [])
-            total_install_time_sec = per_device_time * len(devices)
-            LOGGER.debug(f"Total device install time in seconds:- {total_install_time_sec}")
+        total_flash_time_with_buffer = (
+                default_upload_time + buffer_flash_time + total_install_time
+        )
+        LOGGER.debug(
+            "Total device install time with buffer: %s",
+            total_flash_time_with_buffer
+        )
 
-        return ctype, total_install_time_sec
+        return ctype, total_flash_time_with_buffer
+
+    def get_firmware_inventory_data(self):
+        """
+        Fetch FirmwareInventory data
+        """
+        try:
+            fw_url = "/redfish/v1/UpdateService/FirmwareInventory/?$expand=."
+            fw_response = self.rdmc.app.get_handler(fw_url, silent=True)
+
+            fw_data = getattr(fw_response, "dict", None)
+            return fw_data.get("Members", []) if fw_data else []
+        except Exception as err:
+            LOGGER.error(
+                "Error while fetching FirmwareInventory data: %s",
+                err,
+                exc_info=True,
+            )
+            raise
 
     @staticmethod
-    def get_total_install_time_sec(device, per_device_time=0):
+    def get_total_install_time_sec(device, per_device_time, default_flash_time):
         """
-        get installation wait time by .fwpkg file payload data
+        get installation wait time from .fwpkg file
         :param device: payload data of .fwpkg file
         :type device: dict
         :param per_device_time: installation time in sec
         :type per_device_time: integer
+        :param default_flash_time: default upload value in sec
+        :type default_flash_time: integer
         returns: integer value
         """
+        install_time_from_payload = default_flash_time
         if isinstance(device, dict) and "FirmwareImages" in device and device["FirmwareImages"]:
             install_sec = device["FirmwareImages"][0].get("InstallDurationSec", 0)
-            return int(install_sec) if str(install_sec).isdigit() and int(install_sec) > 0 else per_device_time
-        return per_device_time
+            if str(install_sec).isdigit() and int(install_sec) > 0:
+                install_time_from_payload = int(install_sec)
+            elif str(per_device_time).isdigit() and int(per_device_time) > 0:
+                install_time_from_payload = int(install_sec)
+
+        return install_time_from_payload
 
     @staticmethod
     def check_decoupled(self, pkgfile):
@@ -509,7 +587,6 @@ class FwpkgCommand:
         payloaddata = None
         tempdir = tempfile.mkdtemp()
         pldmflag = False
-        install_wait_time = 4800
         pkgfile_l = pkgfile.lower()
         if (
             not pkgfile_l.endswith(".fup")
@@ -548,6 +625,7 @@ class FwpkgCommand:
             comptype, install_wait_time = self.auxcommands["flashfwpkg"].get_comp_type(payloaddata, command_name)
         else:
             comptype = "A"
+            install_wait_time = DEFAULT_WAIT_TIME
 
         results = self.rdmc.app.getprops(selector="UpdateService.", props=["Oem/Hpe/Capabilities"])
         if comptype in ["C", "BC"]:
@@ -686,7 +764,7 @@ class FwpkgCommand:
 
                     try:
                         results = results[0]
-                    except:
+                    except Exception:
                         pass
 
                     if results:
@@ -725,7 +803,7 @@ class FwpkgCommand:
                 dd = self.rdmc.app.get_handler(target_url, service=True, silent=True)
                 if dd.status == 404:
                     return False
-            except:
+            except Exception:
                 return False
         return True
 

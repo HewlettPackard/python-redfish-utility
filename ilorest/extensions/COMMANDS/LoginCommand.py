@@ -29,6 +29,11 @@ import platform
 from argparse import SUPPRESS
 
 try:
+    from tpm_lock import TpmFileLock, retry_with_backoff
+except ImportError:
+    from ilorest.tpm_lock import TpmFileLock, retry_with_backoff
+
+try:
     from rdmc_helper import (
         Encryption,
         LOGGER,
@@ -162,13 +167,56 @@ class LoginCommand:
                     "configured properly. Refer to documentation for more information.\n"
                 )
 
-            # To check if appaccount exists. If not, error out.
+            # Serialize TPM operations across concurrent ilorest processes.
+            # The native TPMUtility uses a named POSIX semaphore that is globally
+            # unlinked on disconnect, causing race conditions when multiple processes
+            # perform login/logout concurrently. The file lock ensures only one process
+            # touches the TPM semaphore at a time.
+            with TpmFileLock() as _tpm_lock:
+                login_response = self._perform_app_account_login(app_obj, options, skipbuild, user_ca_cert_data)
+
+        if options.session_id and login_response and hasattr(login_response, "_auth_key"):
+            self.rdmc.ui.printer(f"\nSessionID:{login_response._auth_key}\n\n")
+
+        if options.session_loc and login_response and hasattr(login_response, "_session_location"):
+            self.rdmc.ui.printer(f"Location:{login_response._session_location}\n\n")
+
+    def _perform_app_account_login(self, app_obj, options, skipbuild, user_ca_cert_data):
+        """Perform the app-account token check and VNIC login with retry.
+
+        This method is called while holding the TpmFileLock, ensuring only one
+        ilorest process at a time interacts with the TPM semaphore. Additionally,
+        it retries on transient failures (e.g., if a prior concurrent process
+        left the semaphore in a bad state that recovers after a short delay).
+
+        Args:
+            app_obj: AppAccount object with host app credentials.
+            options: Parsed command line options.
+            skipbuild: Whether to skip monolith build.
+            user_ca_cert_data: CA certificate data dict.
+
+        Returns:
+            The login response object from vnic_login.
+
+        Raises:
+            AppAccountExistsError: If token_exists check fails.
+            NoAppAccountError: If no app account is available.
+            InactiveAppAccountTokenError: If the token is inactive/expired.
+            VnicLoginError: If login fails after all retry attempts.
+        """
+
+        def _do_login():
+            """Inner function encapsulating the token check + login for retry."""
+            # Check if appaccount exists
             try:
                 apptoken_exists = self.rdmc.app.token_exists(app_obj)
             except Exception as excp:
-                raise AppAccountExistsError("Error occurred while checking if app account exists.\n")
+                LOGGER.error("token_exists() failed: %s: %s", type(excp).__name__, excp)
+                raise AppAccountExistsError(
+                    "Error occurred while checking if app account exists. "
+                    f"Underlying error: {type(excp).__name__}: {excp}\n"
+                )
 
-            # If appaccount doesn't exist
             if not apptoken_exists:
                 raise NoAppAccountError(
                     "The app account is not available for this host application. "
@@ -177,8 +225,7 @@ class LoginCommand:
                 )
 
             try:
-                # Function will log in, retrieve session id, call build monolith, .save()
-                login_response = self.rdmc.app.vnic_login(
+                return self.rdmc.app.vnic_login(
                     app_obj=app_obj,
                     path=options.path,
                     skipbuild=skipbuild,
@@ -198,18 +245,39 @@ class LoginCommand:
             except redfish.hpilo.vnichpilo.InactiveAppAccountTokenError:
                 LOGGER.error("Login failed due to an inactive or expired App Account token.")
                 raise InactiveAppAccountTokenError()
+            except (AppAccountExistsError, NoAppAccountError, InactiveAppAccountTokenError):
+                # Non-retryable errors — propagate immediately
+                raise
             except Exception as excp:
-                error_msg = """Error occurred while performing login using app account.
-                Check if application account exists using 'appaccount details' command.
-                Otherwise, try with --no_app_account option.\n"""
-                LOGGER.error(error_msg)
+                # Log the real exception so debug logs show the actual cause
+                LOGGER.error(
+                    "vnic_login() failed: %s: %s. This may be a transient TPM semaphore issue.",
+                    type(excp).__name__,
+                    excp,
+                )
+                error_msg = (
+                    "Error occurred while performing login using app account.\n"
+                    "                Check if application account exists using 'appaccount details' command.\n"
+                    "                Otherwise, try with --no_app_account option.\n"
+                    f"                Underlying error: {type(excp).__name__}: {excp}\n"
+                )
                 raise VnicLoginError(error_msg)
 
-        if options.session_id and login_response and hasattr(login_response, "_auth_key"):
-            self.rdmc.ui.printer(f"\nSessionID:{login_response._auth_key}\n\n")
-
-        if options.session_loc and login_response and hasattr(login_response, "_session_location"):
-            self.rdmc.ui.printer(f"Location:{login_response._session_location}\n\n")
+        # Retry transient failures — the semaphore race may self-heal after a short delay
+        # if another process finishes its TPM teardown. Non-retryable exceptions
+        # (NoAppAccountError, InactiveAppAccountTokenError) are excluded from retry.
+        try:
+            return retry_with_backoff(
+                func=_do_login,
+                max_attempts=3,
+                base_delay=1.0,
+                backoff_factor=2.0,
+                retryable_exceptions=(VnicLoginError, AppAccountExistsError),
+            )
+        except (NoAppAccountError, InactiveAppAccountTokenError):
+            raise
+        except (VnicLoginError, AppAccountExistsError):
+            raise
 
     def loginfunction(self, line, skipbuild=None, json_out=False):
         """Main worker function for login class
