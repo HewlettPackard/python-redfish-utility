@@ -16,6 +16,7 @@
 
 # -*- coding: utf-8 -*-
 """Command to apply specified configuration to PMM"""
+
 from __future__ import absolute_import  # verify if python3 libs can handle
 
 from argparse import Action
@@ -66,7 +67,7 @@ class AdvancedPmmConfigCommand:
     def __init__(self):
         self.ident = {
             "name": "provisionpmm",
-            "usage": None,
+            "usage": "provisionpmm -m <0-100> -i <on|off> [-pid <id[,id]>] [-f]",
             "description": "Applies specified configuration to PMM.\n" "\texample: provisionpmm -m 50 -i On -pid 1,2",
             "summary": "Applies specified configuration to PMM.",
             "aliases": ["provisionpmm"],
@@ -94,7 +95,7 @@ class AdvancedPmmConfigCommand:
         LOGGER.info("PMM: %s", self.ident["name"])
 
         try:
-            (options, args) = self.rdmc.rdmc_parse_arglist(self, line)
+            options, args = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -141,8 +142,9 @@ class AdvancedPmmConfigCommand:
         :type options: instance of OptionParser class
         """
         some_flag = options.memorymode or options.interleave or options.proc or options.force
+        usage = self.ident.get("usage") or "provisionpmm -m <0-100> -i <on|off> [-pid <id[,id]>] [-f]"
         if not some_flag:
-            raise InvalidCommandLineError("No flag specified.\n\nUsage: " + self.ident["usage"])
+            raise InvalidCommandLineError("No flag specified.\n\nUsage: {usage}".format(usage=usage))
 
         # If the memory mode option value is not valid.
         resp = self._rest_helpers.retrieve_model(self.rdmc)
@@ -158,7 +160,7 @@ class AdvancedPmmConfigCommand:
             if options.interleave.lower() not in ["on", "off"]:
                 raise InvalidCommandLineError(
                     "Specify the correct value to set interleave"
-                    " state of persistent memory regions\n\n" + self.ident["usage"]
+                    " state of persistent memory regions\n\n{usage}".format(usage=usage)
                 )
             options.interleave = options.interleave.lower()
 
@@ -360,6 +362,9 @@ class AdvancedPmmConfigCommand:
             "InterleaveSets": [],
             "Oem": {"Hpe": {"MemoryChunkSizePercentage": 100 - config_data["size"]}},
         }
+        if not interleavable_memory_sets:
+            raise NoChangesFoundOrMadeError("No valid interleave sets found for the selected PMM configuration")
+
         # Get the list of interleave sets based on the configuration
         if config_data["pmeminterleave"] == "on" or config_data["size"] == 100:
             # If persistent memory regions are interleaved or if it's 100% MemoryMode,
@@ -369,6 +374,9 @@ class AdvancedPmmConfigCommand:
             # If persistent memory regions are not interleaved,
             # choose all the lists with exactly one entry.
             interleave_sets = [il_set for il_set in interleavable_memory_sets if len(il_set["MemorySet"]) == 1]
+
+        if not interleave_sets:
+            raise NoChangesFoundOrMadeError("No valid interleave sets found for the selected PMM configuration")
 
         # Using in-place update to change the interleave sets format.
         # Replace 'MemorySet' with 'Memory' for each MemorySet in interleave_sets.
@@ -440,10 +448,12 @@ class AdvancedPmmConfigCommand:
             if not config_data["proc"] or (proc_id in config_data["proc"]):
                 path = member["MemoryChunks"].get("@odata.id")
                 data = self.get_post_data(config_data, member["InterleavableMemorySets"])
+                if not data:
+                    raise NoChangesFoundOrMadeError("No valid interleave sets found for the selected PMM configuration")
                 for body in data:
                     resp = self._rest_helpers.post_resource(path, body)
-                if resp is None:
-                    raise NoChangesFoundOrMadeError("Error occurred while applying configuration")
+                    if resp is None:
+                        raise NoChangesFoundOrMadeError("Error occurred while applying configuration")
 
         # Display warning
         self.rdmc.ui.printer("\nConfiguration changes require reboot to take effect.\n")

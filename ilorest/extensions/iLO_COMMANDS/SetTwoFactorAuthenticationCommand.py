@@ -48,6 +48,13 @@ from redfish.ris.ris import SessionExpired
 class SetTwoFactorAuthenticationCommand:
     """Main new command template class"""
 
+    @staticmethod
+    def _normalize_cli_text(value):
+        """Trim whitespace and surrounding quotes from CLI text inputs."""
+        if value is None:
+            return value
+        return value.strip().strip("\"'")
+
     def __init__(self):
         self.ident = {
             "name": "settwofactorauthentication",
@@ -58,8 +65,8 @@ class SetTwoFactorAuthenticationCommand:
             "settwofactorauthentication disable \n\t"
             "settwofactorauthentication status or \n\t"
             "settwofactorauthentication status -j\n"
-            "settwofactorauthentication smtp --smtpfortfaenabled true --alertmailsenderdomain 'test@hpe.com' "
-            "--alertmailsmtpserver 'smtp3.hpe.com' --alertmailsmtpport 587\n",
+            "settwofactorauthentication smtp --smtpfortfaenabled true --alertmailsenderdomain test@hpe.com "
+            "--alertmailsmtpserver smtp3.hpe.com --alertmailsmtpport 587\n",
             "summary": "Enables the server to use Two factor authentication, monitored",
             "aliases": [],
             "auxcommands": [],
@@ -151,7 +158,7 @@ class SetTwoFactorAuthenticationCommand:
             else:
                 SenderDomain = ""
         else:
-            SenderDomain = options.SenderDomain[0]
+            SenderDomain = self._normalize_cli_text(options.SenderDomain[0])
 
         if options.SMTPServer is None:
             if resp_get.dict["Oem"]["Hpe"]["AlertMailSMTPServer"] is not None:
@@ -159,7 +166,7 @@ class SetTwoFactorAuthenticationCommand:
             else:
                 SMTPServer = ""
         else:
-            SMTPServer = options.SMTPServer[0]
+            SMTPServer = self._normalize_cli_text(options.SMTPServer[0])
 
         body.update(
             {
@@ -341,7 +348,7 @@ class SetTwoFactorAuthenticationCommand:
             help=emailconfig_help,
             description=emailconfig_help
             + "\n\tExample:\n\tsettwofactorauthentication smtp --smtpfortfaenabled true --alertmailsenderdomain "
-            "'test@hpe.com' --alertmailsmtpserver 'smtp3.hpe.com' --alertmailsmtpport 587 ",
+            "test@hpe.com --alertmailsmtpserver smtp3.hpe.com --alertmailsmtpport 587 ",
             formatter_class=RawDescriptionHelpFormatter,
         )
         emailconfig_parser.add_argument(

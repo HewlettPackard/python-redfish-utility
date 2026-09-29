@@ -33,4 +33,27 @@ for f in $FILES; do
 done
 
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+
+# Make the cross-compiled, ilorest-private OpenSSL (libilorestssl.so /
+# libilorestcrypto.so, see Makefile.openssl.esxi) discoverable at runtime.
+# Neither has a DT_RPATH/DT_RUNPATH baked in, so without this the dynamic
+# linker cannot resolve libilorestssl.so's dependency on libilorestcrypto.so
+# (fails with "cannot open shared object file").
+LD_LIBRARY_PATH="$INSTALL_ROOT/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH
+
+# Enable CNSA 2.0 (post-quantum) TLS defaults for OpenSSL unless the operator has
+# already set OPENSSL_CONF or disabled it. This lets `ilorest login` negotiate
+# ML-KEM-1024 + ML-DSA-87 with a strict CNSA 2.0 iLO8 natively. See
+# ilorest/pqc_openssl_config.py and openssl-cnsa2.cnf.
+if [ -z "$OPENSSL_CONF" ] && [ "$ILOREST_DISABLE_PQC_OPENSSL_CONF" != "1" ]; then
+    for _cnf in "$SCRIPT_PATH/openssl-cnsa2.cnf" "$INSTALL_ROOT/bin/openssl-cnsa2.cnf" "/etc/ilorest/openssl-cnsa2.cnf"; do
+        if [ -f "$_cnf" ]; then
+            OPENSSL_CONF="$_cnf"
+            export OPENSSL_CONF
+            break
+        fi
+    done
+fi
+
 python3 $SCRIPT_PATH/rdmc.py  $@

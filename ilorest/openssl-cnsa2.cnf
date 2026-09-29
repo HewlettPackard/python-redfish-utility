@@ -1,0 +1,34 @@
+# OpenSSL system configuration that enables CNSA 2.0 (iLO8 Level V) TLS defaults.
+#
+# Bundled with iLORest and referenced automatically via OPENSSL_CONF by
+# ilorest/pqc_openssl_config.py (and the launcher). It makes CPython's stdlib
+# `ssl` (used by `ilorest login`) offer the 1024-bit ML-KEM hybrids and advertise
+# ML-DSA signatures, so a strict CNSA 2.0 iLO8 handshake succeeds natively.
+#
+# The lists are ADDITIVE (post-quantum first, classical retained), so ordinary
+# TLS to non-PQC endpoints keeps working. Set ILOREST_DISABLE_PQC_OPENSSL_CONF=1
+# to disable, or set your own OPENSSL_CONF to override.
+
+openssl_conf = openssl_init
+
+[openssl_init]
+ssl_conf = ssl_sect
+providers = provider_sect
+
+[provider_sect]
+default = default_sect
+
+[default_sect]
+activate = 1
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+# CNSA 2.0 Level V first (iLO8 strict), then Level III (iLO7) and classical fallbacks.
+Groups = MLKEM1024:SecP384r1MLKEM1024:X25519MLKEM768:SecP256r1MLKEM768:x25519:secp384r1:secp256r1
+# Advertise ML-DSA (post-quantum) certificate signatures alongside classical ones.
+SignatureAlgorithms = mldsa87:mldsa65:ecdsa_secp384r1_sha384:ecdsa_secp256r1_sha256:rsa_pss_pss_sha256:rsa_pss_rsae_sha256:rsa_pkcs1_sha256
+# CNSA 2.0 negotiates TLS 1.3; keep 1.2 as the global floor so other TLS still works.
+MinProtocol = TLSv1.2
+

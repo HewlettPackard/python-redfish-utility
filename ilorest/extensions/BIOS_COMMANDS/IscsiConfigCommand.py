@@ -30,6 +30,7 @@ try:
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NicMissingOrConfigurationError,
+        NoChangesFoundOrMadeError,
         ReturnCodes,
     )
 except:
@@ -39,6 +40,7 @@ except:
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
         NicMissingOrConfigurationError,
+        NoChangesFoundOrMadeError,
         ReturnCodes,
     )
 
@@ -94,7 +96,7 @@ class IscsiConfigCommand:
             self.parser.print_help()
             return ReturnCodes.SUCCESS
         try:
-            (options, args) = self.rdmc.rdmc_parse_arglist(self, line)
+            options, args = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -620,34 +622,51 @@ class IscsiConfigCommand:
         :type iscsisettingspath: str.
         """
         try:
-            inputfile = open(options.modify, "r")
-            contentsholder = json.loads(inputfile.read())
+            with open(options.modify, "r") as inputfile:
+                contentsholder = json.loads(inputfile.read())
         except Exception as excp:
             raise InvalidCommandLineError("%s" % excp)
 
+        if not isinstance(contentsholder, list):
+            raise InvalidCommandLineError("Modify payload must be a JSON array of iSCSI attempts.")
+
         iscsibootsources = self.rawdatahandler(action="GET", silent=True, jsonflag=True, path=iscsisettingspath)
+        existing_attempts = iscsibootsources[self.rdmc.app.typepath.defs.iscsisource]
 
         count = 0
         resultsdict = list()
+        effective_changes = False
 
         for item in contentsholder:
+            if not isinstance(item, dict):
+                raise InvalidCommandLineError("Modify payload must be a JSON array of iSCSI attempts.")
+
             for entry in item.values():
                 enteredsection = False
 
                 for key, value in entry.items():
+                    if not isinstance(value, dict):
+                        raise InvalidCommandLineError("Modify payload must be a JSON array of iSCSI attempts.")
+                    if not value:
+                        continue
+
                     enteredsection = True
-                    resultsdict.append(
-                        self.modifyfunctionhelper(
-                            key,
-                            value,
-                            iscsibootsources[self.rdmc.app.typepath.defs.iscsisource],
-                        )
-                    )
+                    updated_entry = self.modifyfunctionhelper(key, value, existing_attempts)
+                    resultsdict.append(updated_entry)
+
+                    if count < len(existing_attempts) and updated_entry != existing_attempts[count]:
+                        effective_changes = True
 
                 if not enteredsection:
-                    resultsdict.append(iscsibootsources[self.rdmc.app.typepath.defs.iscsisource][count])
+                    if count < len(existing_attempts):
+                        resultsdict.append(existing_attempts[count])
+                    else:
+                        raise InvalidCommandLineError("Modify payload contains invalid iSCSI attempt entries.")
 
                 count += 1
+
+        if not effective_changes:
+            raise NoChangesFoundOrMadeError("No changes found or made in the modify payload.")
 
         contentsholder = {self.rdmc.app.typepath.defs.iscsisource: resultsdict}
 

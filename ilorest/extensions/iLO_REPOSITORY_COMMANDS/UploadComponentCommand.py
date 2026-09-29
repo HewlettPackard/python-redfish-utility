@@ -21,7 +21,6 @@ import os
 import json
 import sys
 import time
-import shutil
 from random import choice
 from string import ascii_lowercase
 import ctypes
@@ -44,6 +43,8 @@ from redfish.hpilo.rishpilo import (
 from redfish.hpilo.rishpilo import BlobReturnCodes
 from redfish.hpilo.risblobstore2 import BlobStore2
 import redfish.ris
+
+from .fwpkg_cleanup import safe_rmtree
 
 DEFAULT_WAIT_TIME = 5700  # default_upload_time, default_flash_time, buffer_flash(1800+3600+300)
 
@@ -181,10 +182,13 @@ class UploadComponentCommand:
 
             if len(filestoupload) > 1:
                 path, _ = os.path.split((filestoupload[0])[1])
-                shutil.rmtree(path)
+                safe_rmtree(path)
             elif fwpkg:
                 if os.path.exists(loc):
-                    shutil.rmtree(loc)
+                    # Reason: the extracted fwpkg staging dir (e.g. sum\tmp...)
+                    # may still be locked on Windows; tolerate cleanup failures
+                    # so a locked temp file never fails a successful upload.
+                    safe_rmtree(loc)
         elif not validation and options.forceupload:
             self.rdmc.ui.printer(
                 "Component " + filestoupload[0][0] + " is already present in repository ,Hence skipping the re upload\n"
@@ -370,7 +374,7 @@ class UploadComponentCommand:
         # returns a tuple with the state and the result dict
         state, result = self.get_update_service_state()
 
-        if state != "COMPLETED" and state != "COMPLETE" and state != "ERROR" and state != "IDLE":
+        if state != "COMPLETED" and state != "COMPLETE" and state != "ERROR" and state != "IDLE" and state != "REJECTED":
             self.rdmc.ui.error("iLO UpdateService is busy. Please try again.")
 
             return ReturnCodes.UPDATE_SERVICE_BUSY
@@ -503,7 +507,7 @@ class UploadComponentCommand:
         while total_time < wait_time:
             state, result = self.get_update_service_state()
 
-            if state == "ERROR":
+            if state == "ERROR" or state == "REJECTED":
                 self.get_update_service_status(result)
                 return False
             elif state != "COMPLETED" and state != "IDLE" and state != "COMPLETE":
@@ -609,7 +613,16 @@ class UploadComponentCommand:
                 )
                 return ReturnCodes.FAILED_TO_UPLOAD_COMPONENT
         try:
-            dll = self.rdmc.app.current_client.connection._conn.channel.dll
+            connection = self.rdmc.app.current_client.connection
+            if connection._conn is None:
+                # componentvalidation() normally triggers the blobstore connection's lazy
+                # CHIF init as a side effect of its get_handler() call before uploadlocally()
+                # runs. Guard here too so this doesn't depend on that side effect (see
+                # DownloadComponentCommand.downloadlocally() for the full explanation).
+                # Mirror rest_request()'s own lazy-init call so behavior matches what the
+                # library would have done on first use.
+                connection._init_connection(**connection._connection_properties)
+            dll = connection._conn.channel.dll
             multiupload = False
 
             if new_chif_needed:
@@ -619,7 +632,7 @@ class UploadComponentCommand:
                 user = options.user
                 passwrd = options.password
                 dll, fhandle = self.create_new_chif_for_upload(user, passwrd)
-                self.rdmc.app.current_client.connection._conn.channel.dll = dll
+                connection._conn.channel.dll = dll
 
             dll.uploadComponent.argtypes = [c_char_p, c_char_p, c_char_p, c_uint32]
             dll.uploadComponent.restype = c_int
@@ -723,7 +736,7 @@ class UploadComponentCommand:
                     BlobStore2.unloadchifhandle(dll)
                     # Restore old chif channel
                     dll = dll_bk
-                    self.rdmc.app.current_client.connection._conn.channel.dll = dll_bk
+                    connection._conn.channel.dll = dll_bk
                     LOGGER.info("Restored the old chif channel\n")
 
         except Exception as excep:

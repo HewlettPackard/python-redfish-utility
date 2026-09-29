@@ -4,11 +4,16 @@
 # -*- coding: utf-8 -*-
 """iLO connector module for ComputeOpsManagement"""
 
-import requests
-from requests.auth import HTTPBasicAuth
-from requests.exceptions import ConnectionError, Timeout, RequestException
 import time
 from typing import Tuple, Optional
+
+from requests.auth import HTTPBasicAuth
+from requests.exceptions import ConnectionError, Timeout, RequestException
+
+try:
+    from security.pqc import make_pqc_session
+except ImportError:
+    from ilorest.security.pqc import make_pqc_session
 
 
 class IloConnector:
@@ -29,7 +34,7 @@ class IloConnector:
         :returns: tuple of (success, fail_reason)
         """
         base_url = f"https://{ip}"
-        session = requests.Session()
+        session = make_pqc_session(url=base_url)
         session.auth = HTTPBasicAuth(username, password)
         session.verify = False
 
@@ -130,7 +135,7 @@ class IloConnector:
 
         for attempt in range(max_attempts):
             try:
-                response = requests.get(
+                response = make_pqc_session(url=base_url).get(
                     f"{base_url}/redfish/v1/", auth=HTTPBasicAuth(username, password), verify=False, timeout=30
                 )
 
@@ -172,7 +177,7 @@ class IloConnector:
         """
         try:
             base_url = f"https://{ip}"
-            response = requests.get(
+            response = make_pqc_session(url=base_url).get(
                 f"{base_url}/redfish/v1/Managers/1/", auth=HTTPBasicAuth(username, password), verify=False, timeout=30
             )
 

@@ -26,6 +26,7 @@ import six
 
 try:
     from rdmc_helper import (
+        LOGGER,
         UI,
         BootOrderMissingEntriesError,
         Encryption,
@@ -36,6 +37,7 @@ try:
     )
 except:
     from ilorest.rdmc_helper import (
+        LOGGER,
         UI,
         BootOrderMissingEntriesError,
         Encryption,
@@ -101,7 +103,7 @@ class BootOrderCommand:
             self.parser.print_help()
             return ReturnCodes.SUCCESS
         try:
-            (options, args) = self.rdmc.rdmc_parse_arglist(self, line)
+            options, args = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -126,7 +128,7 @@ class BootOrderCommand:
         for prop in props:
             bootname = prop.get("Name", "")
 
-            #self.rdmc.ui.printer("bootname is : {0}\n\n".format(bootname))
+            # self.rdmc.ui.printer("bootname is : {0}\n\n".format(bootname))
 
             if self.rdmc.app.typepath.defs.isgen10:
                 if "current" in bootname.lower() or "pending" in bootname.lower():
@@ -140,11 +142,10 @@ class BootOrderCommand:
 
         if not bootpath:
             raise InvalidCommandLineError(
-                "Unable to find boot settings path. "
-                "Please ensure HpeServerBootSettings is available."
+                "Unable to find boot settings path. " "Please ensure HpeServerBootSettings is available."
             )
 
-        #self.rdmc.ui.printer("bootpath is : {0}\n\n".format(bootpath))
+        # self.rdmc.ui.printer("bootpath is : {0}\n\n".format(bootpath))
 
         bootpath_dict = self.rdmc.app.get_handler(bootpath, service=True, silent=True).dict
         # "BootSources" exists on iLO5/6; iLO7/Gen12 uses standard Redfish BootOptions
@@ -171,9 +172,7 @@ class BootOrderCommand:
         # inline OData annotation. Fall back to reading it directly from the system resource.
         allowable_key = self.rdmc.app.typepath.defs.bootoverridetargettype
         if not onetimebootsettings or not onetimebootsettings[0].get("Boot", {}).get(allowable_key):
-            sysprops = self.rdmc.app.get_handler(
-                self.rdmc.app.typepath.defs.systempath, service=True, silent=True
-            ).dict
+            sysprops = self.rdmc.app.get_handler(self.rdmc.app.typepath.defs.systempath, service=True, silent=True).dict
             boot_section = sysprops.get("Boot", {})
             fallback_values = (
                 boot_section.get(allowable_key)
@@ -617,10 +616,23 @@ class BootOrderCommand:
         :param bootsources: current systems boot sources
         :type bootsources: list.
         """
+        bootsource_lookup = {}
+        if isinstance(bootsources, list):
+            for source in bootsources:
+                if not isinstance(source, dict):
+                    continue
+
+                structured_boot_string = source.get("StructuredBootString")
+                boot_string = source.get("BootString")
+
+                if structured_boot_string and boot_string:
+                    bootsource_lookup.setdefault(structured_boot_string, []).append(boot_string)
+
         for _, value in list(content.items()):
             self.rdmc.ui.printer("\t" * indent + outstring)
 
             if isinstance(value, list):
+                bootsource_index = {}
                 count = 1
 
                 for item in value:
@@ -629,26 +641,29 @@ class BootOrderCommand:
                     if not item:
                         item = str("null")
 
-                    # if isinstance(item, six.string_types):
-                    bootstring = False
-                    try:
-                        for source in bootsources:
-                            if item == source["StructuredBootString"]:
-                                self.rdmc.ui.printer(
-                                    "\t" * indent
-                                    + str(count)
-                                    + ". "
-                                    + str(item)
-                                    + " ("
-                                    + str(source["BootString"])
-                                    + ")"
-                                )
-                                bootstring = True
-                                break
+                    formatted_output = None
+                    matching_boot_strings = bootsource_lookup.get(item, [])
 
-                        if not bootstring:
-                            self.rdmc.ui.printer("\t" * indent + str(count) + ". " + str(item))
-                    except:
+                    if matching_boot_strings:
+                        current_index = bootsource_index.get(item, 0)
+                        if current_index < len(matching_boot_strings):
+                            boot_string = matching_boot_strings[current_index]
+                            bootsource_index[item] = current_index + 1
+                        else:
+                            LOGGER.warning(
+                                "Boot source mapping fallback triggered for "
+                                "StructuredBootString '%s' at index %d; "
+                                "using last BootString.",
+                                item,
+                                current_index,
+                            )
+                            boot_string = matching_boot_strings[-1]
+
+                        formatted_output = str(boot_string) + " (" + str(item) + ")"
+
+                    if formatted_output:
+                        self.rdmc.ui.printer("\t" * indent + str(count) + ". " + formatted_output)
+                    else:
                         self.rdmc.ui.printer("\t" * indent + str(count) + ". " + str(item))
 
                     count += 1

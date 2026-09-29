@@ -321,7 +321,7 @@ class IloAccountsCommand:
             privs = self.getsesprivs()
             if self.rdmc.app.typepath.defs.isgen9:
                 IncompatibleiLOVersionError("This operation is only available on gen 10 " "and newer machines.")
-            elif not privs["UserConfigPriv"]:
+            elif not privs or not privs.get("UserConfigPriv", False):
                 excp = IdTokenError()
                 note_msg = ""
                 if self.rdmc.app.getiloversion(skipschemas=True) >= 7:

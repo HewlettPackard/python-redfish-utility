@@ -149,7 +149,7 @@ class DirectoryCommand:
         if help_disp:
             line.append("-h")
             try:
-                (_, _) = self.rdmc.rdmc_parse_arglist(self, line)
+                _, _ = self.rdmc.rdmc_parse_arglist(self, line)
             except:
                 return ReturnCodes.SUCCESS
             return ReturnCodes.SUCCESS
@@ -157,11 +157,11 @@ class DirectoryCommand:
             ident_subparser = False
             for cmnd in __subparsers__:
                 if cmnd in line:
-                    (options, args) = self.rdmc.rdmc_parse_arglist(self, line)
+                    options, args = self.rdmc.rdmc_parse_arglist(self, line)
                     ident_subparser = True
                     break
             if not ident_subparser:
-                (options, args) = self.rdmc.rdmc_parse_arglist(self, line, default=True)
+                options, args = self.rdmc.rdmc_parse_arglist(self, line, default=True)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -440,11 +440,49 @@ class DirectoryCommand:
                     self.rdmc.ui.printer("Status: %s\n" % test["Status"])
                     self.rdmc.ui.printer("Notes: %s\n\n" % test["Notes"])
 
+    def _format_service_address(self, serviceaddress, port):
+        if not serviceaddress:
+            return "Not Set"
+
+        if port is None:
+            return serviceaddress
+
+        host = serviceaddress
+        realm = ""
+
+        if "@" in serviceaddress:
+            host, realm = serviceaddress.split("@", 1)
+
+        host = re.sub(r":\d+$", "", host)
+        formatted = "%s:%s" % (host, str(port))
+
+        if realm:
+            return "%s@%s" % (formatted, realm)
+
+        return formatted
+
+    def _get_directory_port(self, oem_settings, name):
+        if name.lower() == "activedirectory":
+            address_settings = oem_settings.get("KerberosSettings", {})
+            return address_settings.get("KDCServerPort")
+
+        address_settings = oem_settings.get("DirectorySettings", {})
+        return address_settings.get("LdapServerPort")
+
+    def _get_service_address(self, settings):
+        service_addresses = settings.get("ServiceAddresses", [])
+        if service_addresses and len(service_addresses) > 0:
+            return service_addresses[0]
+
+        return None
+
     def print_s(self, settings, oem_settings, local_auth_setting, name):
         setting = "Kerberos" if name == "ActiveDirectory" else name
         enable = str(settings["ServiceEnabled"])
-        serviceaddress = settings["ServiceAddresses"][0]
-        address = serviceaddress if serviceaddress else "Not Set"
+        serviceaddress = self._get_service_address(settings)
+        port = self._get_directory_port(oem_settings, name)
+
+        address = self._format_service_address(serviceaddress, port)
         username = settings["Authentication"]["Username"]
         dis_name = username if username else "Not Set"
         auth = local_auth_setting
@@ -456,16 +494,14 @@ class DirectoryCommand:
             "Local Account Authorization": auth,
         }
         if name.lower() == "activedirectory":
-            address_settings = oem_settings["KerberosSettings"]
-            port = address_settings["KDCServerPort"]
-            realm = address_settings["KerberosRealm"] if address_settings["KerberosRealm"] else "Not Set"
-            content.update({"Port": port, "Realm": realm})
+            address_settings = oem_settings.get("KerberosSettings", {})
+            realm = address_settings.get("KerberosRealm") or "Not Set"
+            content.update({"Port": port if port else "Not Set", "Realm": realm})
 
         else:
-            address_settings = oem_settings["DirectorySettings"]
-            port = address_settings["LdapServerPort"]
-            authmode = address_settings["LdapAuthenticationMode"]
-            content.update({"Port": port, "Authentication Mode": authmode})
+            address_settings = oem_settings.get("DirectorySettings", {})
+            authmode = address_settings.get("LdapAuthenticationMode") or "Not Set"
+            content.update({"Port": port if port else "Not Set", "Authentication Mode": authmode})
             addsearch = []
             try:
                 count = 1
@@ -512,25 +548,25 @@ class DirectoryCommand:
         self.rdmc.ui.printer("--------------------------------\n")
         self.rdmc.ui.printer("Enabled: %s\n" % str(settings["ServiceEnabled"]))
 
-        serviceaddress = settings["ServiceAddresses"][0]
-
-        self.rdmc.ui.printer("Service Address: %s\n" % (serviceaddress if serviceaddress else "Not Set"))
+        serviceaddress = self._get_service_address(settings)
+        port = self._get_directory_port(oem_settings, name)
+        self.rdmc.ui.printer("Service Address: %s\n" % self._format_service_address(serviceaddress, port))
         username = settings["Authentication"]["Username"]
         self.rdmc.ui.printer("Distinguished Name: %s\n" % (username if username else "Not Set"))
 
         self.rdmc.ui.printer("Local Account Authorization: %s\n" % local_auth_setting)
 
         if name.lower() == "activedirectory":
-            address_settings = oem_settings["KerberosSettings"]
-            self.rdmc.ui.printer("Port: %s\n" % address_settings["KDCServerPort"])
+            address_settings = oem_settings.get("KerberosSettings", {})
+            self.rdmc.ui.printer("Port: %s\n" % (port if port else "Not Set"))
 
-            self.rdmc.ui.printer(
-                "Realm: %s\n" % (address_settings["KerberosRealm"] if address_settings["KerberosRealm"] else "Not Set")
-            )
+            self.rdmc.ui.printer("Realm: %s\n" % (address_settings.get("KerberosRealm") or "Not Set"))
         else:
-            address_settings = oem_settings["DirectorySettings"]
-            self.rdmc.ui.printer("Port: %s\n" % address_settings["LdapServerPort"])
-            self.rdmc.ui.printer("Authentication Mode: %s\n" % address_settings["LdapAuthenticationMode"])
+            address_settings = oem_settings.get("DirectorySettings", {})
+            self.rdmc.ui.printer("Port: %s\n" % (port if port else "Not Set"))
+            self.rdmc.ui.printer(
+                "Authentication Mode: %s\n" % (address_settings.get("LdapAuthenticationMode") or "Not Set")
+            )
 
             try:
                 self.rdmc.ui.printer("Search Settings:\n")

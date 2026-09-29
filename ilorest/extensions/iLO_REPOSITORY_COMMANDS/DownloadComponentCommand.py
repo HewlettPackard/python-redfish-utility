@@ -160,7 +160,20 @@ class DownloadComponentCommand:
         :type options: options.
         """
         try:
-            dll = self.rdmc.app.current_client.connection._conn.channel.dll
+            connection = self.rdmc.app.current_client.connection
+            if connection._conn is None:
+                # The blobstore connection lazily opens its CHIF channel on the first
+                # rest_request() call (see Blobstore2Connection.rest_request()).
+                # downloadlocally() talks to the channel directly and never issues a
+                # rest_request(), so on a freshly restored/cached session _conn can
+                # still be None here, causing an AttributeError ('NoneType' object has
+                # no attribute 'channel'). Mirror rest_request()'s own lazy-init call
+                # exactly, reusing the same stored connection kwargs (username,
+                # password, log_dir, security_state, etc.) instead of guessing a
+                # subset, so behavior (e.g. factory-mode security_state handling)
+                # matches what the library would have done on first use.
+                connection._init_connection(**connection._connection_properties)
+            dll = connection._conn.channel.dll
             dll.downloadComponent.argtypes = [c_char_p, c_char_p]
             dll.downloadComponent.restype = c_int
 

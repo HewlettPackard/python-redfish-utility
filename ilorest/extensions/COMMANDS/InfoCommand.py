@@ -71,7 +71,7 @@ class InfoCommand:
             self.parser.print_help()
             return ReturnCodes.SUCCESS
         try:
-            (options, args) = self.rdmc.rdmc_parse_arglist(self, line)
+            options, args = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -120,9 +120,7 @@ class InfoCommand:
                 for item in results:
                     self.rdmc.ui.printer("%s\n" % item)
             else:
-                raise InfoMissingEntriesError(
-                    "No info items available for this selected type."
-                )
+                raise InfoMissingEntriesError("No info items available for this selected type.")
 
         self.cmdbase.logout_routine(self, options)
         # Return code

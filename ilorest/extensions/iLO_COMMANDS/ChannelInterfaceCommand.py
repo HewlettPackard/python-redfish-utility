@@ -93,7 +93,15 @@ class ChannelInterfaceCommand:
 
         """
         try:
-            libhandle = self.rdmc.app.current_client.connection._conn.channel.dll
+            connection = self.rdmc.app.current_client.connection
+            if connection._conn is None:
+                # See DownloadComponentCommand.downloadlocally() for details: the blobstore
+                # connection lazily opens its CHIF channel on the first rest_request() call,
+                # so on a freshly restored/cached session _conn can still be None here.
+                # Mirror rest_request()'s own lazy-init call so behavior matches what the
+                # library would have done on first use.
+                connection._init_connection(**connection._connection_properties)
+            libhandle = connection._conn.channel.dll
             libhandle.ChifTerminate()
             libhandle.ChifInitialize(None)
             return True

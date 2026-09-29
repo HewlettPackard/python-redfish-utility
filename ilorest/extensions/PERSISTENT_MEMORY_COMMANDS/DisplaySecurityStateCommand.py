@@ -71,7 +71,7 @@ class DisplaySecurityStateCommand:
         securityState = []
         headers = ["Location", "State"]
         for i in pmemLocation:
-            path = "/redfish/v1/Systems/1/Memory/" + i
+            path = self.rdmc.app.typepath.defs.systempath + "Memory/" + i
             resp = self._rest_helpers.retrieve_security_state(path)
             state = resp["SecurityState"]
             securityState.append(state)

@@ -28,9 +28,27 @@ from redfish.rest.connections import ChifDriverMissingOrNotFound, VnicNotEnabled
 from redfish.ris.rmc_helper import UserNotAdminError
 
 try:
+    from security.pqc import _PQC_STRICT_MIN_GENERATION, build_ssl_context, resolve_mode_from_env
+except ImportError:
+    from ilorest.security.pqc import _PQC_STRICT_MIN_GENERATION, build_ssl_context, resolve_mode_from_env
+
+try:
     from rdmc_helper import (
         LOGGER,
         UI,
+        TPMBadAuthError,
+        TPMProvisionedAuthRequiredError,
+        TPMGetCapabilityFailedError,
+        TPMNVDefineFailedError,
+        TPMNVLockedOutError,
+        TPMNVLockoutError,
+        ReactivateTPMBadAuthError,
+        ReactivateTPMProvisionedAuthRequiredError,
+        ReactivateTPMGetCapabilityFailedError,
+        ReactivateTPMNVDefineFailedError,
+        ReactivateTPMNVLockedOutError,
+        ReactivateTPMNVLockoutError,
+        CantValidateCAError,
         AppAccountExistsError,
         Encryption,
         GenBeforeLoginError,
@@ -50,6 +68,19 @@ except ImportError:
     from ilorest.rdmc_helper import (
         LOGGER,
         UI,
+        TPMBadAuthError,
+        TPMProvisionedAuthRequiredError,
+        TPMGetCapabilityFailedError,
+        TPMNVDefineFailedError,
+        TPMNVLockedOutError,
+        TPMNVLockoutError,
+        ReactivateTPMBadAuthError,
+        ReactivateTPMProvisionedAuthRequiredError,
+        ReactivateTPMGetCapabilityFailedError,
+        ReactivateTPMNVDefineFailedError,
+        ReactivateTPMNVLockedOutError,
+        ReactivateTPMNVLockoutError,
+        CantValidateCAError,
         AppAccountExistsError,
         Encryption,
         GenBeforeLoginError,
@@ -207,8 +238,9 @@ class AppAccountCommand:
                             raise InvalidCommandLineError(
                                 "--hostappid is a required parameter for the appaccount delete command.\n"
                             )
-                        # Credentials are optional for delete: when supplied they are
-                        # validated and used, otherwise the operation runs in-band.
+                        # Validate credentials are provided for delete command
+                        if not (options.user and options.password):
+                            raise UsernamePasswordRequiredError("Please enter Username and Password.\n")
                     elif options.command.lower() == "exists":
                         if not options.hostappid:
                             raise InvalidCommandLineError(
@@ -305,7 +337,7 @@ class AppAccountCommand:
                     is_not_self = not options.self_register and options.hostappid and "00b5" not in options.hostappid
                     if not exists_in_tpm and is_not_self:
                         delete_response = self.rdmc.app.delete_token(app_obj)
-                        LOGGER.debug(f"delete_response:{delete_response}")
+                        LOGGER.debug("delete_response:%s", delete_response)
 
                     app_obj = AppAccount(
                         appname=options.hostappname if "hostappname" in options else "self_register",
@@ -313,6 +345,7 @@ class AppAccountCommand:
                         salt=options.salt if "salt" in options else "self_register",
                         username=options.user,
                         password=options.password,
+                        owner_auth=getattr(options, "owner_auth", ""),
                         log_dir=self.rdmc.log_dir,
                     )
                     errorcode = self.rdmc.app.generate_save_token(app_obj)
@@ -340,8 +373,45 @@ class AppAccountCommand:
                         "Alternatively, you can use the --no_app_account "
                         "option in the Login Command to log in using your iLO user account credentials.\n"
                     )
+                except redfish.hpilo.vnichpilo.TPMBadAuthError:
+                    raise TPMBadAuthError(
+                        "Invalid TPM owner authorization value provided. "
+                        "Verify the TPM owner password and retry the operation.\n"
+                    )
+                except redfish.hpilo.vnichpilo.TPMProvisionedAuthRequiredError:
+                    raise TPMProvisionedAuthRequiredError(
+                        "The TPM is provisioned and requires the owner authorization value. "
+                        "Provide the TPM owner authorization and retry.\n"
+                    )
+                except redfish.hpilo.vnichpilo.TPMGetCapabilityFailedError:
+                    raise TPMGetCapabilityFailedError(
+                        "Failed to query the TPM capability/status. "
+                        "Ensure the TPM is enabled and functioning, then retry.\n"
+                    )
+                except redfish.hpilo.vnichpilo.TPMNVDefineFailedError:
+                    raise TPMNVDefineFailedError(
+                        "Failed to define the TPM NV index used to store the app account token. "
+                        "Verify TPM owner authorization and available NV space, then retry.\n"
+                    )
+                except redfish.hpilo.vnichpilo.TPMNVLockedOutError:
+                    raise TPMNVLockedOutError(
+                        "TPM NV access is locked. "
+                        "Unlock TPM NV access (or clear the NV lock) and retry the operation.\n"
+                    )
+                except redfish.hpilo.vnichpilo.TPMNVLockoutError:
+                    raise TPMNVLockoutError(
+                        "The TPM is in dictionary-attack (DA) lockout mode. "
+                        "Wait for the lockout to clear or reset the TPM lockout, then retry.\n"
+                    )
                 except redfish.rest.v1.InvalidCredentialsError:
                     raise redfish.rest.v1.InvalidCredentialsError(0)
+                except redfish.hpilo.vnichpilo.CantValidateCAError:
+                    raise CantValidateCAError(
+                        "Cannot validate the iLO certificate CA chain. "
+                        "This may occur on iLO8+ systems with PQC/CNSA 2.0 certificates. "
+                        "Please ensure the system's trusted certificate store is up to date "
+                        "and retry the operation.\n"
+                    )
                 except redfish.hpilo.vnichpilo.GenerateAndSaveAccountError:
                     raise GenerateAndSaveAccountError(
                         "Error occurred while generating and saving app account. "
@@ -350,7 +420,7 @@ class AppAccountCommand:
                         "option in the Login Command to log in using your iLO user account credentials.\n"
                     )
                 except Exception as err:
-                    LOGGER.debug(f"Appaccount creation failed:{err}")
+                    LOGGER.debug("Appaccount creation failed:%s", err)
 
             elif options.command.lower() == "delete":
                 # Credentials are optional for delete. Deletion is attempted from
@@ -383,12 +453,16 @@ class AppAccountCommand:
                         # iLO deletion can still proceed via _check_exists_in_ilo match
                         LOGGER.debug("Failed to expand short app ID for TPM deletion")
 
+                # Check if account exists in TPM BEFORE attempting deletion
+                tpm_existed_before = self._check_exists_in_tpm(app_obj)
+                
                 # Step 1: Delete from TPM (in-band via VNIC). For the self/00b5
                 # account this also removes the linked iLO app account; for another
                 # app a SEPARATE iLO orphan can survive and needs REST cleanup.
                 try:
                     errorcode = self.rdmc.app.delete_token(app_obj)
-                    if errorcode == 0:
+                    # Only mark as deleted if it existed before AND delete succeeded
+                    if errorcode == 0 and tpm_existed_before:
                         deleted_from_tpm = True
                         LOGGER.debug("Successfully deleted app account from TPM")
                 except Exception as tpm_error:
@@ -417,6 +491,13 @@ class AppAccountCommand:
 
                 self.rdmc.ui.printer("App account deleted from TPM: %s\n" % ("yes" if deleted_from_tpm else "no"))
                 self.rdmc.ui.printer("App account deleted from iLO: %s\n" % ("yes" if deleted_from_ilo else "no"))
+                
+                # Warn if account was deleted from TPM but was not enumerated (not in the list)
+                if deleted_from_tpm and not ilo_present_before:
+                    self.rdmc.ui.printer(
+                        "Warning: The account was not found in the enumerated list but existed in TPM and has been deleted.\n"
+                    )
+                
                 if ilo_present_after and not ilo_queryable:
                     self.rdmc.ui.printer(
                         "Note: an app account still exists in iLO. Re-run with -u <username> "
@@ -598,6 +679,10 @@ class AppAccountCommand:
             elif options.command.lower() == "reactivate":
                 if not options.user or not options.password:
                     raise UsernamePasswordRequiredError("Please enter Username and Password.\n")
+                # Apply the supplied TPM owner authorization up front so that BOTH the
+                # orphaned-account recreate (generate_save_token) and the normal
+                # reactivate (reactivate_token) paths honor it on a provisioned TPM.
+                app_obj.owner_auth = getattr(options, "owner_auth", "")
                 exists_in_tpm = self._check_exists_in_tpm(app_obj)
                 exists_in_ilo, ilo_account = self._check_exists_in_ilo(options)
                 if not exists_in_tpm and exists_in_ilo:
@@ -622,6 +707,36 @@ class AppAccountCommand:
                     # keep a debug trace only, do not log to the console here.
                     LOGGER.debug("Invalid credentials during reactivate; re-raising for centralized handling")
                     raise redfish.rest.v1.InvalidCredentialsError(0)
+                except redfish.hpilo.vnichpilo.ReactivateTPMBadAuthError:
+                    raise ReactivateTPMBadAuthError(
+                        "Invalid TPM owner authorization value provided. "
+                        "Verify the TPM owner password and retry the operation.\n"
+                    )
+                except redfish.hpilo.vnichpilo.ReactivateTPMProvisionedAuthRequiredError:
+                    raise ReactivateTPMProvisionedAuthRequiredError(
+                        "The TPM is provisioned and requires the owner authorization value. "
+                        "Provide the TPM owner authorization and retry.\n"
+                    )
+                except redfish.hpilo.vnichpilo.ReactivateTPMGetCapabilityFailedError:
+                    raise ReactivateTPMGetCapabilityFailedError(
+                        "Failed to query the TPM capability/status. "
+                        "Ensure the TPM is enabled and functioning, then retry.\n"
+                    )
+                except redfish.hpilo.vnichpilo.ReactivateTPMNVDefineFailedError:
+                    raise ReactivateTPMNVDefineFailedError(
+                        "Failed to define the TPM NV index used to store the app account token. "
+                        "Verify TPM owner authorization and available NV space, then retry.\n"
+                    )
+                except redfish.hpilo.vnichpilo.ReactivateTPMNVLockedOutError:
+                    raise ReactivateTPMNVLockedOutError(
+                        "TPM NV access is locked. "
+                        "Unlock TPM NV access (or clear the NV lock) and retry the operation.\n"
+                    )
+                except redfish.hpilo.vnichpilo.ReactivateTPMNVLockoutError:
+                    raise ReactivateTPMNVLockoutError(
+                        "The TPM is in dictionary-attack (DA) lockout mode. "
+                        "Wait for the lockout to clear or reset the TPM lockout, then retry.\n"
+                    )
                 except Exception as excp:
                     # Carry the message on the exception so the centralized handler
                     # surfaces it once; keep the original error as a debug trace.
@@ -740,14 +855,62 @@ class AppAccountCommand:
             if created_session and session_token and session_location:
                 self._delete_ilo_session(session_token, session_location)
 
+    def _pqc_requests_session(self):
+        """Return a ``requests.Session`` with a PQC-aware TLS context for the VNIC endpoint.
+
+        The iLO VNIC endpoint (``16.1.15.1``) on an iLO8 requires CNSA 2.0
+        Level-V key exchange (ML-KEM-1024). A default ``requests``/``urllib3``
+        TLS stack offers only the Level-III groups, so the handshake is rejected
+        with a fatal alert 40 -- which previously surfaced as a misleading
+        "Invalid credentials" error even when the credentials were valid.
+        Offering the widest KEM group set (``generation=_PQC_STRICT_MIN_GENERATION``)
+        lets the handshake complete for iLO7 and iLO8 alike. Environment proxies
+        are bypassed because the target is a link-local in-band address.
+
+        Returns:
+            A configured :class:`requests.Session`.
+        """
+        import requests
+        from requests.adapters import HTTPAdapter
+
+        session = requests.Session()
+        session.trust_env = False  # bypass corporate proxy for the local VNIC endpoint
+
+        try:
+            ssl_context = build_ssl_context(
+                resolve_mode_from_env(), verify=False, generation=_PQC_STRICT_MIN_GENERATION
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            LOGGER.debug("Could not build PQC SSL context for app-account session: %s", str(exc))
+            ssl_context = None
+
+        if ssl_context is not None:
+
+            class _PQCAdapter(HTTPAdapter):
+                """HTTPAdapter that forwards a custom ssl_context to urllib3."""
+
+                def __init__(self, ctx, **kwargs):
+                    self._ssl_context = ctx
+                    super().__init__(**kwargs)
+
+                def init_poolmanager(self, *args, **kwargs):
+                    kwargs["ssl_context"] = self._ssl_context
+                    super().init_poolmanager(*args, **kwargs)
+
+                def proxy_manager_for(self, proxy, **proxy_kwargs):
+                    proxy_kwargs["ssl_context"] = self._ssl_context
+                    return super().proxy_manager_for(proxy, **proxy_kwargs)
+
+            session.mount("https://", _PQCAdapter(ssl_context))
+
+        return session
+
     def _create_ilo_session(self, username, password):
         """POST to iLO SessionService with credentials and return (token, location)."""
-        import requests
-
         try:
             session_url = f"{_ILO_VNIC_BASE_URL}/redfish/v1/SessionService/Sessions/"
             session_data = {"UserName": username, "Password": password}
-            response = requests.post(session_url, json=session_data, verify=False, timeout=10)
+            response = self._pqc_requests_session().post(session_url, json=session_data, verify=False, timeout=10)
             if response.status_code in (200, 201):
                 token = response.headers.get("X-Auth-Token")
                 location = response.headers.get("Location")
@@ -760,14 +923,12 @@ class AppAccountCommand:
 
     def _delete_ilo_session(self, session_token, session_location):
         """DELETE the temporary iLO session after use."""
-        import requests
-
         try:
             if session_location:
                 # session_location may be a full URL or a path
                 if not session_location.startswith("https://"):
                     session_location = _ILO_VNIC_BASE_URL + session_location
-                requests.delete(
+                self._pqc_requests_session().delete(
                     session_location,
                     headers={"X-Auth-Token": session_token},
                     verify=False,
@@ -786,19 +947,18 @@ class AppAccountCommand:
         OEM link, falling back to the well-known HPE path. ``accounts`` is a list
         of ``{Id, HostAppId, HostAppName}``.
         """
-        import requests
-
         accounts = []
         seen_ids = set()
         headers = {"X-Auth-Token": session_token} if session_token else {}
         base = _ILO_VNIC_BASE_URL
+        req_session = self._pqc_requests_session()
 
         def _get(path_or_url):
             """GET a redfish resource; return its parsed dict or None on non-200."""
             path = path_or_url
             if session_token:
                 url = path if path.startswith("https://") else base + path
-                resp = requests.get(url, headers=headers, verify=False, timeout=10)
+                resp = req_session.get(url, headers=headers, verify=False, timeout=10)
                 if resp.status_code != 200:
                     return None
                 return resp.json()
@@ -1179,7 +1339,6 @@ class AppAccountCommand:
         """Delete an iLO app account that has no matching TPM token (orphaned after TPM clear)."""
         if not (ilo_account and ilo_account.get("Id")):
             return
-        import requests
 
         delete_url_path = f"/redfish/v1/AccountService/Oem/Hpe/AppAccounts/{ilo_account['Id']}"
         try:
@@ -1204,7 +1363,7 @@ class AppAccountCommand:
                     return
                 try:
                     full_url = _ILO_VNIC_BASE_URL + delete_url_path
-                    response = requests.delete(
+                    response = self._pqc_requests_session().delete(
                         full_url,
                         headers={"X-Auth-Token": session_token},
                         verify=False,
@@ -1294,13 +1453,19 @@ class AppAccountCommand:
         """Validate credentials then resolve which session the operation should use.
 
         Flow (applied to every appaccount subcommand):
-          1. Validate any supplied credentials — invalid credentials raise. This
-             happens even when an active session already exists, so that bad
-             credentials never go unreported.
-          2. Probe for an active session; reuse it when present (discarding the
-             short-lived validation session).
-          3. Otherwise, promote the validated credentials' session to a temporary
-             session that the caller must release after use.
+          1. Probe for an active session; when one exists, attempt credential
+             validation as a best-effort check.  If the HTTPS validation POST
+             fails for a network / TLS reason (e.g. iLO8 CNSA 2.0 requiring
+             PQC-capable TLS not available in the current runtime), the active
+             session itself proves prior authentication, so the TLS failure is
+             logged at DEBUG and the operation continues rather than surfacing a
+             misleading "Invalid credentials" error.  A true 401 response from
+             iLO always propagates as :class:`InvalidCredentialsError`.
+          2. When no active session is present, strict credential validation is
+             required.  A POST failure for any reason (TLS or 401) raises.
+          3. If credential validation succeeded and yielded a new session token,
+             that token is promoted to a temporary session for callers to release
+             after use.
 
         Returns:
             A session-context dict with keys ``session_token``,
@@ -1308,22 +1473,43 @@ class AppAccountCommand:
 
         Raises:
             redfish.rest.v1.InvalidCredentialsError: If credentials were supplied
-                but could not be validated.
+                but could not be validated against iLO.
         """
         username = getattr(options, "user", None)
         password = getattr(options, "password", None)
-        token, location = self._validate_credentials(username, password)
 
         if self._has_active_session():
-            # The active session takes priority; discard the validation session.
-            if token:
-                self._delete_ilo_session(token, location)
+            # Active session exists — credential re-validation is best-effort only.
+            # On iLO8 the HTTPS POST to 16.1.15.1 requires PQC-capable TLS; if
+            # that fails for a TLS/network reason (not a 401), do NOT raise
+            # InvalidCredentialsError; the active session already proves the user
+            # authenticated successfully.
+            if username and password:
+                try:
+                    token, location = self._validate_credentials(username, password)
+                    # Got a fresh validation token; release it immediately since
+                    # the active session takes priority.
+                    if token:
+                        self._delete_ilo_session(token, location)
+                except redfish.rest.v1.InvalidCredentialsError:
+                    raise  # real 401 — credentials genuinely rejected by iLO
+                except Exception as exc:
+                    # TLS/network failure during the optional HTTPS POST.
+                    # The active session proves authentication; proceed.
+                    LOGGER.debug(
+                        "Credential validation via HTTPS failed (%s); proceeding "
+                        "with existing active session rather than raising InvalidCredentialsError.",
+                        str(exc),
+                    )
             return {
                 "session_token": None,
                 "session_location": None,
                 "temp_session": False,
                 "active": True,
             }
+
+        # No active session: strict credential validation required.
+        token, location = self._validate_credentials(username, password)
 
         if token:
             # Reuse the validated credentials' session as the temporary session.
@@ -1472,6 +1658,13 @@ class AppAccountCommand:
         create_parser.add_argument(
             "--salt", dest="salt", help="Parameter to specify application owned salt", default=None
         )
+        create_parser.add_argument(
+            "--owner_auth",
+            dest="owner_auth",
+            help="Optional parameter to specify the TPM owner authorization value. "
+            "Required only if the TPM is present and provisioned (owned); leave unset otherwise.",
+            default="",
+        )
         help_text = "Self tag for customers with no access to host information."
         create_parser.add_argument("--self", dest="self_register", help=help_text, action="store_true", default=False)
         self.cmdbase.add_login_arguments_group(create_parser)
@@ -1565,6 +1758,13 @@ class AppAccountCommand:
         )
         reactivate_parser.add_argument(
             "--salt", dest="salt", help="Parameter to specify application owned salt", default=None
+        )
+        reactivate_parser.add_argument(
+            "--owner_auth",
+            dest="owner_auth",
+            help="Optional parameter to specify the TPM owner authorization value. "
+            "Required only if the TPM is present and provisioned (owned); leave unset otherwise.",
+            default="",
         )
         help_text = "Self tag for customers with no access to host information."
         reactivate_parser.add_argument(

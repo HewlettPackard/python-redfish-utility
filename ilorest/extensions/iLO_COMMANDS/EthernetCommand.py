@@ -43,6 +43,7 @@ try:
         NoDifferencesFoundError,
         RdmcError,
         ReturnCodes,
+        LOGGER,
     )
 except ImportError:
     from ilorest.rdmc_helper import (
@@ -55,6 +56,7 @@ except ImportError:
         NoDifferencesFoundError,
         RdmcError,
         ReturnCodes,
+        LOGGER,
     )
 
 __eth_file__ = "eth.json"
@@ -130,7 +132,7 @@ class EthernetCommand:
         if help_disp:
             line.append("-h")
             try:
-                (_, _) = self.rdmc.rdmc_parse_arglist(self, line)
+                _, _ = self.rdmc.rdmc_parse_arglist(self, line)
             except:
                 return ReturnCodes.SUCCESS
             return ReturnCodes.SUCCESS
@@ -138,11 +140,11 @@ class EthernetCommand:
             ident_subparser = False
             for cmnd in __subparsers__:
                 if cmnd in line:
-                    (options, args) = self.rdmc.rdmc_parse_arglist(self, line)
+                    options, args = self.rdmc.rdmc_parse_arglist(self, line)
                     ident_subparser = True
                     break
             if not ident_subparser:
-                (options, args) = self.rdmc.rdmc_parse_arglist(self, line, default=True)
+                options, args = self.rdmc.rdmc_parse_arglist(self, line, default=True)
         except:
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -234,13 +236,22 @@ class EthernetCommand:
                                     get_data = False
                                     self.enable_disable_nics(data[inst][path], options)
 
-                                if (
-                                    options.network_ipv4 or options.network_ipv6 or options.nameservers or options.proxy
-                                ) and "virtual" not in data[inst][path]["Name"].lower():
-                                    get_data = False
-                                    self.configure_static_settings(data[inst][path], options)
-                                    if options.proxy:
-                                        return ReturnCodes.SUCCESS
+                                if options.network_ipv4 or options.network_ipv6 or options.nameservers or options.proxy:
+                                    nic_name = data[inst][path].get("Name")
+                                    if isinstance(nic_name, str):
+                                        if "virtual" not in nic_name.lower():
+                                            get_data = False
+                                            self.configure_static_settings(data[inst][path], options)
+                                            if options.proxy:
+                                                return ReturnCodes.SUCCESS
+                                    else:
+                                        self.rdmc.ui.warn(
+                                            (
+                                                "Skipping static network settings for an interface "
+                                                "missing 'Name' at '%s'.\n"
+                                            )
+                                            % path
+                                        )
                     if "networkprotocol" in inst.lower():
                         for path in data[inst]:
                             if "managers/1/networkprotocol" in path.lower():
@@ -275,18 +286,23 @@ class EthernetCommand:
         :type options: attribute
         """
 
-        network_data_collection = eth_iface = manager_network_services = ilo_date_time = OrderedDict()
+        network_data_collection = OrderedDict()
+        eth_iface = OrderedDict()
+        manager_network_services = OrderedDict()
+        ilo_date_time = OrderedDict()
 
         if self.rdmc.app.redfishinst.is_redfish:
             try:
                 iface_results = self.rdmc.app.select(selector="ethernetinterface.")
             except RisInstanceNotFoundError:
                 self.rdmc.ui.printer("Type 'EthernetInterface.' not available.\n")
+                iface_results = []
         else:
             try:
                 iface_results = self.rdmc.app.select(selector="ethernetnetworkinterface.")
             except RisInstanceNotFoundError:
                 self.rdmc.ui.printer("Type 'EthernetNetworkInterface.' not available.\n")
+                iface_results = []
 
         for inst in iface_results:
             try:
@@ -343,26 +359,51 @@ class EthernetCommand:
             for path in data.get(_type):
                 temp = dict()
                 try:
-                    temp[_type.split("#")[-1]].update({path: self.rdmc.app.removereadonlyprops(data[_type][path])})
+                    cleaned = self.rdmc.app.removereadonlyprops(data[_type][path])
+                except KeyError as exc:
+                    missing_key = str(exc).strip("'")
+                    LOGGER.debug(
+                        "Skipping read-only validation for an entry missing '%s' at '%s'; saving raw data instead.",
+                        missing_key,
+                        path,
+                    )
+                    cleaned = copy.deepcopy(data[_type][path])
+                except Exception as exc:
+                    LOGGER.debug(
+                        "Read-only validation failed for '%s' at '%s': %s. Saving raw data instead.", _type, path, exc
+                    )
+                    cleaned = copy.deepcopy(data[_type][path])
+
+                try:
+                    temp[_type.split("#")[-1]].update({path: cleaned})
                     outdata.append(temp)
                 except KeyError:
-                    temp[_type.split("#")[-1]] = {path: self.rdmc.app.removereadonlyprops(data[_type][path])}
+                    temp[_type.split("#")[-1]] = {path: cleaned}
                     outdata.append(temp)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    LOGGER.debug("Failed to prepare ethernet output entry for '%s' at '%s': %s.", _type, path, exc)
 
         if self.eth_file and not get_only:
-            if options.encryption:
-                with open(self.eth_file, "wb") as outfile:
-                    outfile.write(
-                        Encryption().encrypt_file(
-                            json.dumps(outdata, indent=2, cls=redfish.ris.JSONEncoder),
-                            options.encryption,
+            try:
+                if options.encryption:
+                    with open(self.eth_file, "wb") as outfile:
+                        outfile.write(
+                            Encryption().encrypt_file(
+                                json.dumps(outdata, indent=2, cls=redfish.ris.JSONEncoder),
+                                options.encryption,
+                            )
                         )
-                    )
-            else:
-                with open(self.eth_file, "w") as outfile:
-                    outfile.write(json.dumps(outdata, indent=2, cls=redfish.ris.JSONEncoder))
+                else:
+                    with open(self.eth_file, "w") as outfile:
+                        outfile.write(json.dumps(outdata, indent=2, cls=redfish.ris.JSONEncoder))
+                self.rdmc.ui.printer("Ethernet configuration saved successfully to '%s'.\n" % self.eth_file)
+                LOGGER.debug("Ethernet configuration saved successfully to '%s'.", self.eth_file)
+            except IOError as exc:
+                LOGGER.debug("Failed to save ethernet configuration to '%s': %s", self.eth_file, exc)
+                raise InvalidFileInputError("Failed to save ethernet configuration to '%s': %s" % (self.eth_file, exc))
+            except Exception as exc:
+                LOGGER.debug("Unexpected error while saving ethernet configuration to '%s': %s", self.eth_file, exc)
+                raise
         else:
             if options.json:
                 self.rdmc.ui.print_out_json_ordered(outdata)
@@ -1064,8 +1105,20 @@ class EthernetCommand:
         self.cmdbase.login_select_validation(self, options)
 
         if options.ethfilename:
-            if len(options.ethfilename) < 2:
-                self.eth_file = options.ethfilename[0]
+            if not isinstance(options.ethfilename, list):
+                LOGGER.debug("ethfilename is not a list, converting...")
+                options.ethfilename = [options.ethfilename]
+
+            if len(options.ethfilename) == 0:
+                LOGGER.debug("ethfilename list is empty, using default filename")
+                self.eth_file = __eth_file__
+            elif len(options.ethfilename) == 1:
+                filename = options.ethfilename[0]
+                if not filename or not isinstance(filename, str):
+                    LOGGER.debug("ethfilename is empty or not a string, using default filename")
+                    self.eth_file = __eth_file__
+                else:
+                    self.eth_file = filename
             else:
                 raise InvalidCommandLineError("Only a single ethernet file may be specified.")
         else:

@@ -1935,7 +1935,7 @@ class ServerCloneCommand:
                                 "updated in Production mode , Kindly rerun the serverclone load "
                                 "with passing credentials which has recovery privilege"
                             )
-                            self.rdmc.ui.error(
+                            self.rdmc.ui.printer(
                                 "Warning: For the users In local mode privileges might not get "
                                 "updated in Production mode , Kindly rerun the serverclone load "
                                 "with passing credentials which has recovery privilege"
@@ -2124,7 +2124,7 @@ class ServerCloneCommand:
                             "Production mode , Kindly rerun the serverclone load with "
                             "passing credentials which has recovery privilege"
                         )
-                        self.rdmc.ui.error(
+                        self.rdmc.ui.printer(
                             "Warning: For the users In local mode privileges might not get updated in "
                             "Production mode , Kindly rerun the serverclone load with "
                             "passing credentials which has recovery privilege"

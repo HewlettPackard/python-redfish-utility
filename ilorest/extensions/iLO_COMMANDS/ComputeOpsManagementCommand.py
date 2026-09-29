@@ -16,7 +16,6 @@
 # -*- coding: utf-8 -*-
 """computeopsmanagement Command for rdmc"""
 
-
 import json
 import time
 import os
@@ -29,6 +28,16 @@ import requests
 import urllib3
 from requests.exceptions import ConnectionError, Timeout, RequestException
 from urllib3.util.retry import Retry
+
+try:
+    from security.pqc import make_pqc_session, build_ssl_context, resolve_mode_from_env, _PQC_STRICT_MIN_GENERATION
+except ImportError:
+    from ilorest.security.pqc import (
+        make_pqc_session,
+        build_ssl_context,
+        resolve_mode_from_env,
+        _PQC_STRICT_MIN_GENERATION,
+    )
 
 
 try:
@@ -515,7 +524,7 @@ class ComputeOpsManagementCommand:
                 outfile.write(template_str)
                 self.rdmc.ui.printer(f"Template written to: {template_input_file}\n", verbose_override=True)
         except Exception as e:
-            LOGGER.error(f"Exception writing template file: {e}")
+            LOGGER.error("Exception writing template file: %s", e)
             raise InvalidCommandLineError(f"Failed to write template JSON file: {e}\n")
 
     def bulk_connect_precheck(self, config_file, output_file=None):
@@ -534,7 +543,7 @@ class ComputeOpsManagementCommand:
         urllib3.disable_warnings()
 
         current_time = datetime.now()
-        LOGGER.info(f"Starting bulk_connect precheck: config={config_file}, output={output_file}")
+        LOGGER.info("Starting bulk_connect precheck: config=%s, output=%s", config_file, output_file)
 
         # Load and validate configuration (do once, not in loop)
         try:
@@ -546,7 +555,7 @@ class ComputeOpsManagementCommand:
         if not output_file:
             output_file = f"onboard_precheck_{current_time.strftime('%m%d%Y_%H%M%S')}.json"
 
-        LOGGER.info(f"Report will be saved to: {output_file}")
+        LOGGER.info("Report will be saved to: %s", output_file)
 
         # Initialize report with new format
         report = {"iloPrecheck": [], "resultCount": {"ilos": "0", "preCheckPassed": "0", "preCheckFailed": "0"}}
@@ -579,7 +588,7 @@ class ComputeOpsManagementCommand:
         try:
             target_ips = self._get_all_target_ips(config.get("targets", {}))
             counters["total_targets"] = len(target_ips)
-            LOGGER.info(f"Precheck for {len(target_ips)} target iLO(s)")
+            LOGGER.info("Precheck for %s target iLO(s)", len(target_ips))
         except Exception as e:
             error_msg = f"Error processing target IPs: {str(e)}"
             LOGGER.error(error_msg)
@@ -595,7 +604,7 @@ class ComputeOpsManagementCommand:
                 individual_settings = ip_info.get("settings", {}) if isinstance(ip_info.get("settings"), dict) else {}
 
                 pbar.set_description(f"Validating {ip}")
-                LOGGER.info(f"Starting precheck validation for iLO: {ip}")
+                LOGGER.info("Starting precheck validation for iLO: %s", ip)
 
                 # Initialize precheck result
                 precheck_result = {
@@ -657,12 +666,12 @@ class ComputeOpsManagementCommand:
         # Write report to JSON file
         try:
             self._save_json_report(report, output_file)
-            LOGGER.info(f"Precheck report saved to: {output_file}")
+            LOGGER.info("Precheck report saved to: %s", output_file)
             self.rdmc.ui.printer(f"Precheck completed. Report saved to: {output_file}\n", verbose_override=True)
             self.rdmc.ui.printer(f"Precheck passed for {counters['preCheckPassed']} iLO(s).\n", verbose_override=True)
             self.rdmc.ui.printer(f"Precheck failed for {counters['preCheckFailed']} iLO(s).\n", verbose_override=True)
         except Exception as e:
-            LOGGER.error(f"Failed to save precheck report: {str(e)}")
+            LOGGER.error("Failed to save precheck report: %s", e)
             raise InvalidCommandLineError(f"Failed to save precheck report: {str(e)}")
 
         return ReturnCodes.SUCCESS
@@ -728,7 +737,7 @@ class ComputeOpsManagementCommand:
             # Basic connectivity test
             from requests.auth import HTTPBasicAuth
 
-            response = requests.get(
+            response = make_pqc_session(url=base_url).get(
                 f"{base_url}/redfish/v1/", auth=HTTPBasicAuth(username, password), verify=False, timeout=30
             )
 
@@ -745,7 +754,7 @@ class ComputeOpsManagementCommand:
                 if is_compatible:
                     # Check if iLO is already connected to COM
                     # Create HTTP session
-                    session = requests.Session()
+                    session = make_pqc_session(url=base_url)
                     session.auth = HTTPBasicAuth(username, password)
                     session.verify = False
 
@@ -755,7 +764,9 @@ class ComputeOpsManagementCommand:
                         validation_data["status"] = "PASSED"
                     else:
                         # Check activationKey/workspace_id based on iLO version capabilities
-                        is_pin_supported, pin_err_msg, pin_rec_msg = self._is_pin_onboarding_supported(ilo_version, model)
+                        is_pin_supported, pin_err_msg, pin_rec_msg = self._is_pin_onboarding_supported(
+                            ilo_version, model
+                        )
                         workspace_id = com_settings.get("workspace_id", "")
                         activation_key = com_settings.get("activationKey", "")
                         if not is_pin_supported:
@@ -1041,7 +1052,7 @@ class ComputeOpsManagementCommand:
 
             with open(config_file, "r") as f:
                 config = json.load(f)
-            LOGGER.info(f"Loaded configuration from: {config_file}")
+            LOGGER.info("Loaded configuration from: %s", config_file)
 
             # Validate configuration
             self._validate_bulk_connect_input(config)
@@ -1073,7 +1084,10 @@ class ComputeOpsManagementCommand:
 
         # Setup logging
         current_time = datetime.now()
-        LOGGER.info(f"Starting bulk_connect: config={config_file}, output={output_file}, allow_reset={allow_ilo_reset}")
+        LOGGER.info(
+            "Starting bulk_connect: config=%s, output=%s, allow_reset=%s",
+            config_file, output_file, allow_ilo_reset,
+        )
 
         # Load and validate configuration (do once, not in loop)
         try:
@@ -1085,7 +1099,7 @@ class ComputeOpsManagementCommand:
         if not output_file:
             output_file = f"onboard_{current_time.strftime('%m%d%Y_%H%M%S')}.json"
 
-        LOGGER.info(f"Report will be saved to: {output_file}")
+        LOGGER.info("Report will be saved to: %s", output_file)
 
         # Initialize report with new format
         report = {
@@ -1121,7 +1135,7 @@ class ComputeOpsManagementCommand:
         try:
             target_ips = self._get_all_target_ips(config.get("targets", {}))
             counters["total_targets"] = len(target_ips)
-            LOGGER.info(f"Processing {len(target_ips)} target iLO(s)")
+            LOGGER.info("Processing %s target iLO(s)", len(target_ips))
         except Exception as e:
             error_msg = f"Error processing target IPs: {str(e)}"
             LOGGER.error(error_msg)
@@ -1134,7 +1148,7 @@ class ComputeOpsManagementCommand:
                 individual_settings = ip_info.get("settings", {}) if isinstance(ip_info.get("settings"), dict) else {}
 
                 pbar.set_description(f"Processing {ip}")
-                LOGGER.info(f"Starting connection for iLO: {ip}")
+                LOGGER.info("Starting connection for iLO: %s", ip)
 
                 result = {
                     "ip": ip,
@@ -1176,7 +1190,7 @@ class ComputeOpsManagementCommand:
                         )
                         counters["total"] += 1
                         counters["failed"] += 1
-                        LOGGER.error(f"ERROR {ip}: Error - {str(e)}")
+                        LOGGER.error("ERROR %s: Error - %s", ip, e)
                         pbar_postfix["status"] = "ERROR"
                         pbar_postfix["failed"] = counters["failed"]
                         pbar.set_postfix(**pbar_postfix)
@@ -1209,13 +1223,13 @@ class ComputeOpsManagementCommand:
                                 "activation_method": "pin" if com_settings.get("activationKey") else "workspace_id",
                                 "ilo_was_reset": ilo_was_reset,
                             }
-                            LOGGER.info(f"SUCCESS {ip}: Connected successfully")
+                            LOGGER.info("SUCCESS %s: Connected successfully", ip)
                             pbar_postfix["status"] = "SUCCESS"
                             pbar_postfix["connected"] = counters["connected"]
                             pbar.set_postfix(**pbar_postfix)
                         elif ilo_result["onboardStatus"] == "not attempted":
                             counters["notAttempted"] += 1
-                            LOGGER.warning(f"NOT ATTEMPTED {ip}: {ilo_result['onboardError']}")
+                            LOGGER.warning("NOT ATTEMPTED %s: %s", ip, ilo_result['onboardError'])
                             pbar_postfix["status"] = "NOT ATTEMPTED"
                             pbar_postfix["notAttempted"] = counters["notAttempted"]
                             pbar.set_postfix(**pbar_postfix)
@@ -1224,13 +1238,13 @@ class ComputeOpsManagementCommand:
                             or "waiting" in ilo_result.get("onboardError", "").lower()
                         ):
                             counters["pendingiloReset"] += 1
-                            LOGGER.warning(f"PENDING RESET {ip}")
+                            LOGGER.warning("PENDING RESET %s", ip)
                             pbar_postfix["status"] = "PENDING RESET"
                             pbar_postfix["pendingiloReset"] = counters["pendingiloReset"]
                             pbar.set_postfix(**pbar_postfix)
                         else:
                             counters["failed"] += 1
-                            LOGGER.warning(f"FAILED {ip}: {ilo_result['onboardError']}")
+                            LOGGER.warning("FAILED %s: %s", ip, ilo_result['onboardError'])
                             pbar_postfix["status"] = "FAILED"
                             pbar_postfix["failed"] = counters["failed"]
                             pbar.set_postfix(**pbar_postfix)
@@ -1264,7 +1278,7 @@ class ComputeOpsManagementCommand:
                     )
                     counters["total"] += 1
                     counters["notAttempted"] += 1
-                    LOGGER.warning(f"NOT ATTEMPTED {ip}: Precheck failed - {validation_result['error']}")
+                    LOGGER.warning("NOT ATTEMPTED %s: Precheck failed - %s", ip, validation_result['error'])
                     pbar_postfix["status"] = "NOT ATTEMPTED"
                     pbar_postfix["notAttempted"] = counters["notAttempted"]
                     pbar.set_postfix(**pbar_postfix)
@@ -1282,16 +1296,18 @@ class ComputeOpsManagementCommand:
         end_time = datetime.now()
         duration_seconds = (end_time - current_time).total_seconds()
         LOGGER.info(
-            f"Bulk connect completed in {duration_seconds:.2f}s: "
-            f"{counters['connected']} connected, {counters['failed']} failed, "
-            f"{counters['notAttempted']} not attempted, {counters['pendingiloReset']} pending reset"
+            "Bulk connect completed in %ss: %s connected, %s failed, "
+            "%s not attempted, %s pending reset",
+            format(duration_seconds, ".2f"),
+            counters['connected'], counters['failed'],
+            counters['notAttempted'], counters['pendingiloReset'],
         )
 
         # Write report to JSON file
         try:
             self._save_json_report(report, output_file)
         except Exception as e:
-            LOGGER.error(f"Failed to save report: {str(e)}")
+            LOGGER.error("Failed to save report: %s", e)
             print(f"ERROR: Could not save report to {output_file}: {str(e)}")
 
         # Display summary both to stdout and log file
@@ -1299,7 +1315,7 @@ class ComputeOpsManagementCommand:
         print(f"ComputeOpsManagement connection failed for {counters['failed']} server(s).")
         print(f"The operation completed. Details available in the output {output_file} file")
 
-        LOGGER.info(f"Report saved to: {output_file}")
+        LOGGER.info("Report saved to: %s", output_file)
         return ReturnCodes.SUCCESS
 
     def _get_all_target_ips(self, targets):
@@ -1418,21 +1434,21 @@ class ComputeOpsManagementCommand:
             if not password:
                 result["onboardError"] = "No password provided"
                 result["recommendation"] = "Provide valid iLO credentials"
-                LOGGER.warning(f"{ip}: No password provided")
+                LOGGER.warning("%s: No password provided", ip)
                 return False, ilo_was_reset, False, result
 
             # Test connection with simple HTTP GET using requests
-            response = requests.get(
+            response = make_pqc_session(url=base_url).get(
                 f"{base_url}/redfish/v1/", auth=HTTPBasicAuth(username, password), verify=False, timeout=30
             )
 
             if response.status_code != 200:
                 result["onboardError"] = f"HTTP {response.status_code} - Authentication failed"
                 result["recommendation"] = "Verify iLO credentials and network connectivity"
-                LOGGER.error(f"{ip}: Authentication failed - HTTP {response.status_code}")
+                LOGGER.error("%s: Authentication failed - HTTP %s", ip, response.status_code)
                 return False, ilo_was_reset, False, result
 
-            LOGGER.info(f"{ip}: Authenticated successfully")
+            LOGGER.info("%s: Authenticated successfully", ip)
 
             # Get iLO version information
             model = ""
@@ -1460,7 +1476,7 @@ class ComputeOpsManagementCommand:
                 result["onboardStatus"] = "not attempted"
                 result["onboardError"] = f"Proxy configuration failed: {str(proxy_err)}"
                 result["recommendation"] = "Verify proxy settings and network connectivity, then retry"
-                LOGGER.error(f"{ip}: Proxy configuration failed - {str(proxy_err)}")
+                LOGGER.error("%s: Proxy configuration failed - %s", ip, proxy_err)
                 return False, ilo_was_reset, False, result
 
             # Configure network settings if needed and capture reset status - stop and move to next iLO on failure
@@ -1472,7 +1488,7 @@ class ComputeOpsManagementCommand:
                 result["onboardStatus"] = "not attempted"
                 result["onboardError"] = f"Network configuration failed: {str(network_err)}"
                 result["recommendation"] = "Verify DNS/NTP settings and network connectivity, then retry"
-                LOGGER.error(f"{ip}: Network configuration failed - {str(network_err)}")
+                LOGGER.error("%s: Network configuration failed - %s", ip, network_err)
                 return False, ilo_was_reset, False, result
 
             # If NTP was configured but reset is not allowed, stop onboarding
@@ -1484,23 +1500,23 @@ class ComputeOpsManagementCommand:
                     "then re-run the onboarding command. "
                     "Alternatively, use --allow_ilo_reset flag to automatically reset iLO."
                 )
-                LOGGER.warning(f"{ip}: NTP configured but requires manual iLO reset")
+                LOGGER.warning("%s: NTP configured but requires manual iLO reset", ip)
                 return False, ilo_was_reset, True, result
 
             # If iLO was reset and reset is allowed, wait for it to come back online
             if ilo_was_reset and allow_ilo_reset:
-                LOGGER.info(f"{ip}: iLO was reset, waiting for it to come back online...")
+                LOGGER.info("%s: iLO was reset, waiting for it to come back online...", ip)
                 if self._wait_for_ilo_after_reset(ip, username, password):
-                    LOGGER.info(f"{ip}: iLO is back online")
+                    LOGGER.info("%s: iLO is back online", ip)
                     # Create new session after reset
-                    session = requests.Session()
+                    session = make_pqc_session(url=base_url)
                     session.auth = HTTPBasicAuth(username, password)
                     session.verify = False
                 else:
-                    LOGGER.error(f"{ip}: iLO did not come back online within timeout")
+                    LOGGER.error("%s: iLO did not come back online within timeout", ip)
                     return False, ilo_was_reset, False, result
             elif ilo_was_reset and not allow_ilo_reset:
-                LOGGER.warning(f"{ip}: iLO was reset but --allow_ilo_reset not specified")
+                LOGGER.warning("%s: iLO was reset but --allow_ilo_reset not specified", ip)
                 return False, ilo_was_reset, True, result
 
             # Determine if PIN-based onboarding is supported
@@ -1512,7 +1528,7 @@ class ComputeOpsManagementCommand:
                 result["onboardStatus"] = "not attempted"
                 result["onboardError"] = pin_err_msg
                 result["recommendation"] = pin_rec_msg
-                LOGGER.warning(f"{ip}: {result['onboardError']}")
+                LOGGER.warning("%s: %s", ip, result['onboardError'])
                 return False, ilo_was_reset, False, result
 
             credential = activation_key if pin_supported and activation_key else workspace_id
@@ -1520,7 +1536,7 @@ class ComputeOpsManagementCommand:
                 success, fail_reason = self._enable_com_connection_requests(session, base_url, credential)
                 if success:
                     result["onboardStatus"] = "connected"
-                    LOGGER.info(f"{ip}: Successfully connected to COM")
+                    LOGGER.info("%s: Successfully connected to COM", ip)
                     if not ilo_was_reset and "Configure NTP in iLO" in validation_result["recommendation"]:
                         result["recommendation"] = (
                             "Though iLO is onboarded to HPE Compute Ops Management, "
@@ -1549,26 +1565,26 @@ class ComputeOpsManagementCommand:
                             else "Failed to enable COM connection"
                         )
                         result["recommendation"] = "Verify activation key/workspace_id and network settings, then retry"
-                    LOGGER.warning(f"{ip}: Failed to enable COM - {result['onboardError']}")
+                    LOGGER.warning("%s: Failed to enable COM - %s", ip, result['onboardError'])
                     return False, ilo_was_reset, False, result
         except requests.exceptions.ConnectionError:
             result["onboardError"] = "iLO is not reachable"
             result["recommendation"] = "Verify network connectivity to iLO"
-            LOGGER.error(f"{ip}: Connection error - iLO not reachable")
+            LOGGER.error("%s: Connection error - iLO not reachable", ip)
             return False, ilo_was_reset, False, result
         except requests.exceptions.Timeout:
             result["onboardError"] = "Connection timeout"
             result["recommendation"] = "Verify network connectivity and iLO responsiveness"
-            LOGGER.error(f"{ip}: Connection timeout")
+            LOGGER.error("%s: Connection timeout", ip)
             return False, ilo_was_reset, False, result
         except Exception as e:
             result["onboardError"] = str(e)
             result["recommendation"] = "Review error details and verify iLO configuration"
-            LOGGER.error(f"{ip}: Unexpected error - {str(e)}")
+            LOGGER.error("%s: Unexpected error - %s", ip, e)
             return False, ilo_was_reset, False, result
 
     def _create_session_with_retries(self, username, password):
-        """Create a requests session with retry strategy
+        """Create a requests session with PQC-aware TLS and retry strategy.
 
         :param username: iLO username
         :type username: str
@@ -1580,10 +1596,10 @@ class ComputeOpsManagementCommand:
         from requests.auth import HTTPBasicAuth
         from requests.adapters import HTTPAdapter
 
-        # Create a session object with proper connection settings
         session = requests.Session()
         session.auth = HTTPBasicAuth(username, password)
         session.verify = False
+        session.trust_env = False  # never proxy iLO addresses
 
         # Define retry strategy for connection errors
         retry_strategy = Retry(
@@ -1594,16 +1610,40 @@ class ComputeOpsManagementCommand:
             raise_on_status=False,  # Don't raise exceptions on retry exhaustion
         )
 
-        # Create adapter with retry strategy
-        adapter = HTTPAdapter(
-            max_retries=retry_strategy,
-            pool_connections=1,  # Single connection pool
-            pool_maxsize=1,  # Single connection in pool to avoid conflicts
-        )
+        # Build PQC SSL context; fall back gracefully when unavailable.
+        ssl_ctx = None
+        try:
+            ssl_ctx = build_ssl_context(resolve_mode_from_env(), verify=False, generation=_PQC_STRICT_MIN_GENERATION)
+        except Exception:
+            pass
 
-        # Mount adapter for both http and https
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
+        class _PQCRetryAdapter(HTTPAdapter):
+            """HTTPAdapter combining PQC ssl_context injection with urllib3 retry."""
+
+            def __init__(self, ctx, retry, **kwargs):
+                self._ssl_context = ctx
+                super().__init__(max_retries=retry, **kwargs)
+
+            def init_poolmanager(self, *args, **kwargs):
+                if self._ssl_context is not None:
+                    kwargs["ssl_context"] = self._ssl_context
+                super().init_poolmanager(*args, **kwargs)
+
+            def proxy_manager_for(self, proxy, **proxy_kwargs):
+                if self._ssl_context is not None:
+                    proxy_kwargs["ssl_context"] = self._ssl_context
+                return super().proxy_manager_for(proxy, **proxy_kwargs)
+
+        session.mount("http://", HTTPAdapter(max_retries=retry_strategy, pool_connections=1, pool_maxsize=1))
+        session.mount(
+            "https://",
+            _PQCRetryAdapter(
+                ctx=ssl_ctx,
+                retry=retry_strategy,
+                pool_connections=1,
+                pool_maxsize=1,
+            ),
+        )
 
         return session
 
@@ -1621,7 +1661,6 @@ class ComputeOpsManagementCommand:
         :returns: True if iLO is back online, False if timeout
         :rtype: bool
         """
-        import requests
         from requests.auth import HTTPBasicAuth
         import time
 
@@ -1635,27 +1674,30 @@ class ComputeOpsManagementCommand:
 
         for attempt in range(max_attempts):
             try:
-                response = requests.get(
+                response = make_pqc_session(url=base_url).get(
                     f"{base_url}/redfish/v1/", auth=HTTPBasicAuth(username, password), verify=False, timeout=30
                 )
 
                 if response.status_code == 200:
                     elapsed_time = time.time() - start_time
-                    LOGGER.info(f"{ip}: iLO back online after {elapsed_time:.1f}s")
+                    LOGGER.info("%s: iLO back online after %ss", ip, format(elapsed_time, ".1f"))
                     return True
 
-            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            except (ConnectionError, Timeout):
                 # Expected during reset - iLO is still rebooting
                 pass
             except Exception as e:
-                LOGGER.warning(f"{ip}: Unexpected error while waiting - {str(e)}")
+                LOGGER.warning("%s: Unexpected error while waiting - %s", ip, e)
 
             # Wait before next check (skip on last attempt)
             if attempt < max_attempts - 1:
                 time.sleep(check_interval)
 
         elapsed_time = time.time() - start_time
-        LOGGER.error(f"{ip}: Timeout - iLO did not come back online within {timeout_minutes}m ({elapsed_time:.1f}s)")
+        LOGGER.error(
+            "%s: Timeout - iLO did not come back online within %sm (%ss)",
+            ip, timeout_minutes, format(elapsed_time, ".1f"),
+        )
         return False
 
     def _get_ilo_version_from_response(self, redfish_data, base_url=None, username=None, password=None):
@@ -1687,7 +1729,7 @@ class ComputeOpsManagementCommand:
             else:
                 LOGGER.warning("Managers section not found in Redfish response or invalid credentials")
         except Exception as e:
-            LOGGER.warning(f"Could not determine iLO version from response: {str(e)}")
+            LOGGER.warning("Could not determine iLO version from response: %s", e)
             raise e
 
         return model_version, ilo_version
@@ -1746,17 +1788,17 @@ class ComputeOpsManagementCommand:
         if model == 5 and ilo_version < ILO5_MIN_SUPPORTED:
             error_msg = f"iLO version should be greater than {ILO5_MIN_SUPPORTED}"
             recommendation = "Upgrade to the latest iLO version to use HPE Compute Ops Management"
-            LOGGER.warning(f"{ip}: iLO version {ilo_version} incompatible - requires 2.47 or higher")
+            LOGGER.warning("%s: iLO version %s incompatible - requires 2.47 or higher", ip, ilo_version)
             return False, error_msg, recommendation
         elif model == 6 and ilo_version < ILO6_MIN_SUPPORTED:
             error_msg = f"iLO version should be greater than {ILO6_MIN_SUPPORTED}"
             recommendation = "Upgrade to the latest iLO version to use HPE Compute Ops Management"
-            LOGGER.warning(f"{ip}: iLO version {ilo_version} incompatible - requires 1.64 or higher")
+            LOGGER.warning("%s: iLO version %s incompatible - requires 1.64 or higher", ip, ilo_version)
             return False, error_msg, recommendation
         elif model == 7 and ilo_version < ILO7_MIN_SUPPORTED:
             error_msg = f"iLO version should be greater than {ILO7_MIN_SUPPORTED}"
             recommendation = "Upgrade to the latest iLO version to use HPE Compute Ops Management"
-            LOGGER.warning(f"{ip}: iLO version {ilo_version} incompatible - requires 1.12 or higher")
+            LOGGER.warning("%s: iLO version %s incompatible - requires 1.12 or higher", ip, ilo_version)
             return False, error_msg, recommendation
 
         # Compatible version
@@ -1764,11 +1806,10 @@ class ComputeOpsManagementCommand:
 
     def _get_ilo_info(self, base_url, username, password):
         """Get iLO model and version information"""
-        import requests
         from requests.auth import HTTPBasicAuth
 
         try:
-            response = requests.get(
+            response = make_pqc_session(url=base_url).get(
                 f"{base_url}/redfish/v1/Managers/1/", auth=HTTPBasicAuth(username, password), verify=False, timeout=30
             )
 
@@ -1791,7 +1832,7 @@ class ComputeOpsManagementCommand:
 
                 return model, firmware_version, version_float, major_version
         except Exception as e:
-            LOGGER.warning(f"Failed to get iLO info: {str(e)}")
+            LOGGER.warning("Failed to get iLO info: %s", e)
 
         return "iLO5", "3.09", 3.09, 5
 
@@ -1810,7 +1851,7 @@ class ComputeOpsManagementCommand:
         from requests.auth import HTTPBasicAuth
 
         try:
-            mgr_response = requests.get(
+            mgr_response = make_pqc_session(url=base_url).get(
                 f"{base_url}/redfish/v1/Managers/1/",
                 auth=HTTPBasicAuth(username, password),
                 verify=False,
@@ -1827,7 +1868,7 @@ class ComputeOpsManagementCommand:
             else:
                 return "", ""
         except Exception as e:
-            LOGGER.warning(f"Failed to get iLO model and version: {str(e)}")
+            LOGGER.warning("Failed to get iLO model and version: %s", e)
             raise e
 
     def _check_dns_configuration(self, session, base_url, network_settings, individual_settings):
@@ -1848,7 +1889,7 @@ class ComputeOpsManagementCommand:
 
                 return len(dns_servers) > 0
         except Exception as e:
-            LOGGER.warning(f"Failed to check DNS configuration: {str(e)}")
+            LOGGER.warning("Failed to check DNS configuration: %s", e)
 
         return False
 
@@ -1868,7 +1909,7 @@ class ComputeOpsManagementCommand:
 
                 return len(all_ntp) > 0
         except Exception as e:
-            LOGGER.warning(f"Failed to check NTP configuration: {str(e)}")
+            LOGGER.warning("Failed to check NTP configuration: %s", e)
 
         return False
 
@@ -1886,7 +1927,7 @@ class ComputeOpsManagementCommand:
         try:
             response = session.get(f"{base_url}/redfish/v1/Managers/1/", timeout=30)
             if response.status_code != 200:
-                LOGGER.warning(f"Failed to get manager resource, status: {response.status_code}")
+                LOGGER.warning("Failed to get manager resource, status: %s", response.status_code)
                 return False
 
             manager_data = response.json()
@@ -1894,18 +1935,18 @@ class ComputeOpsManagementCommand:
             current_status = cloud_connect.get("CloudConnectStatus", "")
 
             if current_status == "Connected":
-                LOGGER.info(f"COM is already connected for {base_url.split('//')[1]}")
+                LOGGER.info("COM is already connected for %s", base_url.split('//')[1])
                 return True
             return False
         except (ConnectionError, Timeout, RequestException) as e:
             # Connection errors indicate unstable connection - treat as "already connected" to be safe
-            LOGGER.warning(f"Connection error while checking COM status: {str(e)}")
+            LOGGER.warning("Connection error while checking COM status: %s", e)
             LOGGER.info(
                 "Treating as COM connected due to connection instability. Skipping configuration to avoid disruption."
             )
             return True  # Assume connected to avoid disruption during unstable connection
         except Exception as e:
-            LOGGER.warning(f"Error checking COM connection status: {str(e)}")
+            LOGGER.warning("Error checking COM connection status: %s", e)
             return None  # Cannot determine status
 
     def _configure_network_settings_requests(
@@ -1953,7 +1994,7 @@ class ComputeOpsManagementCommand:
                     self._configure_dns(session, base_url, dns_servers)
                 except Exception as dns_err:
                     all_configs_successful = False
-                    LOGGER.error(f"DNS configuration failed, will not reset iLO: {str(dns_err)}")
+                    LOGGER.error("DNS configuration failed, will not reset iLO: %s", dns_err)
                     raise  # Re-raise to stop processing
 
             # Configure NTP and capture if iLO was reset
@@ -1971,10 +2012,10 @@ class ComputeOpsManagementCommand:
                     )
                 except Exception as ntp_err:
                     all_configs_successful = False
-                    LOGGER.error(f"NTP configuration failed, will not reset iLO: {str(ntp_err)}")
+                    LOGGER.error("NTP configuration failed, will not reset iLO: %s", ntp_err)
                     raise  # Re-raise to stop processing
 
-                LOGGER.info(f"is_ntp_config_matching {is_ntp_config_matching}")
+                LOGGER.info("is_ntp_config_matching %s", is_ntp_config_matching)
                 if is_ntp_config_matching:
                     return ilo_was_reset, ntp_configured_needs_reset
 
@@ -2016,10 +2057,10 @@ class ComputeOpsManagementCommand:
                 current_dns = sorted([srv.strip() for srv in current_dns_servers if srv and srv.strip()])
 
                 if desired_dns == current_dns:
-                    LOGGER.info(f"DNS already configured: {desired_dns}")
+                    LOGGER.info("DNS already configured: %s", desired_dns)
                     return
                 else:
-                    LOGGER.info(f"Updating DNS from {current_dns} to {desired_dns}")
+                    LOGGER.info("Updating DNS from %s to %s", current_dns, desired_dns)
             else:
                 LOGGER.info("Unable to retrieve current DNS configuration. Proceeding with DNS configuration.")
 
@@ -2056,11 +2097,11 @@ class ComputeOpsManagementCommand:
                 payload["Oem"]["Hpe"]["IPv6"] = {"DNSServers": ipv6_dns_servers}
 
             # Create fresh session for DNS configuration to avoid connection reuse issues
-            dns_session = requests.Session()
+            dns_session = make_pqc_session(url=dns_config_url)
             dns_session.auth = session.auth
             dns_session.verify = False
 
-            LOGGER.info(f"Configuring DNS - IPv4: {ipv4_dns_servers}, IPv6: {ipv6_dns_servers}")
+            LOGGER.info("Configuring DNS - IPv4: %s, IPv6: %s", ipv4_dns_servers, ipv6_dns_servers)
 
             response = dns_session.patch(dns_config_url, json=payload, timeout=30)
 
@@ -2138,13 +2179,13 @@ class ComputeOpsManagementCommand:
 
                 return formatted_dns_servers, dhcp_dns_enabled, dhcp_check_attempted
             else:
-                LOGGER.warning(f"Failed to get current DNS configuration. HTTP {response.status_code}")
+                LOGGER.warning("Failed to get current DNS configuration. HTTP %s", response.status_code)
                 return None, dhcp_dns_enabled, dhcp_check_attempted
         except (ConnectionError, Timeout, RequestException) as e:
-            LOGGER.warning(f"Connection error while reading DNS configuration: {str(e)}")
+            LOGGER.warning("Connection error while reading DNS configuration: %s", e)
             return None, dhcp_dns_enabled, dhcp_check_attempted
         except Exception as e:
-            LOGGER.warning(f"Error reading DNS configuration: {str(e)}")
+            LOGGER.warning("Error reading DNS configuration: %s", e)
             return None, dhcp_dns_enabled, dhcp_check_attempted
 
     def _configure_ntp(self, session, base_url, ntp_servers, allow_ilo_reset):
@@ -2165,7 +2206,7 @@ class ComputeOpsManagementCommand:
         is_ntp_config_matching = False
         dhcp_disabled_successfully = False
 
-        LOGGER.info(f"Starting NTP configuration for {base_url.split('//')[1]}")
+        LOGGER.info("Starting NTP configuration for %s", base_url.split('//')[1])
 
         try:
             # First, check if DHCP NTP is enabled - if it is, static NTP list is irrelevant
@@ -2279,7 +2320,7 @@ class ComputeOpsManagementCommand:
                     ntp_server_list.append("")
 
                 payload = {"StaticNTPServers": ntp_server_list}
-                LOGGER.info(f"Configuring static NTP servers: {ntp_servers}")
+                LOGGER.info("Configuring static NTP servers: %s", ntp_servers)
 
                 try:
                     response = session.patch(ntp_datetime_url, json=payload, timeout=30)
@@ -2289,7 +2330,7 @@ class ComputeOpsManagementCommand:
                         LOGGER.error(error_msg)
                         raise Exception(error_msg)
                 except (ConnectionError, Timeout, RequestException) as conn_err:
-                    LOGGER.warning(f"Connection error during NTP configuration: {str(conn_err)}")
+                    LOGGER.warning("Connection error during NTP configuration: %s", conn_err)
                     LOGGER.info("NTP configuration may have been applied despite connection error")
                     is_ntp_config_matching = False
 
@@ -2308,7 +2349,7 @@ class ComputeOpsManagementCommand:
                         ilo_was_reset = True
                         time.sleep(30)
                     else:
-                        LOGGER.warning(f"Failed to reset iLO - HTTP {reset_response.status_code}")
+                        LOGGER.warning("Failed to reset iLO - HTTP %s", reset_response.status_code)
                 except (ConnectionError, Timeout, RequestException):
                     LOGGER.info("iLO appears to be resetting (connection closed)")
                     ilo_was_reset = True
@@ -2317,11 +2358,11 @@ class ComputeOpsManagementCommand:
                 LOGGER.info("NTP configured but iLO reset not allowed - manual reset may be required")
 
         except (ConnectionError, Timeout, RequestException) as e:
-            LOGGER.error(f"Connection error during NTP configuration: {str(e)}")
+            LOGGER.error("Connection error during NTP configuration: %s", e)
         except Exception as e:
-            LOGGER.error(f"Error configuring NTP: {str(e)}")
+            LOGGER.error("Error configuring NTP: %s", e)
 
-        LOGGER.info(f"NTP configuration completed - reset={ilo_was_reset}, matching={is_ntp_config_matching}")
+        LOGGER.info("NTP configuration completed - reset=%s, matching=%s", ilo_was_reset, is_ntp_config_matching)
         return ilo_was_reset, is_ntp_config_matching
 
     def _check_dhcp_ntp_config_on_interfaces(self, session, base_url, eth_interfaces_url):
@@ -2348,7 +2389,7 @@ class ComputeOpsManagementCommand:
                 eth_data = eth_response.json()
                 members = eth_data.get("Members", [])
         except (ConnectionError, Timeout, RequestException) as eth_err:
-            LOGGER.warning(f"Error accessing ethernet interfaces: {str(eth_err)}")
+            LOGGER.warning("Error accessing ethernet interfaces: %s", eth_err)
             return dhcp_ntp_is_enabled, dhcp_disabled_successfully, dhcp_check_attempted
 
         # Find the first enabled interface to check/disable DHCP NTP
@@ -2384,14 +2425,14 @@ class ComputeOpsManagementCommand:
                         break
             except (ConnectionError, Timeout, RequestException) as iface_err:
                 # Connection errors during interface access - implement retry with new session
-                LOGGER.warning(f"Connection error accessing interface: {type(iface_err).__name__}")
+                LOGGER.warning("Connection error accessing interface: %s", type(iface_err).__name__)
 
                 # For RemoteDisconnected errors, retry once with a fresh session
                 if "RemoteDisconnected" in str(type(iface_err)) or "Connection aborted" in str(iface_err):
                     retry_session = None
                     try:
                         time.sleep(2)
-                        retry_session = requests.Session()
+                        retry_session = make_pqc_session(url=interface_url)
                         retry_session.auth = session.auth
                         retry_session.verify = False
                         retry_response = retry_session.get(interface_url, timeout=30)
@@ -2452,13 +2493,13 @@ class ComputeOpsManagementCommand:
                 current_ntp_servers = [srv for srv in current_ntp_servers if srv]
                 return current_ntp_servers
             else:
-                LOGGER.warning(f"Failed to get NTP configuration - HTTP {response.status_code}")
+                LOGGER.warning("Failed to get NTP configuration - HTTP %s", response.status_code)
                 return None
         except (ConnectionError, Timeout, RequestException) as e:
-            LOGGER.warning(f"Connection error reading NTP configuration: {str(e)}")
+            LOGGER.warning("Connection error reading NTP configuration: %s", e)
             return None
         except Exception as e:
-            LOGGER.warning(f"Error reading NTP configuration: {str(e)}")
+            LOGGER.warning("Error reading NTP configuration: %s", e)
             return None
 
     def _get_current_proxy_settings(self, session, base_url):
@@ -2495,13 +2536,13 @@ class ComputeOpsManagementCommand:
 
                 return current_proxy
             else:
-                LOGGER.warning(f"Failed to get current proxy configuration. HTTP {response.status_code}")
+                LOGGER.warning("Failed to get current proxy configuration. HTTP %s", response.status_code)
                 return None
         except (ConnectionError, Timeout, RequestException) as e:
-            LOGGER.warning(f"Connection error while reading proxy configuration: {str(e)}")
+            LOGGER.warning("Connection error while reading proxy configuration: %s", e)
             return None
         except Exception as e:
-            LOGGER.warning(f"Error reading proxy configuration: {str(e)}")
+            LOGGER.warning("Error reading proxy configuration: %s", e)
             return None
 
     def _configure_proxy_for_ilo_requests(self, session, base_url, proxy_settings, individual_settings=None):
@@ -2605,10 +2646,10 @@ class ComputeOpsManagementCommand:
                     and desired_port == current_port
                     and desired_username == current_username
                 ):
-                    LOGGER.info(f"Proxy already configured: {desired_server}:{desired_port}")
+                    LOGGER.info("Proxy already configured: %s:%s", desired_server, desired_port)
                     return
                 else:
-                    LOGGER.info(f"Updating proxy configuration to {desired_server}:{desired_port}")
+                    LOGGER.info("Updating proxy configuration to %s:%s", desired_server, desired_port)
             else:
                 LOGGER.info("Unable to retrieve current proxy configuration. Proceeding with proxy configuration.")
 
@@ -2661,7 +2702,7 @@ class ComputeOpsManagementCommand:
             # Get manager resource to check COM capabilities with timeout
             response = session.get(f"{base_url}/redfish/v1/Managers/1/", timeout=30)
             if response.status_code != 200:
-                LOGGER.warning(f"Failed to get manager resource - HTTP {response.status_code}")
+                LOGGER.warning("Failed to get manager resource - HTTP %s", response.status_code)
                 return False, f"Failed to get manager resource: HTTP {response.status_code}"
 
             manager_data = response.json()
@@ -2687,7 +2728,7 @@ class ComputeOpsManagementCommand:
             LOGGER.info("Enabling COM connection")
 
             # Create a new session for the POST request to avoid connection reuse issues
-            post_session = requests.Session()
+            post_session = make_pqc_session(url=action_uri)
             post_session.auth = session.auth
             post_session.verify = False
 
@@ -2704,7 +2745,7 @@ class ComputeOpsManagementCommand:
                         success = True
                         LOGGER.info("COM enable request successful")
                     else:
-                        LOGGER.warning(f"COM enable failed - HTTP {response.status_code}")
+                        LOGGER.warning("COM enable failed - HTTP %s", response.status_code)
                         if retry_count < max_retries:
                             retry_count += 1
                             time.sleep(5)
@@ -2712,7 +2753,7 @@ class ComputeOpsManagementCommand:
                             return False, "COM enable request failed"
 
                 except (ConnectionError, Timeout, RequestException) as conn_err:
-                    LOGGER.warning(f"Connection issue during COM enable: {str(conn_err)}")
+                    LOGGER.warning("Connection issue during COM enable: %s", conn_err)
 
                     # Give iLO time to process the request
                     time.sleep(10)
@@ -2729,7 +2770,7 @@ class ComputeOpsManagementCommand:
                                 .get("CloudConnectStatus", "")
                             )
                             if cc_status in ["Initializing", "ConnectionInProgress", "Connected"]:
-                                LOGGER.info(f"COM enable appears successful (status: {cc_status})")
+                                LOGGER.info("COM enable appears successful (status: %s)", cc_status)
                                 success = True
                                 break
                     except Exception:
@@ -2769,24 +2810,24 @@ class ComputeOpsManagementCommand:
                             LOGGER.info("COM connection is initializing, waiting...")
                             continue  # Keep waiting
                         elif current_status == "ConnectionFailed":
-                            LOGGER.warning(f"COM connect terminal Status: {current_status}")
+                            LOGGER.warning("COM connect terminal Status: %s", current_status)
                             break
                         elif current_status in ["NotConnected", "NotEnabled"]:
                             fail_reason = cloud_connect.get("FailReason", "Unknown error")
 
-                            LOGGER.warning(f"COM Current Status: {current_status}")
+                            LOGGER.warning("COM Current Status: %s", current_status)
                             LOGGER.warning("Continuing to wait ...")
                             continue  # Keep waiting
                         # Add other terminal states if needed
                     else:
                         LOGGER.warning(
-                            f"Failed to get manager resource during status check - HTTP {status_response.status_code}"
+                            "Failed to get manager resource during status check - HTTP %s", status_response.status_code
                         )
                 except (ConnectionError, Timeout, RequestException):
                     LOGGER.warning("Connection error during COM status polling, will retry...")
                     continue
                 except Exception as check_err:
-                    LOGGER.warning(f"Error during COM status polling: {str(check_err)}")
+                    LOGGER.warning("Error during COM status polling: %s", check_err)
                     continue
 
             status_response = session.get(f"{base_url}/redfish/v1/Managers/1/", timeout=30)
@@ -2799,14 +2840,14 @@ class ComputeOpsManagementCommand:
                     return True, None
                 else:
                     fail_reason = cloud_connect.get("FailReason", "Unknown error")
-                    LOGGER.warning(f"COM connection failed - final status: {current_status}")
+                    LOGGER.warning("COM connection failed - final status: %s", current_status)
                     return False, f"COM connection failed: {fail_reason}"
 
         except (ConnectionError, Timeout, RequestException) as e:
-            LOGGER.warning(f"Connection error during COM enable: {str(e)}")
+            LOGGER.warning("Connection error during COM enable: %s", e)
             # Try to verify if the connection actually succeeded
             try:
-                verify_session = requests.Session()
+                verify_session = make_pqc_session(url=base_url)
                 verify_session.auth = session.auth
                 verify_session.verify = False
                 time.sleep(5)
@@ -2818,7 +2859,7 @@ class ComputeOpsManagementCommand:
                         mgr_data.get("Oem", {}).get("Hpe", {}).get("CloudConnect", {}).get("CloudConnectStatus", "")
                     )
                     if cc_status in ["Initializing", "ConnectionInProgress", "Connected"]:
-                        LOGGER.info(f"COM enable appears successful despite connection error (status: {cc_status})")
+                        LOGGER.info("COM enable appears successful despite connection error (status: %s)", cc_status)
                         success = True
                     else:
                         return False, "Connection error"
@@ -2831,7 +2872,7 @@ class ComputeOpsManagementCommand:
                 return False, "Connection error"
 
         except Exception as e:
-            LOGGER.error(f"Unexpected error enabling COM: {str(e)}")
+            LOGGER.error("Unexpected error enabling COM: %s", e)
             return False, str(e)
 
     def _save_json_report(self, report, output_file):
@@ -2848,7 +2889,7 @@ class ComputeOpsManagementCommand:
             with open(output_file, "w") as f:
                 json.dump(report, f, indent=2, sort_keys=True)
 
-            LOGGER.info(f"Report successfully saved to {output_file}")
+            LOGGER.info("Report successfully saved to %s", output_file)
 
         except Exception as e:
             error_msg = f"Failed to save report to {output_file}: {str(e)}"
@@ -2866,12 +2907,12 @@ class ComputeOpsManagementCommand:
         if help_disp:
             line.append("-h")
             try:
-                (_, _) = self.rdmc.rdmc_parse_arglist(self, line)
+                _, _ = self.rdmc.rdmc_parse_arglist(self, line)
             except:
                 return ReturnCodes.SUCCESS
             return ReturnCodes.SUCCESS
         try:
-            (options, _) = self.rdmc.rdmc_parse_arglist(self, line)
+            options, _ = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -3024,8 +3065,7 @@ class ComputeOpsManagementCommand:
         multiconnect_parser = subcommand_parser.add_parser(
             "multiconnect",
             help=multiconnect_help,
-            description=multiconnect_help
-            + """
+            description=multiconnect_help + """
                 EXAMPLES:
                     # Generate template JSON file
                     computeopsmanagement multiconnect --input_file_json_template

@@ -19,8 +19,8 @@
 from __future__ import absolute_import  # check if python3 supported
 
 import json
-import multiprocessing
-from multiprocessing.dummy import Pool as ThreadPool
+import os
+from concurrent.futures import ThreadPoolExecutor
 
 
 class RestHelpers(object):
@@ -47,13 +47,13 @@ class RestHelpers(object):
         """
         Retrieve the expanded Memory Collection resource
         """
-        return self.get_resource("/redfish/v1/systems/1/memory?$expand=.")
+        return self.get_resource(self.rdmc.app.typepath.defs.systempath + "memory?$expand=.")
 
     def retrieve_mem_domain_resources(self, chunks_flag=True):
         """
         Retrieve Memory Domain Resources and All Chunks
         """
-        mem_domain_resources = self.get_resource("/redfish/v1/systems/1/MemoryDomains?$expand=.")
+        mem_domain_resources = self.get_resource(self.rdmc.app.typepath.defs.systempath + "MemoryDomains?$expand=.")
         domain_members = []
         all_chunks = []
         if mem_domain_resources:
@@ -126,9 +126,9 @@ class RestHelpers(object):
         # that are a part of 'resource_list', in the same order.
         response_list = self.concurrent_retrieve(resource_list)
         # Segregating individual responses from 'response_list':
-        # The 'get()' call is responsible for retrieving the value that a function returns
-        # from the 'AsyncResult' object returned by 'apply_async' in 'concurrent_retrieve'.
-        memory = response_list[0].get()
+        # The 'result()' call is responsible for retrieving the value that a function returns
+        # from the 'Future' object returned by 'submit' in 'concurrent_retrieve'.
+        memory = response_list[0].result()
         # domain_members and all chunks are returned as a tuple in 'response_list' as per the
         # 'retrieve_mem_domain_resources()' function definition. They are unpacked here.
         (domain_members, all_chunks) = response_list[1]
@@ -147,9 +147,9 @@ class RestHelpers(object):
         # that are a part of 'resource_list', in the same order.
         response_list = self.concurrent_retrieve(resource_list)
         # Segregating individual responses from 'response_list':
-        # The 'get()' call is responsible for retrieving the value that a function returns
-        # from the 'AsyncResult' object returned by 'apply_async' in 'concurrent_retrieve'.
-        task_members = response_list[0].get()
+        # The 'result()' call is responsible for retrieving the value that a function returns
+        # from the 'Future' object returned by 'submit' in 'concurrent_retrieve'.
+        task_members = response_list[0].result()
         # domain_members and all chunks are returned as a tuple in 'response_list' as per the
         # 'retrieve_mem_domain_resources()' function definition. They are unpacked here.
         (domain_members, all_chunks) = response_list[1]
@@ -170,22 +170,29 @@ class RestHelpers(object):
         # the number of functions to call.
         # 'len(resource_list) - 1' ensures that the last function call happens
         # on the main thread and not on a worker thread.
-        pool = ThreadPool(min(len(resource_list) - 1, multiprocessing.cpu_count()))
+        # NOTE: concurrent.futures.ThreadPoolExecutor is used here instead of
+        # multiprocessing.dummy.ThreadPool. Both are purely thread-based (no
+        # actual process spawning), but ThreadPoolExecutor never touches the
+        # multiprocessing module's internal spawn/resource_tracker machinery,
+        # which avoids frozen (PyInstaller) builds mistakenly relaunching the
+        # ilorest executable itself and misinterpreting interpreter flags such
+        # as "-B" as an unrecognized CLI command.
+        max_workers = max(min(len(resource_list) - 1, os.cpu_count() or 1), 1)
+        executor = ThreadPoolExecutor(max_workers=max_workers)
         # Asynchronously call funtions from 'resource_list' on worker threads and
-        # append responses to 'response_list'. These responses will be 'AsyncResult'
-        # objects and the actual return value will have to be retrieved by a 'get()'
-        # call to the returned response.
+        # append responses to 'response_list'. These responses will be 'Future'
+        # objects and the actual return value will have to be retrieved by a
+        # 'result()' call on the returned response.
         for resource in resource_list[:-1]:
-            response_list.append(pool.apply_async(resource))
+            response_list.append(executor.submit(resource))
         # Call the last function in 'resource_list' on the main thread so that
         # the main thread is doing some useful work and not sitting idle waiting
         # for all other threads to complete. This reduces the thread communication
-        # overhead as well. The response returned here will not be an 'AsyncResult'
-        # object and no 'get()' call is required to retrieve the actual return value.
+        # overhead as well. The response returned here will not be a 'Future'
+        # object and no 'result()' call is required to retrieve the actual return value.
         temp_response = resource_list[-1]()
         # Wait for all worker threads to complete execution.
-        pool.close()
-        pool.join()
+        executor.shutdown(wait=True)
         # Once all threads have finished execution, append the response recieved
         # on the main thread to the 'response_list'.
         response_list.append(temp_response)
@@ -201,12 +208,10 @@ class RestHelpers(object):
         """
         # Spawn a pool of worker threads based on the CPU core count and
         # the number of GET requests to be sent
-        pool = ThreadPool(min(multiprocessing.cpu_count(), len(uri_list)))
-        response_list = pool.map(self.get_resource, uri_list)
-        # Wait for worker threads to complete
-        pool.close()
-        pool.join()
-        # Return list of responses obtained via GET requests from worker threads
+        max_workers = max(min(os.cpu_count() or 1, len(uri_list)), 1)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Return list of responses obtained via GET requests from worker threads
+            response_list = list(executor.map(self.get_resource, uri_list))
         return response_list
 
     def delete_resource(self, url):
@@ -242,7 +247,7 @@ class RestHelpers(object):
         :return: True if server is in Post, False otherwise
         :rtype: Boolean
         """
-        resp_body = self.get_resource("/redfish/v1/systems/1")
+        resp_body = self.get_resource(self.rdmc.app.typepath.defs.systempath.rstrip("/"))
         if resp_body:
             if resp_body.get("Oem").get("Hpe").get("PostState") == "FinishedPost":
                 return False
@@ -258,7 +263,7 @@ class RestHelpers(object):
         """
         Retrieve the Pmem location
         """
-        return self.get_resource("/redfish/v1/Systems/1/Memory/?$expand=.#")
+        return self.get_resource(self.rdmc.app.typepath.defs.systempath + "Memory/?$expand=.#")
 
     def retrieve_model(self, rdmcObj):
         """

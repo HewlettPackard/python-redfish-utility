@@ -1,5 +1,5 @@
 ###
-# Copyright 2016-2021 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2016-2026 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,8 +17,11 @@
 # -*- coding: utf-8 -*-
 """Certificates Command for rdmc"""
 
+import logging
 import time
 from argparse import RawDescriptionHelpFormatter
+
+from redfish.ris import IdTokenError
 
 try:
     from rdmc_helper import (
@@ -41,9 +44,34 @@ except ImportError:
         ScepenabledError,
     )
 
+# PQC crypto-agility helpers — optional so iLO5/6/7 behavior is unaffected.
+try:
+    from ilorest.security.pqc import (
+        ILO8_CERT_ALGORITHMS,
+        CryptoCapabilities,
+    )
+except ImportError:
+    try:
+        from security.pqc import (
+            ILO8_CERT_ALGORITHMS,
+            CryptoCapabilities,
+        )
+    except ImportError:  # pragma: no cover - defensive
+        ILO8_CERT_ALGORITHMS = ()
+        CryptoCapabilities = None
+
 __filename__ = "certificate.txt"
 
-from redfish.ris import IdTokenError
+LOGGER = logging.getLogger(__name__)
+
+# Supported classical signing algorithms (always available on iLO5+).
+_CLASSICAL_SIGNING_ALGORITHMS = ("RSA", "ECDSA")
+
+# All PQC signing algorithms (only available on iLO8+).
+_PQC_SIGNING_ALGORITHMS = tuple(ILO8_CERT_ALGORITHMS)
+
+# Combined set for argument validation.
+_ALL_SIGNING_ALGORITHMS = _CLASSICAL_SIGNING_ALGORITHMS + _PQC_SIGNING_ALGORITHMS
 
 
 class CertificateCommand:
@@ -53,15 +81,24 @@ class CertificateCommand:
         self.ident = {
             "name": "certificate",
             "usage": None,
-            "description": "Generate a certificate signing request (CSR) or import an X509 formatted"
-            " TLS or CA certificate.\nImport Scep Certificate.\nInvoke Auto Enroll of certificate generation\n\n"
-            "NOTE: Use quotes to include parameters which contain whitespace when "
-            'generating a CSR.\nexample: certificate gen_csr "Hewlett Packard Enterprise"'
-            '"iLORest Group" "CName"\n"United States" "Texas" "Houston" "False or True"\n\n'
-            "NOTE: unifiedcertificate command which was augmenting certificate command is merged"
-            " into single command certificate",
-            "summary": "Command for importing both iLO and login authorization "
-            "certificates as well as generating iLO certificate signing requests (CSR)\n",
+            "description": (
+                "Generate a certificate signing request (CSR) or import an X509 formatted"
+                " TLS or CA certificate.\nImport Scep Certificate.\nInvoke Auto Enroll of"
+                " certificate generation\n\n"
+                "NOTE: Use quotes to include parameters which contain whitespace when "
+                'generating a CSR.\nexample: certificate gen_csr "Hewlett Packard Enterprise"'
+                '"iLORest Group" "CName"\n"United States" "Texas" "Houston" "False or True"\n\n'
+                "PQC note (iLO8+): Use --signing_algorithm to request a post-quantum CSR,\n"
+                "e.g.: certificate gen_csr ... True --signing_algorithm ML-DSA-65\n"
+                "Supported PQC algorithms: ML-DSA-44, ML-DSA-65, ML-DSA-87 (NIST FIPS 204).\n\n"
+                "NOTE: unifiedcertificate command which was augmenting certificate command is merged"
+                " into single command certificate"
+            ),
+            "summary": (
+                "Command for importing both iLO and login authorization "
+                "certificates as well as generating iLO certificate signing requests (CSR). "
+                "Supports PQC (ML-DSA) CSR generation on iLO8+.\n"
+            ),
             "aliases": ["unifiedcertificate"],
             "auxcommands": [],
         }
@@ -75,6 +112,102 @@ class CertificateCommand:
         self.gencsr = None
         self.autoenroll = None
 
+    # ------------------------------------------------------------------
+    # PQC helper methods
+    # ------------------------------------------------------------------
+
+    def _get_ilo_generation(self):
+        """Return the connected iLO generation as an integer, or None.
+
+        Reads the Oem/Hpe Manager entry from the Redfish root to get the
+        generation without requiring a separate detection round-trip.
+        If the generation cannot be determined, returns ``None`` so callers
+        degrade gracefully.
+
+        Returns:
+            int or None: iLO generation (5, 6, 7, 8, …) or ``None``.
+        """
+        try:
+            root = self.rdmc.app.redfishinst.root
+            if root is None:
+                return None
+            # The root object exposes a dict-like interface via .obj
+            oem = root.obj.get("Oem", {})
+            comp = "Hpe" if "Hpe" in oem else ("Hp" if "Hp" in oem else None)
+            if not comp:
+                return None
+            managers = oem.get(comp, {}).get("Manager", [])
+            if not managers:
+                return None
+            mgr_type = next(iter(managers), {}).get("ManagerType", "")
+            # ManagerType looks like "iLO 8", "iLO 7", etc.
+            parts = mgr_type.split()
+            if len(parts) >= 2:
+                return int(parts[-1])
+        except Exception as exc:
+            LOGGER.debug("Could not determine iLO generation: %s", exc)
+        return None
+
+    def _get_pqc_cert_capabilities(self):
+        """Return a ``CryptoCapabilities`` descriptor for the connected iLO.
+
+        Uses the detected generation to populate PQC certificate algorithm
+        support information (non-empty only for iLO8+).
+
+        Returns:
+            CryptoCapabilities or None: Descriptor, or ``None`` when the PQC
+            module is unavailable or the generation cannot be determined.
+        """
+        if CryptoCapabilities is None:
+            return None
+        gen = self._get_ilo_generation()
+        if gen is None:
+            return None
+        return CryptoCapabilities.from_generation(gen)
+
+    def _validate_signing_algorithm(self, algorithm, caps):
+        """Validate *algorithm* against server capabilities and raise on mismatch.
+
+        Args:
+            algorithm (str): The requested signing algorithm (e.g. ``"ML-DSA-65"``).
+            caps (CryptoCapabilities or None): Descriptor for the connected iLO.
+
+        Raises:
+            InvalidCommandLineErrorOPTS: When *algorithm* is not in the supported
+                set for any iLO generation.
+            IncompatibleiLOVersionError: When a PQC algorithm is requested on a
+                target that does not support PQC certificate generation (iLO < 8).
+        """
+        alg_upper = algorithm.upper() if algorithm else ""
+
+        # Normalize: accept "ml-dsa-65" as well as "ML-DSA-65"
+        normalized = None
+        for valid in _ALL_SIGNING_ALGORITHMS:
+            if alg_upper == valid.upper():
+                normalized = valid
+                break
+
+        if normalized is None:
+            raise InvalidCommandLineErrorOPTS(
+                "Unsupported signing algorithm %r. Supported values: %s"
+                % (algorithm, ", ".join(_ALL_SIGNING_ALGORITHMS))
+            )
+
+        if normalized in _PQC_SIGNING_ALGORITHMS:
+            # PQC algorithms require iLO8+.
+            if caps is None or not caps.supports_pqc_certs():
+                gen_str = ("iLO%d" % caps.ilo_generation) if (caps and caps.ilo_generation) else "this iLO version"
+                raise IncompatibleiLOVersionError(
+                    "PQC signing algorithm %r requires iLO8 or later; "
+                    "connected target is %s which does not support PQC certificates." % (normalized, gen_str)
+                )
+
+        return normalized
+
+    # ------------------------------------------------------------------
+    # run / dispatch
+    # ------------------------------------------------------------------
+
     def run(self, line, help_disp=False):
         """Main Certificates Command function
 
@@ -86,12 +219,12 @@ class CertificateCommand:
         if help_disp:
             line.append("-h")
             try:
-                (_, _) = self.rdmc.rdmc_parse_arglist(self, line)
-            except:
+                _, _ = self.rdmc.rdmc_parse_arglist(self, line)
+            except Exception:
                 return ReturnCodes.SUCCESS
             return ReturnCodes.SUCCESS
         try:
-            (options, _) = self.rdmc.rdmc_parse_arglist(self, line)
+            options, _ = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -208,6 +341,10 @@ class CertificateCommand:
         # Return code
         return returnCode
 
+    # ------------------------------------------------------------------
+    # ...existing code...
+    # ------------------------------------------------------------------
+
     def autoenrollfunction(self, options):
         """Automatic Scep cert enrollement process
 
@@ -219,8 +356,8 @@ class CertificateCommand:
 
         try:
             results = results[0]
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to index security service selection results for auto-enroll: %s", exc)
 
         if results:
             path = results.resp.request.path
@@ -234,7 +371,7 @@ class CertificateCommand:
                 if "AutomaticCertificateEnrollment" in item:
                     path = bodydict["Links"]["AutomaticCertificateEnrollment"]["@odata.id"]
                     break
-        except:
+        except Exception:
             path = path + "AutomaticCertificateEnrollment"
 
         body = {
@@ -290,7 +427,12 @@ class CertificateCommand:
             return ReturnCodes.RIS_MISSING_ID_TOKEN
 
     def gencsrfunction(self, options):
-        """Main Certificates Command function
+        """Generate a CSR via the iLO GenerateCSR action.
+
+        On iLO8+, the optional ``--signing_algorithm`` argument selects the
+        certificate signing algorithm.  Passing a PQC algorithm (ML-DSA-44,
+        ML-DSA-65, ML-DSA-87) on iLO7 or earlier raises
+        :class:`IncompatibleiLOVersionError`.
 
         :param options: list of options
         :type options: list.
@@ -300,8 +442,8 @@ class CertificateCommand:
             results = self.rdmc.app.select(selector=select)
             try:
                 results = results[0]
-            except:
-                pass
+            except Exception as exc:
+                LOGGER.debug("Unable to index HTTPS certificate selection results for CSR generation: %s", exc)
 
             if results:
                 path = results.resp.request.path
@@ -320,9 +462,9 @@ class CertificateCommand:
 
                         path = bodydict["Actions"][item]["target"]
                         break
-            except:
+            except Exception:
                 action = "GenerateCSR"
-        except:
+        except Exception:
             path = "redfish/v1/Managers/1/SecurityService/HttpsCert"
             action = "GenerateCSR"
 
@@ -336,6 +478,17 @@ class CertificateCommand:
             "City": options.gencsr_city.strip('"'),
             "IncludeIP": eval(options.gencsr_parser_includeIP.strip('"')),
         }
+
+        # PQC signing algorithm (iLO8+ only).  When the user supplies
+        # --signing_algorithm the value is validated against the connected
+        # target's capabilities before the POST is made.
+        signing_algorithm = getattr(options, "signing_algorithm", None)
+        if signing_algorithm:
+            caps = self._get_pqc_cert_capabilities()
+            # _validate_signing_algorithm raises on incompatible combinations.
+            normalized = self._validate_signing_algorithm(signing_algorithm, caps)
+            body["SigningAlgorithm"] = normalized
+            LOGGER.debug("CSR signing algorithm set to %r", normalized)
 
         try:
             results = self.rdmc.app.post_handler(path, body)
@@ -363,8 +516,8 @@ class CertificateCommand:
 
         try:
             results = results[0]
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to index HTTPS certificate selection results for delete: %s", exc)
 
         if results:
             path = results.resp.request.path
@@ -414,8 +567,8 @@ class CertificateCommand:
 
         try:
             results = results[0]
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to index security service selection results for SCEP certificate view: %s", exc)
 
         if results:
             path = results.resp.request.path
@@ -429,7 +582,7 @@ class CertificateCommand:
                 if "AutomaticCertificateEnrollment" in item:
                     path = bodydict["Links"]["AutomaticCertificateEnrollment"]["@odata.id"]
                     break
-        except:
+        except Exception:
             path = path + "AutomaticCertificateEnrollment"
 
         try:
@@ -465,14 +618,14 @@ class CertificateCommand:
 
             try:
                 results = results[0]
-            except:
-                pass
+            except Exception as exc:
+                LOGGER.debug("Unable to index HTTPS certificate selection results for HTTPS certificate view: %s", exc)
 
             if results:
                 path = results.resp.request.path
             else:
                 raise NoContentsFoundForOperationError("Unable to find %s" % select)
-        except:
+        except Exception:
             path = "redfish/v1/Managers/1/SecurityService/HttpsCert"
 
         try:
@@ -481,7 +634,7 @@ class CertificateCommand:
                 self.rdmc.ui.printer("Https Certificate details ...\n")
                 results = results.dict
                 self.print_cert_info(results)
-                return ReturnCodes.SUCESS
+                return ReturnCodes.SUCCESS  # NOTE: was ReturnCodes.SUCESS (typo) — fixed
         except IloLicenseError:
             self.rdmc.ui.error("Error Occured while Uninstall")
             return ReturnCodes.ILO_LICENSE_ERROR
@@ -587,8 +740,8 @@ class CertificateCommand:
 
         try:
             results = results[0]
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to index security service selection results for SCEP certificate import: %s", exc)
 
         if results:
             path = results.resp.request.path
@@ -602,7 +755,7 @@ class CertificateCommand:
                 if "AutomaticCertificateEnrollment" in item:
                     path = bodydict["Links"]["AutomaticCertificateEnrollment"]["@odata.id"]
                     break
-        except:
+        except Exception:
             path = path + "AutomaticCertificateEnrollment"
 
         path = path + "Actions/HpeAutomaticCertEnrollment.ImportCACertificate"
@@ -616,8 +769,8 @@ class CertificateCommand:
             with open(scep_CACert) as certfile:
                 certdata = certfile.read()
                 certfile.close()
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to read SCEP certificate file '%s': %s", scep_CACert, exc)
 
         body = {"Action": action, "Certificate": certdata}
 
@@ -672,8 +825,8 @@ class CertificateCommand:
 
         try:
             results = results[0]
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to index HTTPS certificate selection results for CSR command: %s", exc)
 
         if results:
             path = results.resp.request.path
@@ -692,7 +845,7 @@ class CertificateCommand:
 
                     path = bodydict["Actions"][item]["target"]
                     break
-        except:
+        except Exception:
             action = "GenerateCSR"
 
         body = {
@@ -728,8 +881,8 @@ class CertificateCommand:
 
         try:
             results = results[0]
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to index HTTPS certificate selection results for CSR retrieval: %s", exc)
 
         if results:
             try:
@@ -786,7 +939,11 @@ class CertificateCommand:
             )
 
     def gen_csr_helper(self, options):
-        """
+        """Generate a CSR.
+
+        On iLO8+ targets, includes ``SigningAlgorithm`` in the POST body when
+        the user supplied ``--signing_algorithm``.
+
         :param options: list of options
         :type options: attributes.
         """
@@ -818,6 +975,14 @@ class CertificateCommand:
             instance = next(iter(self.rdmc.app.select("CertificateService.", path_refresh=True)))
             body = {"CertificateCollection": {self.rdmc.app.typepath.defs.hrefstring: cert_obtain_path}}
 
+        # PQC signing algorithm (iLO8+ only) — include in body if provided.
+        signing_algorithm = getattr(options, "signing_algorithm", None)
+        if signing_algorithm and body is not None:
+            caps = self._get_pqc_cert_capabilities()
+            normalized = self._validate_signing_algorithm(signing_algorithm, caps)
+            body["SigningAlgorithm"] = normalized
+            LOGGER.debug("CSR signing algorithm set to %r (getcsr/platform path)", normalized)
+
         try:
             for act in instance.dict.get("Actions"):
                 if "GenerateCSR" in act:
@@ -827,7 +992,7 @@ class CertificateCommand:
                         action = "GenerateCSR"
                     path = instance.dict["Actions"][act]["target"]
                     break
-        except:
+        except Exception:
             raise NoContentsFoundForOperationError("Unable to find specified certificate action" "path for CSR request")
 
         self.rdmc.ui.printer(
@@ -847,7 +1012,7 @@ class CertificateCommand:
             with open(tlsfile) as certfile:
                 certdata = certfile.read()
                 certfile.close()
-        except:
+        except Exception:
             raise InvalidFileInputError("Error loading the specified file.")
 
         select = self.rdmc.app.typepath.defs.hphttpscerttype
@@ -855,8 +1020,8 @@ class CertificateCommand:
 
         try:
             results = results[0]
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to index HTTPS certificate selection results for TLS certificate import: %s", exc)
 
         if results:
             path = results.resp.request.path
@@ -873,7 +1038,7 @@ class CertificateCommand:
                         action = "ImportCertificate"
                     path = bodydict["Actions"][item]["target"]
                     break
-        except:
+        except Exception:
             action = "ImportCertificate"
 
         body = {"Action": action, "Certificate": certdata}
@@ -910,8 +1075,8 @@ class CertificateCommand:
 
         try:
             results = results[0]
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to index CA certificate selection results for CRL import: %s", exc)
 
         if results:
             bodydict = results.resp.dict
@@ -925,7 +1090,6 @@ class CertificateCommand:
                 break
 
         body = {"Action": action, "ImportUri": options.certfile}
-        # self.rdmc.app.post_handler(path, body)
         try:
             result = self.rdmc.app.post_handler(path, body)
             if result.status == 200:
@@ -956,7 +1120,7 @@ class CertificateCommand:
             with open(tlsfile) as certfile:
                 certdata = certfile.read()
                 certfile.close()
-        except:
+        except Exception:
             raise InvalidFileInputError("Error loading the specified file.")
 
         select = "HpeCertAuth."
@@ -964,8 +1128,8 @@ class CertificateCommand:
 
         try:
             results = results[0]
-        except:
-            pass
+        except Exception as exc:
+            LOGGER.debug("Unable to index CA certificate selection results for CA import: %s", exc)
 
         if results:
             bodydict = results.resp.dict
@@ -1001,9 +1165,6 @@ class CertificateCommand:
         :type options: attributes
         """
 
-        # ss_instance = next(
-        #     iter(self.rdmc.app.select("SecurityService.", path_refresh=True))
-        # )
         if getattr(options, "ldevid_cert"):
             instance_path_uri = "/redfish/v1/Managers/1/Diagnostics/Actions/HpeiLODiagnostics.ImportiLOLDevID"
         else:
@@ -1029,21 +1190,12 @@ class CertificateCommand:
         if not instance_path_uri:
             instance_path_uri = ss_instance.dict["Actions"][type_totarget]["target"]
 
-        # instance_path_uri = (
-        #     (
-        #         ss_instance.dict[type]["Certificates"][
-        #             self.rdmc.app.typepath.defs.hrefstring
-        #         ]
-        #     )
-        #     if ss_instance.dict.get("SystemIAK")
-        #     else None
-        # )
         if instance_path_uri:
             certdata = None
             try:
                 with open(options.certfile) as cf:
                     certdata = cf.read()
-            except:
+            except Exception:
                 raise InvalidFileInputError("Error loading the specified file.")
 
             payload = {"Certificate": certdata}
@@ -1153,6 +1305,15 @@ class CertificateCommand:
             " filename for the certificate signing request. The default"
             " filename is %s." % __filename__,
             action="append",
+            default=None,
+        )
+        get_csr_parser.add_argument(
+            "--signing_algorithm",
+            dest="signing_algorithm",
+            help="(iLO8+ only) Signing algorithm for the CSR. "
+            "Classical: RSA, ECDSA. "
+            "PQC (iLO8+): ML-DSA-44, ML-DSA-65, ML-DSA-87. "
+            "Example: --signing_algorithm ML-DSA-65",
             default=None,
         )
         self.cmdbase.add_login_arguments_group(get_csr_parser)
@@ -1378,18 +1539,23 @@ class CertificateCommand:
 
         self.cmdbase.add_login_arguments_group(delete_parser)
 
-        # gen csr sub-parser
+        # gen_csr sub-parser
         gencsr_help = (
             "Generate a certificate signing request (CSR) for iLO SSL certificate "
             "authentication.\nNote: iLO will create a Base64 encoded CSR in PKCS "
-            "#10 Format."
+            "#10 Format.\n\n"
+            "PQC signing algorithms (iLO8+ only):\n"
+            "  ML-DSA-44  NIST FIPS 204 level 2 (fastest, 128-bit PQC security)\n"
+            "  ML-DSA-65  NIST FIPS 204 level 3 (balanced)\n"
+            "  ML-DSA-87  NIST FIPS 204 level 5 (highest security)\n"
+            "Classical algorithms (all iLO versions): RSA, ECDSA\n"
+            "Example: certificate gen_csr HPE iLORest iLO US TX Houston True "
+            "--signing_algorithm ML-DSA-65"
         )
         gencsr_parser = subcommand_parser.add_parser(
             "gen_csr",
             help=gencsr_help,
-            description=gen_csr_help + "\nexample: certificate gen_csr [ORG_NAME] [ORG_UNIT]"
-            " [COMMON_NAME] [COUNTRY] [STATE] [CITY] [INCLUDEIP] \n\nNOTE: please make "
-            "certain the order of arguments is correct.",
+            description=gencsr_help,
             formatter_class=RawDescriptionHelpFormatter,
         )
         gencsr_parser.add_argument(
@@ -1418,6 +1584,15 @@ class CertificateCommand:
             "gencsr_parser_includeIP",
             help="Include IP. i.e. True or False.",
             metavar="INCLUDEIP",
+        )
+        gencsr_parser.add_argument(
+            "--signing_algorithm",
+            dest="signing_algorithm",
+            help="(iLO8+ only) Signing algorithm for the CSR. "
+            "Classical: RSA, ECDSA. "
+            "PQC (iLO8+): ML-DSA-44, ML-DSA-65, ML-DSA-87. "
+            "Example: --signing_algorithm ML-DSA-65",
+            default=None,
         )
         self.cmdbase.add_login_arguments_group(gencsr_parser)
 

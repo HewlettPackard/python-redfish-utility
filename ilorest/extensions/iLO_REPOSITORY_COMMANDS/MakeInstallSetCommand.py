@@ -156,7 +156,7 @@ class MakeInstallSetCommand:
                 else:
                     while True:
                         validated = self.validatepropvalue(reqdprops[count], line, reqdprops)
-                        if not validated:
+                        if validated is None:
                             if line == "quit":
                                 break
                             line = input(
@@ -222,7 +222,14 @@ class MakeInstallSetCommand:
         """
         validated_property = None
         if propvalue == "WaitTimeSeconds":
-            validated_property = int(givenvalue)
+            try:
+                value = int(givenvalue)
+                if value >= 0:
+                    validated_property = value
+                else:
+                    self.rdmc.ui.warn("Please enter a positive number for WaitTimeSeconds.\n")
+            except (ValueError, TypeError):
+                pass
         elif propvalue == "UpdatableBy":
             if isinstance(givenvalue, list):
                 validated_property = givenvalue

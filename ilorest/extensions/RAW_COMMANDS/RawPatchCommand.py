@@ -1,5 +1,5 @@
 ###
-# Copyright 2016-2021 Hewlett Packard Enterprise, Inc. All rights reserved.
+# Copyright 2016-2026 Hewlett Packard Enterprise, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,263 +15,143 @@
 ###
 
 # -*- coding: utf-8 -*-
-"""RawPatch Command for rdmc"""
+"""RawPatch Command for rdmc
 
-import json
-import re
-import sys
-from collections import OrderedDict
-from urllib.parse import urljoin
-
-import requests
+Uses the same optimized in-band engine as RawCommandBase (direct CHIF/VNIC,
+iLO-generation caching, session reuse) — only the HTTP verb and body differ.
+"""
 
 try:
-    from rdmc_helper import (
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
-        InvalidFileFormattingError,
-        InvalidFileInputError,
-        ReturnCodes,
-    )
+    from rdmc_helper import ReturnCodes
 except ImportError:
-    from ilorest.rdmc_helper import (
-        InvalidCommandLineError,
-        InvalidCommandLineErrorOPTS,
-        InvalidFileFormattingError,
-        InvalidFileInputError,
-        ReturnCodes,
-    )
+    from ilorest.rdmc_helper import ReturnCodes
+
+try:
+    from .RawCommandBase import RawCommandBase
+except ImportError:
+    from RawCommandBase import RawCommandBase
 
 
-class RawPatchCommand:
-    """Raw form of the patch command"""
+class RawPatchCommand(RawCommandBase):
+    """Raw form of the PATCH command — shares the optimized engine from RawCommandBase."""
+
+    # Declared at class level so the verb is known before run() executes; the
+    # shared formatters use it to pick 7.3-compatible output and return codes.
+    _raw_method = "PATCH"
 
     def __init__(self):
+        super().__init__()
         self.ident = {
             "name": "rawpatch",
             "usage": None,
-            "description": "Run to send a patch from the data"
-            " in the input file.\n\tMultiple PATCHes can be performed in sequence by "
-            "\n\tadding more path/body key/value pairs.\n"
-            "\n\texample: rawpatch rawpatch.txt"
-            '\n\n\tExample input file:\n\t{\n\t    "/redfish/'
-            'v1/systems/(system ID)":\n\t    {\n\t        '
-            '"AssetTag": "NewAssetTag"\n\t    }\n\t}',
+            "description": (
+                "Run to send a patch from the data in the input file.\n"
+                "\tMultiple PATCHes can be performed in sequence by adding more "
+                "path/body key/value pairs.\n"
+                "\n\texample: rawpatch rawpatch.txt"
+                "\n\n\tExample input file:\n\t{\n"
+                '\t    "/redfish/v1/systems/(system ID)":\n'
+                '\t    {\n\t        "AssetTag": "NewAssetTag"\n\t    }\n\t}'
+            ),
             "summary": "Raw form of the PATCH command.",
             "aliases": [],
-            "auxcommands": [],
+            "auxcommands": ["DetectiLOCommand", "AppAccountCommand"],
         }
         self.cmdbase = None
-        self.rdmc = None
         self.auxcommands = dict()
 
     def run(self, line, help_disp=False):
-        """Main raw patch worker function
-
-        :param line: command line input
-        :type line: string.
-        :param help_disp: display help flag
-        :type line: bool.
-        """
+        """Main raw patch worker function — uses the shared optimized engine."""
         if help_disp:
             self.parser.print_help()
             return ReturnCodes.SUCCESS
-        try:
-            (options, _) = self.rdmc.rdmc_parse_arglist(self, line)
-        except (InvalidCommandLineErrorOPTS, SystemExit):
-            if ("-h" in line) or ("--help" in line):
-                return ReturnCodes.SUCCESS
-            else:
-                raise InvalidCommandLineErrorOPTS("")
 
-        headers = {}
-        results = []
-        if getattr(options, "no_auth"):
-            pass
-        else:
-            if hasattr(options, "sessionid") and options.sessionid:
-                _ = self.sessionvalidation(options)
-            else:
-                self.patchvalidation(options)
+        options = self._parse_arguments(line)
+        headers, _ = self._parse_headers(options)
 
-        contentsholder = None
-        try:
-            with open(options.path, "r") as _if:
-                contentsholder = json.loads(_if.read(), object_pairs_hook=OrderedDict)
-        except IOError:
-            raise InvalidFileInputError(
-                "File '%s' doesn't exist. " "Please create file by running 'save' command." % options.path
-            )
-        except ValueError:
-            raise InvalidFileFormattingError("Input file '%s' was not " "formatted properly." % options.path)
+        contentsholder = self._load_body_file(options.path)
+        pairs = self._extract_path_body_pairs(contentsholder, options.path)
 
-        if options.headers:
-            extraheaders = options.headers.split(",")
+        self._raw_method = "PATCH"
 
-            for item in extraheaders:
-                header = item.split(":")
+        if getattr(options, "no_auth", False):
+            results = []
+            for rpath, body in pairs:
+                self._raw_body = body
+                results.append(self._handle_no_auth_request(options, headers, rpath))
+            self._raw_body = None
+            return ReturnCodes.SUCCESS if all(r == ReturnCodes.SUCCESS for r in results) else ReturnCodes.GENERAL_ERROR
 
-                try:
-                    headers[header[0]] = header[1]
-                except:
-                    raise InvalidCommandLineError("Invalid format for --headers option.")
-        if getattr(options, "no_auth"):
-            if options.url:
-                url = "https://" + options.url.rstrip("/")
-            else:
-                url = "https://16.1.15.1"
-            path = urljoin(url, contentsholder["path"].lstrip("/"))
-            body = contentsholder["body"]
-            try:
-                response = requests.patch(path, json=body, verify=False)
-                sys.stderr.write(f"[{response.status_code}]\n")
-                if response.content:
-                    sys.stdout.write(response.content.decode("utf-8") + "\n")
-                return ReturnCodes.SUCCESS if 200 <= response.status_code < 300 else ReturnCodes.GENERAL_ERROR
-            except Exception as e:
-                sys.stderr.write(f"Error: Failed to complete operation - {str(e)}\n")
-                return ReturnCodes.INVALID_COMMAND_LINE_ERROR
+        if getattr(options, "sessionid", False):
+            headers["X-Auth-Token"] = options.sessionid
 
-        if "path" in contentsholder and "body" in contentsholder:
-            results.append(
-                self.rdmc.app.patch_handler(
-                    contentsholder["path"],
-                    contentsholder["body"],
-                    headers=headers,
-                    silent=options.silent,
-                    optionalpassword=options.biospassword,
-                    service=options.service,
-                    noauth=options.no_auth,
-                )
-            )
+        overall = ReturnCodes.SUCCESS
+        for rpath, body in pairs:
+            self._raw_body = body
+            rc = self._execute_main_flow(options, headers, None, rpath)
+            if rc != ReturnCodes.SUCCESS:
+                overall = rc
 
-        elif all([re.match(r"^/(\S+/?)+$", key) for key in contentsholder]):
-            for path, body in contentsholder.items():
-                results.append(
-                    self.rdmc.app.patch_handler(
-                        path,
-                        body,
-                        headers=headers,
-                        silent=options.silent,
-                        optionalpassword=options.biospassword,
-                        service=options.service,
-                        noauth=options.no_auth,
-                    )
-                )
-        else:
-            raise InvalidFileFormattingError("Input file '%s' was not format properly." % options.path)
-
-        returnresponse = False
-
-        if options.response or options.getheaders:
-            returnresponse = True
-
-        overall_success = True
-        if results:
-            for result in results:
-                status = getattr(result, "status", 200)
-                # Only report non-2xx status codes to stderr; successful
-                # responses (200-299) are silent to avoid confusing output.
-                if not (200 <= status < 300):
-                    sys.stderr.write(f"[{status}]\n")
-                    overall_success = False
-                if returnresponse:
-                    if options.getheaders:
-                        self.rdmc.ui.print_out_json(dict(result.getheaders()))
-                    if options.response:
-                        self.rdmc.ui.printer(result.read)
-                        self.rdmc.ui.printer("\n")
-
+        self._raw_body = None
         self.cmdbase.logout_routine(self, options)
-        return ReturnCodes.SUCCESS if overall_success else ReturnCodes.GENERAL_ERROR
+        return overall
 
-    def patchvalidation(self, options):
-        """Raw patch validation function
-
-        For service mode: Skip all validation to minimise requests.
-        For non-service mode: Perform minimal login only (skipbuild=True) so
-        schemas and registries are never fetched — raw commands don't need them.
-
-        :param options: command line options
-        :type options: list.
-        """
-        if getattr(options, "service", False):
-            return  # session already established; skip all unnecessary requests
-        self.cmdbase.login_validation(self, options, skipbuild=True)
-
-    def sessionvalidation(self, options):
-        """Raw patch session validation function
-
-        :param options: command line options
-        :type options: list.
-        """
-
-        url = None
-        if options.user or options.password or options.url:
-            if options.url:
-                url = options.url
-        else:
-            if self.rdmc.app.redfishinst.base_url:
-                url = self.rdmc.app.redfishinst.base_url
-        if url and "https://" not in url:
-            url = "https://" + url
-
-        return url
+    def _invoke_framework_handler(self, path, headers, options):
+        """Use patch_handler for the high-security / legacy fallback path."""
+        is_service = getattr(options, "service", False)
+        return self.rdmc.app.patch_handler(
+            path,
+            self._raw_body or {},
+            headers=headers,
+            silent=True,
+            optionalpassword=getattr(options, "biospassword", None),
+            service=is_service,
+        )
 
     def definearguments(self, customparser):
-        """Wrapper function for new command main function
-
-        :param customparser: command line input
-        :type customparser: parser.
-        """
         if not customparser:
             return
-
         self.cmdbase.add_login_arguments_group(customparser)
-
-        customparser.add_argument(
-            "path",
-            help="Path to the JSON file containing the data to be patched.",
-        )
+        customparser.add_argument("path", help="Path to the JSON file containing the data to be patched.")
         customparser.add_argument(
             "--silent",
             dest="silent",
             action="store_true",
-            help="""Use this flag to silence responses""",
             default=False,
+            help="Use this flag to suppress the HTTP status line (e.g. [200]) only. "
+            "The response body is still printed.",
         )
         customparser.add_argument(
             "--response",
             dest="response",
             action="store_true",
-            help="Use this flag to return the iLO response body.",
             default=False,
+            help="Use this flag to return the iLO response body.",
         )
         customparser.add_argument(
             "--getheaders",
             dest="getheaders",
             action="store_true",
-            help="Use this flag to return the iLO response headers.",
             default=False,
+            help="Use this flag to return the iLO response headers.",
         )
         customparser.add_argument(
             "--headers",
             dest="headers",
-            help="Use this flag to add extra headers to the request."
-            "\t\t\t\t\t Usage: --headers=HEADER:VALUE,HEADER:VALUE",
             default=None,
+            help="Use this flag to add extra headers. Usage: --headers=HEADER:VALUE,HEADER:VALUE",
         )
         customparser.add_argument(
             "--service",
             dest="service",
             action="store_true",
-            help="""Use this flag to enable service mode and increase the function speed""",
             default=False,
+            help="Use this flag to enable service mode and increase the function speed",
         )
         customparser.add_argument(
             "--no_auth",
             dest="no_auth",
             action="store_true",
-            help="""Use this flag to enable service mode and increase the function speed""",
             default=False,
+            help="Use this flag to skip authentication for the request",
         )

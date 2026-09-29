@@ -29,11 +29,13 @@ import subprocess
 import sys
 import tempfile
 import time
+from urllib.parse import quote, urlsplit, urlunsplit
 
 import redfish.hpilo.risblobstore2 as risblobstore2
 from redfish.rest.connections import SecurityStateError
 from redfish.ris.utils import filter_output
 from six.moves import queue
+from redfish.ris.rmc_helper import IloResponseError
 
 try:
     from rdmc_helper import (
@@ -170,6 +172,12 @@ class ServerlogsCommand:
         :type options: list.
         """
         ilover = self.rdmc.app.getiloversion()
+        if not ilover:
+            LOGGER.debug("Unable to parse iLO version %s for serverlogs.", ilover)
+            raise IncompatibleiLOVersionError(
+                "Unable to determine iLO version. Please check the connection and try again."
+            )
+
         if not options.service:
             raise InvalidCommandLineError("Please select a log type using the --selectlog option.")
 
@@ -525,7 +533,11 @@ class ServerlogsCommand:
         if path:
             LOGGER.info("Getting data from %s", str(path))
             if options.service == "AHS":
-                data = self.rdmc.app.get_handler(path, silent=True, uncache=True)
+                parts = urlsplit(path)
+                encoded_path = quote(parts.path, safe="/%")
+                encoded_query = quote(parts.query, safe="=&%+") if parts.query else parts.query
+                ahs_path = urlunsplit((parts.scheme, parts.netloc, encoded_path, encoded_query, parts.fragment))
+                data = self.rdmc.app.get_handler(ahs_path, silent=True, uncache=True)
                 if data:
                     return data.ori
                 else:
@@ -931,7 +943,7 @@ class ServerlogsCommand:
 
         if options.filename:
             raise InvalidCommandLineError(
-                "AHS logs must be downloaded with default name! " "Re-run command without filename!"
+                "AHS logs must be downloaded with default name! Re-run command without filename!"
             )
 
         secstate = risblobstore2.BlobStore2().get_security_state()
@@ -940,11 +952,21 @@ class ServerlogsCommand:
             secstate = secstate.decode("utf-8")
         if isinstance(secstate, str):
             secstate = secstate.replace("\x00", "").strip()
+
+        # An empty response here means the CHIF read for security state
+        # itself failed/returned nothing - i.e. iLO is not responding correctly
+        # over CHIF. Previously this was silently defaulted to 0 (production)
+        # and execution continued into the BLACKBOX mount step, which then had
+        # to wait out the full ~100s getbbabspath() retry loop (and sometimes
+        # twice, due to the mountbb()+retry fallback) before failing with a
+        # generic "iLO not responding" error. Fail fast here instead.
         if secstate == "":
-            secstate = 0
+            self.rdmc.ui.error("Empty response received while reading security state.")
+            raise IloResponseError()
+
         self.rdmc.ui.printer("Security State is {}...\n".format(secstate))
         if int(secstate) > 3:
-            raise SecurityStateError("AHS logs cannot be downloaded locally " "in high security state.\n")
+            raise SecurityStateError("AHS logs cannot be downloaded locally in high security state.\n")
 
         # Reason: Check AHS availability before attempting the mount to fail fast
         # with a clear message if another application has the partition locked.
@@ -982,6 +1004,8 @@ class ServerlogsCommand:
             allfiles = self.getfilenames(options=options, cfilelist=cfilelist)
             self.getdatfilelisting(cfilelist=cfilelist, allfile=allfiles)
             self.createahsfile(ahsfile=self.getahsfilename(options))
+        except NoContentsFoundForOperationError:
+            raise
         except Exception as excp:
             raise PartitionMoutingError(
                 "An exception occurred obtaining Blackbox data files. " "The directory may be empty: %s.\n" % excp
@@ -1273,8 +1297,7 @@ class ServerlogsCommand:
                             if not cfilelist:
                                 empty_data_count += 1
                                 LOGGER.warning(
-                                    "BLACKBOX partition mounted but data directory is empty "
-                                    "(attempt %d/%d).",
+                                    "BLACKBOX partition mounted but data directory is empty " "(attempt %d/%d).",
                                     empty_data_count,
                                     max_empty_data_retries,
                                 )
@@ -1319,8 +1342,7 @@ class ServerlogsCommand:
                             else:
                                 self.abspath = abspathbb
                             LOGGER.debug(
-                                "BLACKBOX found in /proc/mounts at: %s. "
-                                "Using data path: %s",
+                                "BLACKBOX found in /proc/mounts at: %s. " "Using data path: %s",
                                 abspathbb,
                                 self.abspath,
                             )
@@ -1328,8 +1350,7 @@ class ServerlogsCommand:
                             if not cfilelist:
                                 empty_data_count += 1
                                 LOGGER.warning(
-                                    "BLACKBOX partition mounted but data directory is empty "
-                                    "(attempt %d/%d).",
+                                    "BLACKBOX partition mounted but data directory is empty " "(attempt %d/%d).",
                                     empty_data_count,
                                     max_empty_data_retries,
                                 )
@@ -1483,11 +1504,12 @@ class ServerlogsCommand:
         :type options: list.
         """
         LOGGER.info("Obtaining Serialnumber from iLO for AHS filename.")
+        snum = None
+        filtereddictslists = []
 
         if not options.sessionid:
             val = "ComputerSystem."
             filtereddatainstance = self.rdmc.app.select(selector=val)
-            snum = None
 
             try:
                 filtereddictslists = [x.resp.dict for x in filtereddatainstance]
@@ -1502,7 +1524,8 @@ class ServerlogsCommand:
                         service=True,
                         uncache=True,
                     )
-                    snum = resp.dict["SerialNumber"] if resp else snum
+                    resp_dict = getattr(resp, "dict", None)
+                    snum = resp_dict.get("SerialNumber") if resp_dict else snum
                 except KeyError:
                     raise InvalidKeyError(
                         "Unable to find key SerialNumber, please check path %s" % self.rdmc.app.typepath.defs.systempath
@@ -1510,7 +1533,7 @@ class ServerlogsCommand:
                 except Exception:
                     raise NoContentsFoundForOperationError("Unable to retrieve log instance.")
 
-            snum = filtereddictslists[0]["SerialNumber"] if not snum else snum
+            snum = filtereddictslists[0].get("SerialNumber") if filtereddictslists and not snum else snum
         else:
             resp = self.rdmc.app.get_handler(
                 "/redfish/v1/systems/1",
@@ -1519,9 +1542,11 @@ class ServerlogsCommand:
                 service=True,
                 uncache=True,
             )
-            if "SerialNumber" in resp.dict:
-                snum = resp.dict["SerialNumber"] if resp else snum
-        snum = "UNKNOWN" if snum.isspace() else snum
+            resp_dict = getattr(resp, "dict", None)
+            if resp_dict:
+                snum = resp_dict.get("SerialNumber") or snum
+
+        snum = str(snum or "").strip() or "UNKNOWN"
         timenow = (str(datetime.datetime.now()).split()[0]).split("-")
         todaysdate = "".join(timenow)
 

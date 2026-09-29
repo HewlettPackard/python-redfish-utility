@@ -22,7 +22,6 @@ import json
 from random import randint
 import shutil
 import zipfile
-import tempfile
 from io import open
 
 from collections import Counter
@@ -32,6 +31,7 @@ from ctypes import c_char_p, c_int, c_bool
 from redfish.hpilo.risblobstore2 import BlobStore2
 
 from .UploadComponentCommand import DEFAULT_WAIT_TIME
+from .fwpkg_cleanup import create_fwpkg_tempdir, safe_rmtree
 
 try:
     from rdmc_helper import (
@@ -278,7 +278,10 @@ class FwpkgCommand:
 
         finally:
             if tempdir:
-                shutil.rmtree(tempdir)
+                # Reason: on Windows the extracted fwpkg files may still be
+                # locked by the OS/antivirus/SUM; tolerate cleanup failures so a
+                # locked temp file never fails a successful flash.
+                safe_rmtree(tempdir)
 
         self.cmdbase.logout_routine(self, options)
         # Return code
@@ -585,7 +588,7 @@ class FwpkgCommand:
         files = []
         imagefiles = []
         payloaddata = None
-        tempdir = tempfile.mkdtemp()
+        tempdir = create_fwpkg_tempdir()
         pldmflag = False
         pkgfile_l = pkgfile.lower()
         if (

@@ -18,7 +18,11 @@
 """DetectiLO Command for RDMC"""
 from redfish.hpilo.vnichpilo import AppAccount
 from redfish.rest.connections import ChifDriverMissingOrNotFound, VnicNotEnabledError
-import requests
+
+try:
+    from security.pqc import make_pqc_session
+except ImportError:
+    from ilorest.security.pqc import make_pqc_session
 
 try:
     from rdmc_helper import (
@@ -106,7 +110,7 @@ class DetectiLOCommand:
     def detect_remote_ilotype(self, options):
         try:
             path = "https://" + options.url + "/redfish/v1"
-            data = requests.get(path, verify=False)
+            data = make_pqc_session(url=path).get(path, verify=False)
             json_data = data.json()
             Oem_Hpe = json_data["Oem"]["Hpe"]
             if "ManagerType" in Oem_Hpe["Manager"][0]:

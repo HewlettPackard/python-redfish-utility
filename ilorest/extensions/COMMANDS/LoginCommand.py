@@ -18,15 +18,18 @@
 """Login Command for RDMC"""
 
 import getpass
+import json
 import os
+import platform
 import socket
+import warnings
+from argparse import SUPPRESS
+
 import redfish.ris
+import urllib3
+import urllib3.util
 from redfish.hpilo.vnichpilo import AppAccount
 from redfish.rest.connections import ChifDriverMissingOrNotFound, VnicNotEnabledError
-import requests
-from requests.exceptions import SSLError, RequestException
-import platform
-from argparse import SUPPRESS
 
 try:
     from tpm_lock import TpmFileLock, retry_with_backoff
@@ -34,20 +37,28 @@ except ImportError:
     from ilorest.tpm_lock import TpmFileLock, retry_with_backoff
 
 try:
+    from ilo_generation_cache import read_cached_generation, write_cached_generation
+except ImportError:
+    from ilorest.ilo_generation_cache import (
+        read_cached_generation,
+        write_cached_generation,
+    )
+
+try:
     from rdmc_helper import (
-        Encryption,
         LOGGER,
+        AppAccountExistsError,
+        Encryption,
+        GenBeforeLoginError,
+        InactiveAppAccountTokenError,
         InvalidCommandLineError,
         InvalidCommandLineErrorOPTS,
+        NoAppAccountError,
         PathUnavailableError,
         ReturnCodes,
         UsernamePasswordRequiredError,
         VnicExistsError,
         VnicLoginError,
-        InactiveAppAccountTokenError,
-        NoAppAccountError,
-        GenBeforeLoginError,
-        AppAccountExistsError,
     )
 except ModuleNotFoundError:
     from ilorest.rdmc_helper import (
@@ -67,6 +78,11 @@ except ModuleNotFoundError:
     )
 
 from redfish.rest.v1 import ServerDownOrUnreachableError
+
+try:
+    from security.pqc import _PQC_STRICT_MIN_GENERATION, build_ssl_context, resolve_mode_from_env
+except ImportError:
+    from ilorest.security.pqc import _PQC_STRICT_MIN_GENERATION, build_ssl_context, resolve_mode_from_env
 
 
 class LoginCommand:
@@ -135,6 +151,24 @@ class LoginCommand:
     def perform_login(self, options, skipbuild, user_ca_cert_data, args, app_obj):
 
         ilo_ver = self.ilo_gen
+        # On iLO7+, in-band CHIF (--use_chif) is valid ONLY in factory mode, so the security
+        # state is known to be factory (get_security_state() == 1) without probing. Passing it
+        # lets the CHIF layer skip the ChifVerifyCredentials() and get_security_state() round
+        # trips, restoring ~6.5s factory login timing. Left as None otherwise (iLO5/6 in-band
+        # can be production/high-security), so the library still probes and rejects wrong
+        # production passwords.
+        #
+        # Freshness/safety of this hint (why it is never stale-trusted):
+        #   * `ilo_ver` is probed fresh for THIS login by get_ilover_beforelogin() (a live
+        #     /redfish/v1 read or in-band probe), not read from a persisted cache.
+        #   * A usable CHIF channel to an iLO7+ already implies factory mode (production/FIPS/
+        #     CNSA are VNIC-only on iLO7+), so hint == 1 cannot point to factory on a server we
+        #     are actually reaching in production over CHIF.
+        #   * The library never trusts this hint as a security boundary: it acts on it only
+        #     inside a live dll.ChifIsSecurityRequired() == "not required" gate, so a secure iLO
+        #     always takes the full-verification path regardless of the hint. See
+        #     BlobStore2.initializecreds() for the detailed guarantee.
+        security_state = 1 if (options.usechif and ilo_ver and ilo_ver >= 7) else None
         if ilo_ver < 7 or (ilo_ver >= 7 and (options.usechif or options.noapptoken or args)):
             login_response = self.rdmc.app.login(
                 username=self.username,
@@ -151,6 +185,8 @@ class LoginCommand:
                 json_out=self.rdmc.json,
                 login_otp=self.login_otp,
                 log_dir=self.rdmc.log_dir,
+                ilo_generation=ilo_ver,
+                security_state=security_state,
             )
         else:
             if options.hostappname or options.hostappid or options.salt:
@@ -173,7 +209,9 @@ class LoginCommand:
             # perform login/logout concurrently. The file lock ensures only one process
             # touches the TPM semaphore at a time.
             with TpmFileLock() as _tpm_lock:
-                login_response = self._perform_app_account_login(app_obj, options, skipbuild, user_ca_cert_data)
+                login_response = self._perform_app_account_login(
+                    app_obj, options, skipbuild, user_ca_cert_data, ilo_ver
+                )
 
         if options.session_id and login_response and hasattr(login_response, "_auth_key"):
             self.rdmc.ui.printer(f"\nSessionID:{login_response._auth_key}\n\n")
@@ -181,7 +219,7 @@ class LoginCommand:
         if options.session_loc and login_response and hasattr(login_response, "_session_location"):
             self.rdmc.ui.printer(f"Location:{login_response._session_location}\n\n")
 
-    def _perform_app_account_login(self, app_obj, options, skipbuild, user_ca_cert_data):
+    def _perform_app_account_login(self, app_obj, options, skipbuild, user_ca_cert_data, ilo_ver):
         """Perform the app-account token check and VNIC login with retry.
 
         This method is called while holding the TpmFileLock, ensuring only one
@@ -194,6 +232,8 @@ class LoginCommand:
             options: Parsed command line options.
             skipbuild: Whether to skip monolith build.
             user_ca_cert_data: CA certificate data dict.
+            ilo_ver: iLO generation (float/int) forwarded to vnic_login as
+                ``ilo_generation``. Captured by the ``_do_login`` closure below.
 
         Returns:
             The login response object from vnic_login.
@@ -241,12 +281,16 @@ class LoginCommand:
                     user_ca_cert_data=user_ca_cert_data,
                     biospassword=self.biospassword,
                     sessionid=self.sessionid,
+                    ilo_generation=ilo_ver,
                 )
             except redfish.hpilo.vnichpilo.InactiveAppAccountTokenError:
                 LOGGER.error("Login failed due to an inactive or expired App Account token.")
                 raise InactiveAppAccountTokenError()
             except (AppAccountExistsError, NoAppAccountError, InactiveAppAccountTokenError):
                 # Non-retryable errors — propagate immediately
+                raise
+            except (NameError, AttributeError, TypeError, SyntaxError, ImportError):
+                # Programmer errors — do not retry, do not relabel as TPM issues.
                 raise
             except Exception as excp:
                 # Log the real exception so debug logs show the actual cause
@@ -290,7 +334,7 @@ class LoginCommand:
         :type skipbuild: boolean.
         """
         try:
-            (options, args) = self.rdmc.rdmc_parse_arglist(self, line)
+            options, args = self.rdmc.rdmc_parse_arglist(self, line)
         except (InvalidCommandLineErrorOPTS, SystemExit):
             if ("-h" in line) or ("--help" in line):
                 return ReturnCodes.SUCCESS
@@ -351,11 +395,12 @@ class LoginCommand:
             if getattr(options, "force_vnic", False):
                 self.rdmc.ui.printer("\nAttempt to login with Vnic...\n")
             try:
-                sock = socket.create_connection((args[0], 443))
-                if sock:
-                    sock.close
-            except:
-                pass
+                if args:
+                    sock = socket.create_connection((args[0], 443))
+                    if sock:
+                        sock.close()
+            except (socket.error, OSError) as exc:
+                LOGGER.debug("Socket connection check failed: %s", exc)
 
             self.sessionid = options.sessionid
             self.login_otp = options.login_otp
@@ -498,17 +543,56 @@ class LoginCommand:
             if self.rdmc.config.url:
                 self.url = self.rdmc.config.url
 
-    def get_ilover_beforelogin(self, args, app_obj, options):
-        """
-        Attempts to retrieve the iLO version before login.
+    def _get_cachedir(self):
+        """Return the rdmc app cache directory if available, else None."""
+        try:
+            if self.rdmc and self.rdmc.app and hasattr(self.rdmc.app, "cachedir"):
+                return self.rdmc.app.cachedir
+        except Exception:
+            pass
+        return None
 
-        :param args: List of command-line arguments; expects iLO IP/hostname at index 0.
-        :param app_obj: App object for fallback retrieval if args is empty.
-        :param options: Options object, may include flags like 'force_vnic' or 'usechif'.
-        :return: iLO version as an integer.
-        :raises: GenBeforeLoginError, VnicExistsError, ChifDriverMissingOrNotFound, VnicNotEnabledError
+    def _read_cached_ilo_generation(self):
+        """Read the persisted iLO generation, or None if unavailable."""
+        return read_cached_generation(self._get_cachedir())
+
+    def _write_cached_ilo_generation(self, version):
+        """Persist a freshly probed iLO generation for reuse by later commands."""
+        try:
+            write_cached_generation(version, self._get_cachedir())
+        except (TypeError, ValueError):
+            # Never let caching failures break login.
+            LOGGER.debug("Skipping iLO generation cache write for value: %s", version)
+
+    def get_ilover_beforelogin(self, args, app_obj, options):
+        """Retrieve the iLO version before login.
+
+        For out-of-band targets (args supplied) this makes a direct HTTPS GET to
+        ``/redfish/v1`` to read the ``ManagerType`` / ``PRODGEN`` field. The request
+        is made **directly** (proxy bypassed) so that:
+
+        * Corporate TLS-inspection proxies (e.g. Zscaler) cannot intercept and hang
+          the CNSA 2.0 / PQC TLS handshake.
+        * The read timeout is not wasted waiting for a proxy that cannot complete a
+          post-quantum key exchange.
+
+        If the direct probe fails (SSL error or timeout), a retry is attempted with a
+        longer timeout. If both fail, a :class:`GenBeforeLoginError` is raised with a
+        clear diagnostic that includes the ``--url`` workaround.
+
+        Args:
+            args: List of command-line arguments; expects iLO IP/hostname at index 0.
+            app_obj: AppAccount object for in-band fallback when args is empty.
+            options: Parsed options; may carry ``force_vnic`` or ``usechif`` flags.
+
+        Returns:
+            iLO version as an integer (e.g. 7 or 8).
+
+        Raises:
+            GenBeforeLoginError: If the generation cannot be determined.
+            VnicExistsError: If the VNIC path is unavailable.
         """
-        ip = path = None  # Initialize to avoid UnboundLocalError
+        ip = path = None  # avoid UnboundLocalError in exception handlers
         try:
             if args:
                 ip = args[0]
@@ -516,11 +600,56 @@ class LoginCommand:
                 if ip and "https://" not in ip:
                     path = f"https://{ip}/redfish/v1"
 
-                response = requests.get(path, verify=False, timeout=10)
-                response.raise_for_status()
+                # Use urllib3 directly with an explicit PQC ssl_context so that the
+                # correct KEM groups/sigalgs are applied regardless of whether
+                # OPENSSL_CONF is set.  A plain PoolManager (no ProxyManager) is used
+                # so corporate TLS-inspection proxies (e.g. Zscaler) that cannot
+                # complete a CNSA 2.0 handshake are bypassed automatically.
+
+                def _probe(timeout_s):
+                    """Single direct GET attempt with explicit PQC ssl_context and proxy bypass."""
+                    # The iLO generation is not yet known at probe time, so offer the
+                    # widest KEM group set (Level-V MLKEM1024 groups first, then the
+                    # Level-III hybrids and classical fallbacks).  A strict iLO8 rejects
+                    # a Level-III-only ClientHello with a fatal handshake_failure, so
+                    # without the Level-V groups the probe could never detect an iLO8.
+                    ssl_ctx = build_ssl_context(
+                        resolve_mode_from_env(), verify=False, generation=_PQC_STRICT_MIN_GENERATION
+                    )
+                    http = urllib3.PoolManager(
+                        ssl_context=ssl_ctx,
+                        timeout=urllib3.util.Timeout(connect=timeout_s[0], read=timeout_s[1]),
+                    )
+                    try:
+                        return http.request("GET", path)
+                    except Exception:
+                        http.clear()
+                        raise
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+
+                    try:
+                        response = _probe(timeout_s=(5, 10))  # (connect, read)
+                    except (urllib3.exceptions.SSLError, urllib3.exceptions.HTTPError) as _first_exc:
+                        # Retry once with a longer read timeout in case the PQC
+                        # handshake takes longer than expected on first connection.
+                        LOGGER.debug(
+                            "Pre-login generation probe failed (%s: %s); retrying with extended timeout.",
+                            type(_first_exc).__name__,
+                            _first_exc,
+                        )
+                        try:
+                            response = _probe(timeout_s=(5, 30))
+                        except (urllib3.exceptions.SSLError, urllib3.exceptions.HTTPError):
+                            raise  # re-raise for the outer handler
+
+                # urllib3 does not have raise_for_status(); check the status manually.
+                if response.status >= 400:
+                    raise urllib3.exceptions.HTTPError(f"HTTP error {response.status} from {path}")
 
                 try:
-                    json_data = response.json()
+                    json_data = json.loads(response.data)
                     oem_data = json_data.get("Oem", {}).get("Hpe") or json_data.get("Oem", {}).get("Hp")
                     if not oem_data:
                         raise KeyError("Oem->Hpe or Oem->Hp block missing in response.")
@@ -542,7 +671,22 @@ class LoginCommand:
                         "Ensure the iLO firmware is Redfish-compliant and responds correctly.\n"
                     )
             else:
+                # Local in-band path: detecting the generation over CHIF costs a
+                # full channel open/close, and the close incurs libhpsrv's ~1 s
+                # Sleep(1000). The generation is a hardware constant, so reuse the
+                # cached value when present and skip the probe entirely. This is
+                # safe even under --nocache because the generation never changes.
+                cached_gen = self._read_cached_ilo_generation()
+                if cached_gen is not None:
+                    LOGGER.debug(
+                        "Using cached iLO generation (skipping pre-login CHIF probe): %s",
+                        cached_gen,
+                    )
+                    return int(cached_gen)
+
                 ilo_ver, _ = self.rdmc.app.getilover_beforelogin(app_obj)
+                # Persist for subsequent commands so they avoid the probe too.
+                self._write_cached_ilo_generation(ilo_ver)
 
             return ilo_ver
 
@@ -561,15 +705,31 @@ class LoginCommand:
                 "Refer to the documentation for setup instructions.\n"
             )
 
-        except SSLError:
+        except urllib3.exceptions.SSLError as e:
             raise GenBeforeLoginError(
-                f"SSL Error: Unable to connect to the server at {ip or '[unknown IP]'}.\n"
-                "Please verify the iLO IP and try accessing the GUI.\n"
+                f"SSL/TLS Error: Unable to connect to {ip or '[unknown IP]'}.\n"
+                f"Details: {e}\n"
+                "If iLO is configured for CNSA 2.0 (PQC), ensure the iLORest build\n"
+                "includes OpenSSL 3.5+ with CNSA 2.0 TLS defaults (openssl-cnsa2.cnf).\n"
+                "See docs/PQC-troubleshooting.md for diagnostics.\n"
             )
 
-        except RequestException as e:
+        except urllib3.exceptions.HTTPError as e:
+            # Provide a clear diagnostic when the probe times out or is refused.
+            # Common causes: corporate proxy intercepting the direct connection,
+            # firewall blocking HTTPS, or a PQC-incompatible TLS stack.
+            _ilo_or_placeholder = ip or "<ilo-ip>"
+            _hint = (
+                "Tip: If a corporate proxy is blocking direct iLO access, set\n"
+                f"  $env:no_proxy = '{ip}'\n"
+                "and retry.  For CNSA 2.0 iLOs run:\n"
+                f"  python pqc_probe.py {_ilo_or_placeholder}\n"
+                "to diagnose the TLS handshake."
+            )
             raise GenBeforeLoginError(
-                f"Connection Error: Could not retrieve data from {path or '[unknown path]'}.\n" f"Details: {e}\n"
+                f"Connection Error: Could not retrieve data from {path or '[unknown path]'}.\n"
+                f"Details: {e}\n"
+                f"{_hint}\n"
             )
 
         except Exception as e:
